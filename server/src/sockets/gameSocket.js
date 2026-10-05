@@ -346,6 +346,31 @@ function registerGameSocket(io) {
       }
     });
 
+    // ─── Real-Time Quick Chat & Emoji Reactions ──────────────────────────
+    socket.on('sendReaction', ({ emoji, text }, cb) => {
+      try {
+        const roomId   = socket.data.roomId;
+        const playerId = socket.data.playerId;
+        const room     = getRoom(roomId);
+        if (!room) return cb && cb({ ok: false, error: 'ROOM_NOT_FOUND' });
+
+        const player = room.players.find(p => p.id === playerId);
+        const reaction = {
+          id: 'rx_' + Math.random().toString(36).substring(2, 8),
+          playerId,
+          playerName: player?.name || 'Player',
+          emoji: emoji || null,
+          text: text || null,
+          timestamp: Date.now(),
+        };
+
+        io.to(roomId).emit('playerReaction', reaction);
+        if (cb) cb({ ok: true, reaction });
+      } catch (e) {
+        if (cb) cb({ ok: false, error: e.message });
+      }
+    });
+
     // ─── Disconnection ───────────────────────────────────────────────────
 
     socket.on('disconnect', () => {

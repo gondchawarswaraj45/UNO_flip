@@ -103,10 +103,16 @@ export function useSocket() {
       toast(`${player?.name ?? 'Someone'} said UNO! 🃏`, { icon: '🔔' });
     });
 
+    // ─── Real-Time Reactions & Quick Chat ──────────────────────────────────────
+    socket.on('playerReaction', (reaction) => {
+      useGameStore.getState().setPlayerReaction(reaction);
+    });
+
     // ─── Game over ─────────────────────────────────────────────────────────────
 
     socket.on('gameOver', (result) => {
       setGameResult(result);
+      useGameStore.getState().recordMatchCompleted(result);
       setScreen('RESULT');
     });
 

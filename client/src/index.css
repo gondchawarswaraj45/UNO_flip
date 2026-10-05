@@ -562,19 +562,88 @@ p  { color: var(--text-secondary); line-height: 1.6; }
 .anim-fade-in    { animation: fadeIn 0.3s ease forwards; }
 .anim-fade-in-up { animation: fadeInUp 0.4s var(--ease-smooth) forwards; }
 
+@keyframes pulseGoldRing {
+  0%, 100% {
+    box-shadow: 0 0 14px rgba(229, 185, 76, 0.5), inset 0 0 4px rgba(255, 255, 255, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(229, 185, 76, 0.95), inset 0 0 8px rgba(255, 255, 255, 0.8);
+    transform: scale(1.04);
+  }
+}
+
+@keyframes bubbleBounce {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-4px) scale(1.12);
+  }
+  100% {
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseRed {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(225, 29, 72, 0.6);
+  }
+  100% {
+    transform: scale(1.1);
+    box-shadow: 0 0 22px rgba(225, 29, 72, 1);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* ─── Responsive Adjustments ─────────────────────────────────── */
+@media (min-width: 768px) {
+  .md-inline-flex { display: inline-flex !important; }
+}
+
+@media (min-width: 640px) {
+  .sm-inline { display: inline !important; }
+}
+
 @media (max-width: 768px) {
   :root {
-    --card-w: 54px;
-    --card-h: 82px;
+    --card-w: 62px;
+    --card-h: 94px;
+    --card-w-lg: 74px;
+    --card-h-lg: 112px;
   }
-  .uno-btn { font-size: 1.15rem; padding: 10px 20px; }
-  .caught-btn { font-size: 0.85rem; padding: 8px 16px; }
+  .uno-btn { font-size: 1.15rem; padding: 10px 18px; }
+  .caught-btn { font-size: 0.85rem; padding: 8px 14px; }
+  .btn-lg { padding: 12px 24px; font-size: 1rem; }
+  .btn-xl { padding: 14px 28px; font-size: 1.1rem; }
 }
 
 @media (max-width: 480px) {
   :root {
-    --card-w: 46px;
-    --card-h: 70px;
+    --card-w: 52px;
+    --card-h: 78px;
+    --card-w-lg: 64px;
+    --card-h-lg: 96px;
   }
+  .uno-btn { font-size: 1.05rem; padding: 8px 14px; }
+  .caught-btn { font-size: 0.78rem; padding: 7px 12px; }
 }

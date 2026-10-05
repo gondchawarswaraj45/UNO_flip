@@ -1,0 +1,332 @@
+================================================================================
+                    UNO FLIP — COMPREHENSIVE ROADMAP & SUGGESTIONS
+================================================================================
+Document Purpose:
+An exhaustive, realistic, and highly organized compilation of feature suggestions,
+gameplay enhancements, social mechanics, mobile optimizations, visual polish,
+architecture scaling, and live-ops systems for the UNO Flip digital platform.
+================================================================================
+
+TABLE OF CONTENTS:
+1. Core Gameplay & House Rules
+2. Social & Multiplayer Systems
+3. Progression, Economy, Quests & Cosmetics
+4. Mobile Experience, Touch & PWA Innovations
+5. Visual Effects, 3D Graphics & Animations
+6. Audio, Soundscapes & Voice Feedback
+7. Server Architecture, Scaling & Anti-Cheat
+8. AI Bots & Machine Learning Opponents
+9. Competitive Tournaments & LiveOps
+10. Accessibility & Internationalization (i18n)
+
+================================================================================
+1. CORE GAMEPLAY & HOUSE RULES
+================================================================================
+1.1. Draw Card Stacking:
+     - Allow optional stacking of penalty cards (+2 on +2, +4 on +4, or Dark Draw 5 on Draw 5).
+     - When a player cannot counter-stack, they draw the accumulated total (e.g. +8 or +15).
+     - Configurable toggle in room settings: "Stacking: ON / OFF".
+
+1.2. Jump-In Rule:
+     - If a player holds an EXACT match (identical face, color, and value) to the discard top,
+       they can play it out of turn immediately before the next turn resolves.
+     - Play order then resumes from that player, skipping everyone in between.
+
+1.3. 7-0 Hand Rotation Rule:
+     - Playing a '7' allows the player to choose any opponent and swap entire hands.
+     - Playing a '0' causes all players to pass their hands in the current direction of play.
+     - Adds high-stakes tactical chaos, especially in 5-color and Dark mode.
+
+1.4. Draw-to-Match vs Draw-One Mode:
+     - Standard UNO rules offer two variants:
+       a) Draw-One: Player draws 1 card; if playable, they may play it; otherwise turn ends.
+       b) Draw-to-Match: Player must keep drawing until a playable card is found.
+     - Allow room host to select between Draw-One and Draw-to-Match.
+
+1.5. Wild Draw 4 Challenge Mechanic:
+     - When Wild Draw 4 is played, the target player can challenge the move if they suspect
+       the player held a matching color card in hand.
+     - Server verifies: if guilty, the player who played WD4 draws 4 as penalty;
+       if innocent, the challenger draws 6 cards (4 + 2 penalty).
+
+1.6. Dark Side Penalty Escalation:
+     - In Two-Side mode, make Dark side action cards progressively harsher if a match stays on
+       the Dark side for more than 5 consecutive turns (e.g., Draw 5 becomes Draw 7).
+
+1.7. 2v2 Team Battle Mode:
+     - 4 players divided into two opposing teams (North/South vs East/West).
+     - Team members cannot see each other's cards, but win jointly when either teammate empties hand.
+     - Team scoring combines remaining cards from both opponents.
+
+1.8. Showdown 1v1 Duel Mode:
+     - Fast-paced 1v1 with a 7-second turn timer.
+     - Sudden death rules: cards count down from a 40-card speed deck.
+
+1.9. Discard All of Color:
+     - Introduce the custom action card "Discard All [Color]" allowing a player to discard all
+       cards of the designated color simultaneously.
+
+1.10. Flip Shield Card:
+     - A rare Dark Side card that protects the holder from the effects of the next FLIP,
+       retaining their current hand orientation while other players are flipped.
+
+================================================================================
+2. SOCIAL & MULTIPLAYER SYSTEMS
+================================================================================
+2.1. Instant URL / QR Code Room Join:
+     - Generate shareable direct invite URLs: `https://game.domain/join/7X3K9M`.
+     - Display a QR code in the lobby so players on mobile can join by pointing camera at screen.
+
+2.2. Persistent Friends System:
+     - Add players via unique Friend Code (e.g. `UNO-7829-K4`).
+     - Real-time online status indicator (In Lobby, In Match, Idle, Offline).
+     - One-click "Invite to Match" and "Join Friend's Room" buttons.
+
+2.3. Clan & Guild System:
+     - Players create or join Clans (up to 30 members) with custom clan tags, badges, and banners.
+     - Weekly Clan Leaderboards based on cumulative clan match wins.
+     - Clan trophies that unlock exclusive clan frames and card backs.
+
+2.4. Spectator Mode:
+     - Allow non-playing users to join rooms as spectators.
+     - Spectators view public board state with a 5-second broadcast delay to prevent screen-cheating.
+     - Spectator emoji cheers and live chat feed.
+
+2.5. In-Game WebRTC Voice Chat:
+     - Integrated peer-to-peer spatial voice chat between friends in private rooms.
+     - Audio panning reflects player positions around the table (left player hears on left ear).
+     - Push-to-talk and one-tap mute options.
+
+2.6. Rematch System:
+     - On Match End (ResultScreen), provide a "Rematch" button.
+     - When all players accept, restarts match instantly in the same room without re-hosting.
+
+2.7. Match Replay & Highlight Recording:
+     - Automatically record match action logs (`move_history`).
+     - Players can replay their best matches, step forward/backward, and export animated GIFs.
+
+2.8. Social Share Cards:
+     - On victory, generate a stylish, downloadable image card showing match score, win streak,
+       and player avatar ready to share on Instagram, WhatsApp, or Discord.
+
+================================================================================
+3. PROGRESSION, ECONOMY, QUESTS & COSMETICS
+================================================================================
+3.1. Level Progression & XP System:
+     - Players earn XP for turns played (+2 XP), UNO called (+15 XP), Caught (+25 XP),
+       and Match Won (+180 XP).
+     - Levels 1 through 100 with milestone rewards (gems, coins, titles, frames).
+
+3.2. Season Battle Pass:
+     - 60-day seasons with 50 tiers of rewards.
+     - Free track for all players; VIP Golden Pass track for active grinders.
+     - Seasonal themes: Season 1: Royal Renaissance, Season 2: Cyberpunk Night, Season 3: Dragon Forge.
+
+3.3. Daily & Weekly Quests:
+     - "Play 5 matches in Two-Side FLIP mode" -> 100 Coins.
+     - "Trigger 10 board FLIPs" -> 50 XP.
+     - "Catch 2 opponents who failed to shout UNO" -> 150 Coins.
+     - "Win a match without drawing more than 2 cards" -> Golden Badge.
+
+3.4. Daily Login Bonus & Fortune Wheel:
+     - Daily progressive login rewards (Day 1: 50 coins, Day 7: Exclusive Avatar Frame).
+     - Once-per-day spinning wheel for coin multipliers and mystery chests.
+
+3.5. Card Back Cosmetics:
+     - Customizable card backs visible to opponents:
+       - Cyber Matrix (pulsing cyan circuit boards)
+       - Celestial Gold (glowing constellations)
+       - Dragon Scale (iridescent ruby scales)
+       - Carbon Fiber (sleek dark textured weave)
+       - Retro 80s Synthwave (neon sunset grid)
+
+3.6. Table Felt & Environment Themes:
+     - Custom table felts:
+       - Monaco Casino Felt (classic deep green with mahogany borders)
+       - Cyberpunk Neon Rooftop (rain reflections, violet neon underglow)
+       - Cosmic Starlight (deep space nebula with drifting stars)
+       - Midnight Speakeasy (luxurious burgundy velvet with brass trim)
+
+3.7. Avatar Customization & Frames:
+     - Animated avatar frames (flame rings, pulsing lightning, rotating golden crowns).
+     - Player titles unlocked through achievements ("The Untouchable", "Flip Tactician", "Speed Demon").
+
+3.8. Currency System (Coins & Gems):
+     - Soft currency (Coins) earned through gameplay for standard cosmetics.
+     - Hard currency (Gems) earned through achievements and tournament victories for rare items.
+
+================================================================================
+4. MOBILE EXPERIENCE, TOUCH & PWA INNOVATIONS
+================================================================================
+4.1. Progressive Web App (PWA) Support:
+     - Provide full `manifest.json` and service worker caching for offline asset loading.
+     - "Install App" button on mobile browsers to launch full-screen with native app feel.
+
+4.2. Mobile Portrait vs Landscape Layout:
+     - Portrait optimization: Hand rests at bottom thumb-reach; opponents cluster neatly at top;
+       table center adapts to vertical aspect ratios.
+     - Landscape optimization: Full table spread mimicking a real tablet/desktop board.
+
+4.3. Gesture Controls:
+     - Swipe Up on card to play.
+     - Swipe Down to deselect.
+     - Double tap Draw Pile to quick-draw.
+     - Long press card to inspect card details and history.
+
+4.4. Haptic Feedback (Vibration API):
+     - Distinct vibration pulses for:
+       - Card played (light 15ms tap)
+       - Turn notification (gentle double pulse)
+       - UNO call (resonant 40ms pulse)
+       - Caught challenge (warning buzz 60ms)
+       - Victory (rhythmic celebration vibration)
+
+4.5. Battery Saver & Low Spec Mode:
+     - Toggle to disable blurred glassmorphism (`backdrop-filter`) and ambient particles
+       to preserve battery on older mobile devices.
+
+4.6. Safe Area Insets:
+     - Strict support for iPhone notch/home bar (`env(safe-area-inset-top)` and `env(safe-area-inset-bottom)`).
+
+================================================================================
+5. VISUAL EFFECTS, 3D GRAPHICS & ANIMATIONS
+================================================================================
+5.1. Three.js / WebGL 3D Card Physics:
+     - Upgrade 2D card elements to 3D physically rendered meshes.
+     - When a FLIP card is played, the entire board physically rotates 180 degrees in 3D space,
+       revealing the dark side textures on every card on the table and in players' hands.
+
+5.2. Particle Systems:
+     - Confetti cannons erupting on match victory.
+     - Spark emitters when cards are drawn and played rapidly.
+     - Dark mist and purple lightning crackles when transitioning to the Dark side.
+
+5.3. Dynamic Ambient Color Lighting:
+     - The table felt surface dynamically reflects the active card color (Red, Blue, Green, Yellow, Purple).
+     - Discard pile casts real-time soft shadows and radial color blooms.
+
+5.4. Card Deal Trajectories:
+     - Deal animation at match start: 7 cards fly smoothly from the center deck into each player's hand.
+     - Draw card animation: Card flies from deck stack directly into hand with sound.
+
+5.5. Dynamic Turn Ring:
+     - Smooth circular radial timer (green -> yellow -> red) sweeping around the active player's avatar.
+
+================================================================================
+6. AUDIO, SOUNDSCAPES & VOICE FEEDBACK
+================================================================================
+6.1. Announcer Voice Packs:
+     - Professional voice recordings announcing key plays:
+       - "UNO!"
+       - "Reverse!"
+       - "Draw Five!"
+       - "FLIP to the Dark Side!"
+       - "Caught red-handed!"
+     - Voice options: Classic Arcade, Deep Cinematic, Playful Anime, Robot AI.
+
+6.2. Background Music Ambiance:
+     - Dynamic background score that subtly shifts mood:
+       - Calm, sophisticated acoustic jazz during Light side.
+       - Mysterious, synth-driven electronic pulse during Dark side.
+       - High-tempo adrenaline beats when any player reaches 1 card remaining.
+
+6.3. Spatial Audio Panning:
+     - Web Audio API stereo panning based on opponent position around table (left opponent plays card on left audio channel).
+
+6.4. ASMR Card Physicality:
+     - High-fidelity recordings of real casino-grade linen card shuffling, table slaps, and deck cuts.
+
+================================================================================
+7. SERVER ARCHITECTURE, SCALING & ANTI-CHEAT
+================================================================================
+7.1. Redis Pub/Sub Horizontal Scaling:
+     - Integrate `@socket.io/redis-adapter` so multiple Node.js server instances can run across
+       Docker containers or Kubernetes pods, sharing room state seamlessly.
+
+7.2. Session Reconnection & State Recovery:
+     - Issue a short-lived cryptographically signed reconnection token (`reconToken`) to each client.
+     - If client disconnects due to mobile Wi-Fi drop or browser refresh, client reconnects within
+       45 seconds, presents token, and resumes their exact hand and room without losing state.
+
+7.3. Authoritative Action Rate Limiting:
+     - Server enforces minimum time delta between client actions (e.g., minimum 250ms between plays)
+       to eliminate auto-clicker scripts and automated macro cheating.
+
+7.4. Server-Side Move Validation:
+     - Continue absolute server authoritativeness: client never informs server what card is valid;
+       client only sends requested `cardId`, and server evaluates against game rules.
+
+7.5. Database Caching Layer:
+     - Cache global leaderboard queries in Redis with a 60-second TTL to avoid slamming PostgreSQL
+       with repetitive read traffic.
+
+7.6. Room Eviction & Garbage Collection:
+     - Automatic teardown of inactive/abandoned rooms after 15 minutes of inactivity to preserve memory.
+
+================================================================================
+8. AI BOTS & MACHINE LEARNING OPPONENTS
+================================================================================
+8.1. Heuristic Archetypes:
+     - Give AI bots distinct playstyles and personalities:
+       - "Aggressive Rex": Prioritizes Draw cards and attacking the player with fewest cards.
+       - "Tactical Maya": Hoards Wild and Flip cards until late game, tracks discard color frequency.
+       - "Chaos Gizmo": Plays Flip cards as often as possible to destabilize opponents.
+
+8.2. Human Dropout Replacement:
+     - If a human player leaves mid-match, an AI bot seamlessly steps in to control their hand
+       so remaining players can complete their match without interruption.
+
+8.3. Bot Chat & Reaction Simulation:
+     - AI bots dynamically trigger quick chat emojis and phrases in response to match events
+       (e.g., bot sends "😱" when hit with Draw 5, or "😈" before playing Wild Draw 4).
+
+8.4. Monte Carlo Tree Search (MCTS) Engine:
+     - Implement an advanced MCTS engine for "Nightmare" difficulty bots that simulates upcoming
+       draw probabilities and card distributions.
+
+================================================================================
+9. COMPETITIVE TOURNAMENTS & LIVEOPS
+================================================================================
+9.1. Automated Bracket Tournaments:
+     - 8-player, 16-player, and 32-player single-elimination tournament lobbies.
+     - Automatic match advancing, round timers, and grand final ceremonies.
+
+9.2. ELO-Based Ranked Ladder:
+     - Separate Ranked Queue with competitive seasons (Bronze, Silver, Gold, Platinum, Diamond, Master).
+     - Seasonal reset with exclusive end-of-season cosmetic badges.
+
+9.3. Weekend Special Events:
+     - "Dark Weekend": Matches start directly on the Dark Side.
+     - "Color Rush": 5-color mode exclusively with double XP rewards.
+     - "Speed Blitz": 5-second turn timers.
+
+9.4. LiveOps Telemetry Dashboard:
+     - Real-time admin monitoring of active rooms, concurrent players, average match length,
+       and card usage frequencies.
+
+================================================================================
+10. ACCESSIBILITY & INTERNATIONALIZATION (I18N)
+================================================================================
+10.1. Colorblind Accessibility Symbols:
+      - Add distinct geometric symbols to every card corner alongside colors:
+        - Red = Diamond (◆)
+        - Blue = Circle (●)
+        - Green = Triangle (▲)
+        - Yellow = Star (★)
+        - Purple = Hexagon (⬡)
+      - Ensures 100% playable experience for protanopia, deuteranopia, and tritanopia.
+
+10.2. Multilingual Localization:
+      - Full i18n support with JSON translation dictionaries for:
+        - English, Spanish, French, German, Portuguese, Hindi, Japanese, Korean, Arabic.
+
+10.3. Screen Reader (ARIA) Compatibility:
+      - Descriptive ARIA live regions announcing moves:
+        - "Player 2 played a Blue 7. Active color is Blue."
+        - "It is now your turn. 5 cards in your hand."
+
+10.4. Font Size & Contrast Scaling:
+      - User preference toggle for large UI text and high-contrast card faces.
+================================================================================
+                                 END OF ROADMAP
+================================================================================

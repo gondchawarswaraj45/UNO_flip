@@ -9,6 +9,8 @@ import useGameStore from '../../store/gameStore';
 import { GAME_MODE, COLOR_MODE, AI_DIFFICULTY } from '../../utils/constants';
 import sound from '../../utils/audio';
 import LeaderboardModal from '../ui/LeaderboardModal';
+import ArcadeHeader from '../ui/ArcadeHeader';
+import ProfileModal from '../ui/ProfileModal';
 
 const MODE_OPTIONS = [
   { value: 'CLASSIC', label: 'Classic UNO', icon: '🃏', desc: 'Single-face play. Choice of 4 or 5 colors.' },
@@ -36,6 +38,8 @@ export default function LobbyScreen() {
     toggleSound,
     showLeaderboard,
     setShowLeaderboard,
+    showProfileModal,
+    setShowProfileModal,
   } = useGameStore();
 
   const [botName, setBotName]         = useState('');
@@ -91,43 +95,18 @@ export default function LobbyScreen() {
   }
 
   return (
-    <div className="game-table flex-col items-center justify-center" style={{ height:'100vh', overflow:'auto', padding:'24px 16px', position:'relative' }}>
-      {/* Top Bar Navigation */}
-      <div style={{
-        position: 'absolute',
-        top: 20,
-        right: 24,
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-      }}>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => { sound.buttonClick(); setShowLeaderboard(true); }}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, borderRadius: 'var(--radius-lg)' }}
-        >
-          <span>🏆</span>
-          <span>Stats</span>
-        </button>
-
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => toggleSound()}
-          title={soundEnabled ? 'Mute Sounds' : 'Unmute Sounds'}
-          style={{ padding: '8px 12px', borderRadius: 'var(--radius-lg)' }}
-        >
-          {soundEnabled ? '🔊' : '🔇'}
-        </button>
-      </div>
+    <div className="game-table" style={{ height: '100dvh', overflowY: 'auto', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      {/* Top Arcade Navigation HUD */}
+      <ArcadeHeader showRoomCode={true} />
 
       {/* Atmospheric Table Glow */}
-      <div className="landing-bg" style={{ pointerEvents:'none' }}>
-        <div className="landing-orb" style={{ width:500, height:500, top:'-20%', right:'-15%', background:'#1657C7', opacity:0.12 }} />
-        <div className="landing-orb" style={{ width:400, height:400, bottom:'-15%', left:'-10%', background:'#EAB308', opacity:0.08 }} />
+      <div className="landing-bg" style={{ pointerEvents: 'none' }}>
+        <div className="landing-orb" style={{ width: 500, height: 500, top: '-20%', right: '-15%', background: '#1657C7', opacity: 0.12 }} />
+        <div className="landing-orb" style={{ width: 400, height: 400, bottom: '-15%', left: '-10%', background: '#EAB308', opacity: 0.08 }} />
       </div>
 
-      <div style={{ position:'relative', zIndex:2, width:'min(840px,96vw)', display:'flex', flexDirection:'column', gap:22 }}>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '16px 12px 32px' }}>
+        <div style={{ position: 'relative', zIndex: 2, width: 'min(840px, 96vw)', display: 'flex', flexDirection: 'column', gap: 20 }}>
         {/* Header with Room Code */}
         <div style={{ textAlign:'center' }}>
           <h1 className="font-display anim-fade-in" style={{ fontSize:'clamp(1.9rem,4vw,2.7rem)', marginBottom:8 }}>
@@ -384,9 +363,11 @@ export default function LobbyScreen() {
             ⏳ Waiting for host to launch the match…
           </div>
         )}
+        </div>
       </div>
 
       <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
+      <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
     </div>
   );
 }
