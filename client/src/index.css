@@ -114,44 +114,7 @@ html, body, #root {
   overflow: hidden;
 }
 
-.table-felt {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at 50% 45%, #18263e 0%, #0d1626 50%, #060a12 100%);
-  pointer-events: none;
-  z-index: 0;
-}
 
-.table-felt::before {
-  content: '';
-  position: absolute;
-  inset: 8px;
-  border-radius: 36px;
-  border: 1.5px solid rgba(229, 185, 76, 0.22);
-  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.88), 0 0 35px rgba(0, 0, 0, 0.6);
-  pointer-events: none;
-}
-
-.table-felt::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(650px, 92vw);
-  height: min(420px, 62vh);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(229, 185, 76, 0.07) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.table-felt-dark {
-  background: radial-gradient(ellipse at 50% 45%, #2a163a 0%, #150920 50%, #08030d 100%) !important;
-}
-
-.table-felt-dark::before {
-  border-color: rgba(168, 85, 247, 0.3) !important;
-}
 
 /* ─── Typography ────────────────────────────────────────────── */
 .font-display { font-family: 'Outfit', sans-serif; }
@@ -433,30 +396,31 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   height: 100%;
   background:
     radial-gradient(ellipse 70% 55% at 50% 50%, rgba(18, 30, 48, 0.45) 0%, transparent 80%),
-    radial-gradient(circle at 50% 10%, rgba(229, 185, 76, 0.04) 0%, transparent 60%),
+    radial-gradient(circle at 50% 10%, rgba(229, 185, 76, 0.05) 0%, transparent 60%),
     var(--bg-deep);
   overflow: hidden;
 }
 
-.table-felt {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: min(580px, 90vw);
-  height: min(340px, 60vh);
-  border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(16, 26, 42, 0.6) 0%, rgba(10, 16, 26, 0.2) 70%, transparent 100%);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6);
-  pointer-events: none;
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+/* ─── Grand Casino Table Felt Arena ─────────────────────────── */
+.casino-felt {
+  background: radial-gradient(ellipse at 50% 50%, #172844 0%, #0d1727 60%, #060b13 100%);
+  border: 2px solid rgba(229, 185, 76, 0.32);
+  box-shadow:
+    0 0 0 10px #0b111a,
+    0 0 0 12px rgba(229, 185, 76, 0.45),
+    0 24px 70px rgba(0, 0, 0, 0.95),
+    inset 0 0 80px rgba(0, 0, 0, 0.75);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.table-felt.table-felt-dark {
-  background: radial-gradient(ellipse, rgba(38, 12, 54, 0.65) 0%, rgba(20, 8, 30, 0.3) 70%, transparent 100%);
-  border-color: rgba(168, 85, 247, 0.18);
-  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.8), 0 0 60px rgba(168, 85, 247, 0.15);
+.casino-felt-dark {
+  background: radial-gradient(ellipse at 50% 50%, #2f1345 0%, #1b092a 60%, #0b0312 100%) !important;
+  border-color: rgba(168, 85, 247, 0.38) !important;
+  box-shadow:
+    0 0 0 10px #150921,
+    0 0 0 12px rgba(168, 85, 247, 0.5),
+    0 24px 70px rgba(0, 0, 0, 0.95),
+    inset 0 0 90px rgba(0, 0, 0, 0.85) !important;
 }
 
 /* ─── Side Flip Indicator ────────────────────────────────────── */

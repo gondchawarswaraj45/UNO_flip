@@ -22,6 +22,7 @@ export const CARD_TYPE = {
   NUMBER: 'NUMBER',
   SKIP: 'SKIP',
   REVERSE: 'REVERSE',
+  DRAW_ONE: 'DRAW_ONE',
   DRAW_TWO: 'DRAW_TWO',
   DRAW_FIVE: 'DRAW_FIVE',
   WILD: 'WILD',
@@ -71,11 +72,12 @@ export const COLOR_LABEL = {
 export const CARD_SYMBOL = {
   SKIP: '⊘',
   REVERSE: '⇄',
+  DRAW_ONE: '+1',
   DRAW_TWO: '+2',
   DRAW_FIVE: '+5',
   WILD: '★',
   WILD_DRAW_FOUR: '+4',
-  WILD_DRAW_TWO: '+2★',
+  WILD_DRAW_TWO: '+2',
   FLIP: '↕',
   SKIP_EVERYONE: '⊘⊘',
 };

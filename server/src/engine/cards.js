@@ -62,7 +62,11 @@ function makeSide(color, type, value = null) {
  * Generate all light-side card descriptors for a given color.
  * Returns an array of { color, type, value } objects (not full Card objects).
  */
-function lightSidesForColor(color) {
+/**
+ * Generate all light-side card descriptors for a given color in CLASSIC mode.
+ * Classic UNO includes 0 and Draw Two.
+ */
+function lightSidesForClassic(color) {
   const sides = [];
 
   // 0 — one copy
@@ -86,6 +90,31 @@ function lightSidesForColor(color) {
 }
 
 /**
+ * Generate light-side card descriptors for a given color in TWO-SIDE (UNO FLIP) mode.
+ * UNO Flip Light Side has numbers 1-9 (no 0), Draw One (+1), Skip, Reverse.
+ * Exactly 24 cards + 2 Flip = 26 cards per color.
+ */
+function lightSidesForTwoSide(color) {
+  const sides = [];
+
+  // 1–9 — two copies each (UNO Flip has NO 0)
+  for (let n = 1; n <= 9; n++) {
+    sides.push(makeSide(color, CARD_TYPE.NUMBER, n));
+    sides.push(makeSide(color, CARD_TYPE.NUMBER, n));
+  }
+
+  // Action cards — two copies each
+  sides.push(makeSide(color, CARD_TYPE.DRAW_ONE, null));
+  sides.push(makeSide(color, CARD_TYPE.DRAW_ONE, null));
+  sides.push(makeSide(color, CARD_TYPE.REVERSE, null));
+  sides.push(makeSide(color, CARD_TYPE.REVERSE, null));
+  sides.push(makeSide(color, CARD_TYPE.SKIP, null));
+  sides.push(makeSide(color, CARD_TYPE.SKIP, null));
+
+  return sides;
+}
+
+/**
  * Generate light-side Flip descriptors for a given color (Two-Side only).
  */
 function lightFlipsForColor(color) {
@@ -96,13 +125,22 @@ function lightFlipsForColor(color) {
 }
 
 /**
- * Generate classic/light wild cards.
- * @returns {Array<{color:'WILD', type, value:null}>}
+ * Generate classic wild cards (4 Wild + 4 Wild Draw Four).
  */
-function lightWilds() {
+function classicWilds() {
   const wilds = [];
   for (let i = 0; i < 4; i++) wilds.push(makeSide('WILD', CARD_TYPE.WILD, null));
   for (let i = 0; i < 4; i++) wilds.push(makeSide('WILD', CARD_TYPE.WILD_DRAW_FOUR, null));
+  return wilds;
+}
+
+/**
+ * Generate light-side wild cards for Two-Side mode (4 Wild + 4 Wild Draw Two).
+ */
+function lightTwoSideWilds() {
+  const wilds = [];
+  for (let i = 0; i < 4; i++) wilds.push(makeSide('WILD', CARD_TYPE.WILD, null));
+  for (let i = 0; i < 4; i++) wilds.push(makeSide('WILD', CARD_TYPE.WILD_DRAW_TWO, null));
   return wilds;
 }
 
@@ -110,6 +148,8 @@ function lightWilds() {
 
 /**
  * Generate all dark-side card descriptors for a given color.
+ * Numbers 1-9 (2 each), Draw Five (2), Reverse (2), Skip Everyone (2).
+ * Exactly 24 cards + 2 Flip = 26 cards per color (perfect match to Light Side!).
  */
 function darkSidesForColor(color) {
   const sides = [];
@@ -120,12 +160,13 @@ function darkSidesForColor(color) {
     sides.push(makeSide(color, CARD_TYPE.NUMBER, n));
   }
 
-  // Action cards
-  sides.push(makeSide(color, CARD_TYPE.SKIP_EVERYONE, null)); // only 1 per color
-  sides.push(makeSide(color, CARD_TYPE.REVERSE, null));
-  sides.push(makeSide(color, CARD_TYPE.REVERSE, null));
+  // Action cards — two copies each
   sides.push(makeSide(color, CARD_TYPE.DRAW_FIVE, null));
   sides.push(makeSide(color, CARD_TYPE.DRAW_FIVE, null));
+  sides.push(makeSide(color, CARD_TYPE.REVERSE, null));
+  sides.push(makeSide(color, CARD_TYPE.REVERSE, null));
+  sides.push(makeSide(color, CARD_TYPE.SKIP_EVERYONE, null));
+  sides.push(makeSide(color, CARD_TYPE.SKIP_EVERYONE, null));
 
   return sides;
 }
@@ -141,7 +182,7 @@ function darkFlipsForColor(color) {
 }
 
 /**
- * Generate dark wild cards.
+ * Generate dark wild cards (4 Wild + 4 Wild Draw Two).
  */
 function darkWilds() {
   const wilds = [];
@@ -156,7 +197,7 @@ function darkWilds() {
  * Build a CLASSIC UNO deck.
  *
  * Each card only has a lightSide. The darkSide is null.
- * Cards are full Card objects with unique IDs.
+ * Total 108 cards (4-color) or 133 cards (5-color).
  *
  * @param {string} colorMode  'FOUR' | 'FIVE'
  * @returns {Card[]}
@@ -166,10 +207,10 @@ function buildClassicDeck(colorMode) {
   const lightPool = [];
 
   for (const color of colors) {
-    lightPool.push(...lightSidesForColor(color));
+    lightPool.push(...lightSidesForClassic(color));
   }
   // Wilds
-  lightPool.push(...lightWilds());
+  lightPool.push(...classicWilds());
 
   // Convert to Card objects
   return lightPool.map(side => ({
@@ -180,11 +221,10 @@ function buildClassicDeck(colorMode) {
 }
 
 /**
- * Build a TWO-SIDE UNO deck.
+ * Build a TWO-SIDE UNO (UNO FLIP) deck.
  *
- * Each card is ONE object with both a lightSide and darkSide.
- * The light and dark pools are paired positionally, then each pair
- * becomes ONE card. Wilds are paired Wild↔Wild and WD4↔WD2.
+ * Total 112 cards (4-color) or 138 cards (5-color).
+ * Perfectly paired: each card has both a lightSide and a darkSide.
  *
  * @param {string} colorMode  'FOUR' | 'FIVE'
  * @returns {Card[]}
@@ -196,15 +236,15 @@ function buildTwoSideDeck(colorMode) {
   const lightPool = [];
   const darkPool  = [];
 
-  // Colored cards per color — light and dark must produce equal counts
+  // Colored cards per color — both produce exactly 26 cards per color!
   for (let ci = 0; ci < lightColors.length; ci++) {
     const lColor = lightColors[ci];
     const dColor = darkColors[ci];
 
-    const lSides = lightSidesForColor(lColor);
+    const lSides = lightSidesForTwoSide(lColor);
     const dSides = darkSidesForColor(dColor);
 
-    // Append Flip cards — same count on both sides
+    // Append Flip cards — exactly 2 per color
     lSides.push(...lightFlipsForColor(lColor));
     dSides.push(...darkFlipsForColor(dColor));
 
@@ -212,12 +252,9 @@ function buildTwoSideDeck(colorMode) {
     darkPool.push(...dSides);
   }
 
-  // Make sure both pools are the same length before pairing
-  // (they should be: 20 number + 6 action + 2 flip = 28 per color on light,
-  //  but dark has different action distribution; we pad if necessary)
-  const minLen = Math.min(lightPool.length, darkPool.length);
+  // Exactly paired 1-to-1
   const pairedCards = [];
-  for (let i = 0; i < minLen; i++) {
+  for (let i = 0; i < lightPool.length; i++) {
     pairedCards.push({
       id: uuidv4(),
       lightSide: lightPool[i],
@@ -225,9 +262,9 @@ function buildTwoSideDeck(colorMode) {
     });
   }
 
-  // Wild cards — paired as: Wild↔Wild, WD4↔WD2
-  const lWilds = lightWilds();  // 4×Wild + 4×WD4
-  const dWilds  = darkWilds();  // 4×Wild + 4×WD2
+  // Wild cards — 4 Wild + 4 Wild Draw Two
+  const lWilds = lightTwoSideWilds();
+  const dWilds = darkWilds();
 
   for (let i = 0; i < lWilds.length; i++) {
     pairedCards.push({

@@ -14,7 +14,7 @@ import React from 'react';
 import { CARD_TYPE, ACTIVE_SIDE } from '../../utils/constants';
 import sound from '../../utils/audio';
 
-// Authentic Official UNO Color Palettes
+// Authentic Official UNO & UNO FLIP Color Palettes
 const UNO_COLORS = {
   // Light Side
   RED:          '#E51D24',
@@ -22,12 +22,12 @@ const UNO_COLORS = {
   GREEN:        '#28A745',
   YELLOW:       '#FFC700',
   LIGHT_PURPLE: '#8B5CF6',
-  // Dark Side
-  CRIMSON:      '#B80058',
-  DEEP_BLUE:    '#0B4F6C',
-  BROWN:        '#78350F',
-  ORANGE:       '#D85A00',
-  DEEP_PURPLE:  '#6A0DAD',
+  // Dark Side (High-voltage UNO FLIP Dark Palette)
+  CRIMSON:      '#F43F5E',
+  DEEP_BLUE:    '#0EA5E9',
+  BROWN:        '#F59E0B',
+  ORANGE:       '#FB923C',
+  DEEP_PURPLE:  '#A855F7',
   // Wild
   WILD:         '#181C26',
 };
@@ -35,6 +35,7 @@ const UNO_COLORS = {
 const TYPE_TO_SYMBOL = {
   [CARD_TYPE.SKIP]:          '⊘',
   [CARD_TYPE.REVERSE]:       '⇄',
+  [CARD_TYPE.DRAW_ONE]:      '+1',
   [CARD_TYPE.DRAW_TWO]:      '+2',
   [CARD_TYPE.DRAW_FIVE]:     '+5',
   [CARD_TYPE.WILD]:          '★',
@@ -140,21 +141,27 @@ export default function CardComponent({
       style={{
         background: isWild
           ? 'linear-gradient(145deg, #181c26 0%, #0d1017 100%)'
-          : `linear-gradient(145deg, ${cardColor} 0%, ${darken(cardColor, 0.22)} 100%)`,
+          : isDark
+            ? 'linear-gradient(145deg, #161b29 0%, #0d1018 100%)'
+            : `linear-gradient(145deg, ${cardColor} 0%, ${darken(cardColor, 0.22)} 100%)`,
         border: isDark
-          ? `3px solid ${isWild ? '#c084fc' : lighten(cardColor, 0.25)}`
+          ? `3px solid ${isWild ? '#c084fc' : cardColor}`
           : '3.5px solid #ffffff',
         borderRadius: 14,
         boxShadow: selected
-          ? `0 0 0 3px #ffffff, 0 16px 36px ${cardColor}aa`
-          : `0 8px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.35)`,
+          ? isDark
+            ? `0 0 0 3px #ffffff, 0 0 28px ${cardColor}`
+            : `0 0 0 3px #ffffff, 0 16px 36px ${cardColor}aa`
+          : isDark
+            ? `0 8px 24px rgba(0,0,0,0.85), 0 0 12px ${cardColor}55`
+            : `0 8px 24px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.4)`,
         position: 'relative',
         overflow: 'hidden',
         cursor: 'pointer',
       }}
       onClick={handleClick}
     >
-      {/* ── Top Gloss Highlight ── */}
+      {/* ── Top Gloss Specular Reflection ── */}
       <div
         style={{
           position: 'absolute',
@@ -162,32 +169,28 @@ export default function CardComponent({
           left: 0,
           right: 0,
           height: '38%',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 100%)',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0) 100%)',
           borderRadius: '11px 11px 50% 50% / 11px 11px 15% 15%',
           pointerEvents: 'none',
         }}
       />
 
-      {/* ── Iconic Center White Tilted Ellipse ── */}
+      {/* ── Iconic Center Tilted Ellipse ── */}
       <div
         style={{
           position: 'absolute',
-          width: isDiscard ? '76%' : '72%',
-          height: isDiscard ? '56%' : '52%',
-          background: isDark
-            ? isWild
-              ? '#141824'
-              : 'rgba(15, 20, 32, 0.95)'
-            : '#ffffff',
+          width: isDiscard ? '78%' : '74%',
+          height: isDiscard ? '58%' : '54%',
+          background: isDark ? '#0c101a' : '#ffffff',
           borderRadius: '50%',
           transform: 'rotate(-26deg)',
-          border: isDark ? `2px solid ${isWild ? '#e9d5ff' : cardColor}` : 'none',
+          border: isDark ? `2.5px solid ${isWild ? '#e9d5ff' : cardColor}` : 'none',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: isDark
-            ? '0 4px 12px rgba(0,0,0,0.8), inset 0 2px 4px rgba(255,255,255,0.1)'
-            : '0 4px 12px rgba(0,0,0,0.32), inset 0 1px 3px rgba(0,0,0,0.15)',
+            ? `0 0 16px ${cardColor}44, inset 0 2px 6px rgba(0,0,0,0.9)`
+            : '0 4px 12px rgba(0,0,0,0.28), inset 0 1px 3px rgba(0,0,0,0.12)',
           overflow: 'hidden',
         }}
       >
@@ -203,15 +206,15 @@ export default function CardComponent({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transform: 'rotate(26deg)', // Counter-rotate so quadrant is upright
+              transform: 'rotate(26deg)',
             }}
           >
             {/* 4 Quadrants */}
             <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%' }}>
-              <path d="M50 50 L50 0 A50 50 0 0 1 100 50 Z" fill={isDark ? '#B80058' : '#0063B2'} />
-              <path d="M50 50 L100 50 A50 50 0 0 1 50 100 Z" fill={isDark ? '#D85A00' : '#FFC700'} />
-              <path d="M50 50 L50 100 A50 50 0 0 1 0 50 Z" fill={isDark ? '#0B4F6C' : '#28A745'} />
-              <path d="M50 50 L0 50 A50 50 0 0 1 50 0 Z" fill={isDark ? '#6A0DAD' : '#E51D24'} />
+              <path d="M50 50 L50 0 A50 50 0 0 1 100 50 Z" fill={isDark ? '#F43F5E' : '#0063B2'} />
+              <path d="M50 50 L100 50 A50 50 0 0 1 50 100 Z" fill={isDark ? '#FB923C' : '#FFC700'} />
+              <path d="M50 50 L50 100 A50 50 0 0 1 0 50 Z" fill={isDark ? '#0EA5E9' : '#28A745'} />
+              <path d="M50 50 L0 50 A50 50 0 0 1 50 0 Z" fill={isDark ? '#A855F7' : '#E51D24'} />
             </svg>
 
             {/* If Draw 4 or Draw 2: Symbol in Center */}
@@ -224,7 +227,7 @@ export default function CardComponent({
                   fontStyle: 'italic',
                   fontSize: isDiscard ? '1.8rem' : '1.3rem',
                   color: '#ffffff',
-                  textShadow: '0 2px 6px rgba(0,0,0,0.9), 0 0 4px #000',
+                  textShadow: '0 2px 6px rgba(0,0,0,0.95), 0 0 4px #000',
                   lineHeight: 1,
                 }}
               >
@@ -236,22 +239,18 @@ export default function CardComponent({
           /* ── Normal Number or Action Symbol ── */
           <span
             style={{
-              transform: 'rotate(26deg)', // Counter-rotate to stay upright
+              transform: 'rotate(26deg)',
               fontFamily: "'Outfit', sans-serif",
               fontWeight: 900,
               fontStyle: 'italic',
               fontSize: isDiscard
-                ? isNumber
-                  ? '3.4rem'
-                  : '2.1rem'
-                : isNumber
-                  ? '2.5rem'
-                  : '1.6rem',
-              color: isDark ? '#ffffff' : cardColor,
+                ? isNumber ? '3.5rem' : '2.2rem'
+                : isNumber ? '2.7rem' : '1.7rem',
+              color: isDark ? cardColor : cardColor,
               letterSpacing: isNumber ? '-0.04em' : '0.02em',
               textShadow: isDark
-                ? `0 2px 8px rgba(0,0,0,0.9), 0 0 12px ${cardColor}`
-                : `1px 2px 0px rgba(0,0,0,0.18)`,
+                ? `0 0 16px ${cardColor}, 0 2px 4px rgba(0,0,0,0.9)`
+                : `1px 2px 0px rgba(0,0,0,0.16)`,
               userSelect: 'none',
               lineHeight: 1,
             }}
@@ -270,9 +269,11 @@ export default function CardComponent({
           fontFamily: "'Outfit', sans-serif",
           fontWeight: 900,
           fontStyle: 'italic',
-          fontSize: isDiscard ? '0.85rem' : '0.68rem',
-          color: '#ffffff',
-          textShadow: '0 1px 3px rgba(0,0,0,0.85), 0 0 2px #000',
+          fontSize: isDiscard ? '0.9rem' : '0.72rem',
+          color: isDark ? cardColor : '#ffffff',
+          textShadow: isDark
+            ? `0 0 8px ${cardColor}`
+            : '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000',
           lineHeight: 1,
           userSelect: 'none',
         }}
@@ -289,9 +290,11 @@ export default function CardComponent({
           fontFamily: "'Outfit', sans-serif",
           fontWeight: 900,
           fontStyle: 'italic',
-          fontSize: isDiscard ? '0.85rem' : '0.68rem',
-          color: '#ffffff',
-          textShadow: '0 1px 3px rgba(0,0,0,0.85), 0 0 2px #000',
+          fontSize: isDiscard ? '0.9rem' : '0.72rem',
+          color: isDark ? cardColor : '#ffffff',
+          textShadow: isDark
+            ? `0 0 8px ${cardColor}`
+            : '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000',
           lineHeight: 1,
           transform: 'rotate(180deg)',
           userSelect: 'none',

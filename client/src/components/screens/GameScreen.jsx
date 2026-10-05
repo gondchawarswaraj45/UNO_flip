@@ -27,6 +27,79 @@ import ShuffleDealAnimation from '../game/ShuffleDealAnimation';
 import { CARD_TYPE, COLOR_HEX } from '../../utils/constants';
 import sound from '../../utils/audio';
 
+/**
+ * Dynamically scale table felt dimensions according to player count.
+ * 2 players: compact, 3 players: small, 4 players: medium, 6 players: big grand casino table.
+ */
+function getTableDimensions(playerCount) {
+  if (playerCount <= 2) {
+    return { width: 'min(640px, 88vw)', height: 'clamp(300px, 46vh, 360px)' };
+  }
+  if (playerCount === 3) {
+    return { width: 'min(760px, 90vw)', height: 'clamp(330px, 50vh, 400px)' };
+  }
+  if (playerCount === 4) {
+    return { width: 'min(880px, 92vw)', height: 'clamp(360px, 54vh, 440px)' };
+  }
+  if (playerCount === 5) {
+    return { width: 'min(1000px, 94vw)', height: 'clamp(390px, 58vh, 480px)' };
+  }
+  // 6 or more players: grand casino stadium table
+  return { width: 'min(1160px, 96vw)', height: 'clamp(410px, 62vh, 520px)' };
+}
+
+/**
+ * Seat opponents symmetrically along the outer rim of the felt table based on count.
+ */
+function getOpponentSeatStyle(idx, count) {
+  if (count === 1) {
+    // 2 players: 1 opponent directly top center
+    return {
+      position: 'absolute',
+      top: -46,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      zIndex: 25,
+    };
+  }
+  if (count === 2) {
+    // 3 players: small table, 2 opponents at top-left and top-right
+    const positions = [
+      { top: -42, left: '26%', transform: 'translateX(-50%)' },
+      { top: -42, left: '74%', transform: 'translateX(-50%)' },
+    ];
+    return { position: 'absolute', ...positions[idx], zIndex: 25 };
+  }
+  if (count === 3) {
+    // 4 players: Left rim, Top Center, Right rim
+    const positions = [
+      { top: '48%', left: -52, transform: 'translateY(-50%)' },
+      { top: -46, left: '50%', transform: 'translateX(-50%)' },
+      { top: '48%', right: -52, transform: 'translateY(-50%)' },
+    ];
+    return { position: 'absolute', ...positions[idx], zIndex: 25 };
+  }
+  if (count === 4) {
+    // 5 players: Mid-Left, Top-Left, Top-Right, Mid-Right
+    const positions = [
+      { top: '56%', left: -48, transform: 'translateY(-50%)' },
+      { top: -44, left: '24%', transform: 'translateX(-50%)' },
+      { top: -44, left: '76%', transform: 'translateX(-50%)' },
+      { top: '56%', right: -48, transform: 'translateY(-50%)' },
+    ];
+    return { position: 'absolute', ...positions[idx], zIndex: 25 };
+  }
+  // 5 or more opponents (6+ players): Far-Left, Top-Left, Top-Center, Top-Right, Far-Right
+  const positions = [
+    { top: '60%', left: -52, transform: 'translateY(-50%)' },
+    { top: -38, left: '18%', transform: 'translateX(-50%)' },
+    { top: -46, left: '50%', transform: 'translateX(-50%)' },
+    { top: -38, left: '82%', transform: 'translateX(-50%)' },
+    { top: '60%', right: -52, transform: 'translateY(-50%)' },
+  ];
+  return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
+}
+
 export default function GameScreen() {
   const {
     socket,
@@ -92,11 +165,8 @@ export default function GameScreen() {
   const isMyTurn  = gameState.currentPlayerId === myPlayerId;
   const isPlaying = status === 'PLAYING';
 
-  // Position opponents around the table
-  const topOpps   = opponents.slice(0, Math.ceil(opponents.length / 2));
-  const sideOpps  = opponents.slice(Math.ceil(opponents.length / 2));
-  const leftOpp   = sideOpps[0] || null;
-  const rightOpp  = sideOpps[1] || null;
+  // Compute dynamic table dimensions based on total player count
+  const tableDim = getTableDimensions(players.length);
 
   // My own reaction bubble if any
   const myReaction = activeReactions[myPlayerId];
@@ -199,9 +269,6 @@ export default function GameScreen() {
         touchAction: 'manipulation',
       }}
     >
-      {/* Table Ambient Felt Background */}
-      <div className={`table-felt ${activeSide === 'DARK' ? 'table-felt-dark' : ''}`} />
-
       {/* Start-of-Match Cinematic Card Shuffle & Deal Animation */}
       {!hasShuffled && isPlaying && (
         <ShuffleDealAnimation
@@ -216,227 +283,225 @@ export default function GameScreen() {
       {/* Floating Quick Reaction Tray */}
       <QuickReactionTray />
 
-      {/* ── Top Opponents Row ── */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-          gap: 16,
-          padding: '2px 12px',
-          flexWrap: 'wrap',
-          zIndex: 10,
-          position: 'relative',
-        }}
-      >
-        {topOpps.map((p) => (
-          <OpponentArea key={p.id} player={p} position="top" />
-        ))}
-      </div>
-
-      {/* ── Middle Row: Table Center ── */}
+      {/* ── Dynamic Casino Stadium Table Felt (Scales with Player Count) ── */}
       <div
         style={{
           flex: 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 20,
           position: 'relative',
-          zIndex: 5,
           minHeight: 0,
+          padding: '16px 24px',
+          zIndex: 5,
         }}
       >
-        {/* Left Opponent */}
-        {leftOpp && <OpponentArea player={leftOpp} position="left" />}
+        <div
+          className={`casino-felt ${activeSide === 'DARK' ? 'casino-felt-dark' : ''}`}
+          style={{
+            width: tableDim.width,
+            height: tableDim.height,
+            position: 'relative',
+            borderRadius: 'min(200px, 48vw)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        >
+          {/* Opponents seated dynamically along the felt perimeter */}
+          {opponents.map((player, idx) => (
+            <div key={player.id} style={getOpponentSeatStyle(idx, opponents.length)}>
+              <OpponentArea player={player} />
+            </div>
+          ))}
 
-        {/* Center: Draw Pile | Discard Pile | Game Metrics */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          {/* Side & Direction Indicator */}
-          <GameInfo />
+          {/* Center Table Play Surface */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, zIndex: 10 }}>
+            {/* Side & Direction Indicator */}
+            <GameInfo />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            {/* Draw Pile */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                cursor: isMyTurn && isPlaying ? 'pointer' : 'default',
-              }}
-              onClick={handleDraw}
-            >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              {/* Draw Pile */}
               <div
                 style={{
-                  width: 'clamp(68px, 16vw, 86px)',
-                  height: 'clamp(100px, 24vw, 126px)',
-                  borderRadius: 16,
-                  background:
-                    activeSide === 'DARK'
-                      ? 'linear-gradient(135deg, #181024 0%, #2e124d 100%)'
-                      : 'linear-gradient(135deg, #0e1726 0%, #1e293b 100%)',
-                  border: `2px solid ${
-                    activeSide === 'DARK' ? 'rgba(168,85,247,0.45)' : 'rgba(229,185,76,0.45)'
-                  }`,
-                  boxShadow:
-                    isMyTurn && isPlaying
-                      ? activeSide === 'DARK'
-                        ? '0 0 28px rgba(168,85,247,0.6)'
-                        : '0 0 28px rgba(229,185,76,0.5)'
-                      : '0 8px 24px rgba(0,0,0,0.6)',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
                   flexDirection: 'column',
-                  gap: 4,
-                  transition: 'all 0.2s ease',
-                  transform: isMyTurn && isPlaying ? 'scale(1.06)' : 'scale(1)',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: isMyTurn && isPlaying ? 'pointer' : 'default',
                 }}
+                onClick={handleDraw}
               >
-                <span
-                  style={{
-                    fontSize: '1.6rem',
-                    color: activeSide === 'DARK' ? '#c084fc' : '#facc15',
-                    opacity: 0.9,
-                  }}
-                >
-                  {activeSide === 'DARK' ? '◈' : '✦'}
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    color: 'var(--text-secondary)',
-                    letterSpacing: '0.06em',
-                  }}
-                >
-                  {deckCount} cards
-                </span>
-              </div>
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--text-muted)',
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                }}
-              >
-                DRAW
-              </span>
-            </div>
-
-            {/* Discard Pile */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              {topCard ? (
-                <CardComponent
-                  card={topCard}
-                  activeSide={activeSide}
-                  isDiscard={true}
-                  size="lg"
-                />
-              ) : (
                 <div
                   style={{
-                    width: 80,
-                    height: 118,
+                    width: 'clamp(68px, 16vw, 86px)',
+                    height: 'clamp(100px, 24vw, 126px)',
                     borderRadius: 16,
-                    background: 'var(--bg-glass)',
-                    border: '2px dashed var(--border-mid)',
+                    background:
+                      activeSide === 'DARK'
+                        ? 'linear-gradient(135deg, #181024 0%, #2e124d 100%)'
+                        : 'linear-gradient(135deg, #0e1726 0%, #1e293b 100%)',
+                    border: `2px solid ${
+                      activeSide === 'DARK' ? 'rgba(168,85,247,0.45)' : 'rgba(229,185,76,0.45)'
+                    }`,
+                    boxShadow:
+                      isMyTurn && isPlaying
+                        ? activeSide === 'DARK'
+                          ? '0 0 28px rgba(168,85,247,0.6)'
+                          : '0 0 28px rgba(229,185,76,0.5)'
+                        : '0 8px 24px rgba(0,0,0,0.6)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.8rem',
+                    flexDirection: 'column',
+                    gap: 4,
+                    transition: 'all 0.2s ease',
+                    transform: isMyTurn && isPlaying ? 'scale(1.06)' : 'scale(1)',
                   }}
                 >
-                  Empty
+                  <span
+                    style={{
+                      fontSize: '1.6rem',
+                      color: activeSide === 'DARK' ? '#c084fc' : '#facc15',
+                      opacity: 0.9,
+                    }}
+                  >
+                    {activeSide === 'DARK' ? '◈' : '✦'}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      color: 'var(--text-secondary)',
+                      letterSpacing: '0.06em',
+                    }}
+                  >
+                    {deckCount} cards
+                  </span>
                 </div>
-              )}
-
-              {/* Active Color Pip Indicator */}
-              {currentColor && (
-                <div
+                <span
                   style={{
-                    width: 34,
-                    height: 9,
-                    borderRadius: 99,
-                    background: COLOR_HEX[currentColor] || '#888',
-                    boxShadow: `0 0 14px ${COLOR_HEX[currentColor] || '#888'}`,
-                    border: '1px solid rgba(255,255,255,0.4)',
+                    fontSize: '0.7rem',
+                    color: 'var(--text-muted)',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
                   }}
-                />
-              )}
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--text-muted)',
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                }}
-              >
-                DISCARD
-              </span>
-            </div>
-          </div>
+                >
+                  DRAW
+                </span>
+              </div>
 
-          {/* Turn Announcement Banner */}
-          {isPlaying && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: isMyTurn ? 'rgba(229, 185, 76, 0.2)' : 'rgba(16, 24, 38, 0.8)',
-                border: `1.5px solid ${isMyTurn ? 'rgba(229, 185, 76, 0.6)' : 'var(--border-subtle)'}`,
-                boxShadow: isMyTurn ? '0 0 20px rgba(229, 185, 76, 0.35)' : 'none',
-                borderRadius: 99,
-                padding: '5px 16px',
-                animation: isMyTurn ? 'pulseGoldRing 1.5s infinite' : 'none',
-              }}
-            >
+              {/* Discard Pile */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                {topCard ? (
+                  <CardComponent
+                    card={topCard}
+                    activeSide={activeSide}
+                    isDiscard={true}
+                    size="lg"
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 80,
+                      height: 118,
+                      borderRadius: 16,
+                      background: 'var(--bg-glass)',
+                      border: '2px dashed var(--border-mid)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    Empty
+                  </div>
+                )}
+
+                {/* Active Color Pip Indicator */}
+                {currentColor && (
+                  <div
+                    style={{
+                      width: 34,
+                      height: 9,
+                      borderRadius: 99,
+                      background: COLOR_HEX[currentColor] || '#888',
+                      boxShadow: `0 0 14px ${COLOR_HEX[currentColor] || '#888'}`,
+                      border: '1px solid rgba(255,255,255,0.4)',
+                    }}
+                  />
+                )}
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    color: 'var(--text-muted)',
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  DISCARD
+                </span>
+              </div>
+            </div>
+
+            {/* Turn Announcement Banner */}
+            {isPlaying && (
               <div
                 style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: isMyTurn ? 'var(--gold-primary)' : 'var(--text-muted)',
-                }}
-              />
-              <span
-                style={{
-                  fontSize: '0.82rem',
-                  fontWeight: 800,
-                  color: isMyTurn ? 'var(--text-gold)' : 'var(--text-secondary)',
-                  letterSpacing: '0.02em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: isMyTurn ? 'rgba(229, 185, 76, 0.2)' : 'rgba(16, 24, 38, 0.8)',
+                  border: `1.5px solid ${isMyTurn ? 'rgba(229, 185, 76, 0.6)' : 'var(--border-subtle)'}`,
+                  boxShadow: isMyTurn ? '0 0 20px rgba(229, 185, 76, 0.35)' : 'none',
+                  borderRadius: 99,
+                  padding: '5px 16px',
+                  animation: isMyTurn ? 'pulseGoldRing 1.5s infinite' : 'none',
                 }}
               >
-                {isMyTurn ? 'YOUR TURN — TAP A CARD OR DRAW' : `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? '…'}'s Turn`}
-              </span>
-            </div>
-          )}
+                <div
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: isMyTurn ? 'var(--gold-primary)' : 'var(--text-muted)',
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    color: isMyTurn ? 'var(--text-gold)' : 'var(--text-secondary)',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {isMyTurn ? 'YOUR TURN — TAP A CARD OR DRAW' : `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? '…'}'s Turn`}
+                </span>
+              </div>
+            )}
 
-          {/* Action Error Notification */}
-          {actionError && (
-            <div
-              style={{
-                padding: '5px 14px',
-                borderRadius: 99,
-                background: 'rgba(220,38,38,0.25)',
-                border: '1px solid rgba(220,38,38,0.5)',
-                color: '#fca5a5',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                animation: 'fadeIn 0.2s ease',
-              }}
-            >
-              {actionError}
-            </div>
-          )}
+            {/* Action Error Notification */}
+            {actionError && (
+              <div
+                style={{
+                  padding: '5px 14px',
+                  borderRadius: 99,
+                  background: 'rgba(220,38,38,0.25)',
+                  border: '1px solid rgba(220,38,38,0.5)',
+                  color: '#fca5a5',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  animation: 'fadeIn 0.2s ease',
+                }}
+              >
+                {actionError}
+              </div>
+            )}
+          </div>
         </div>
-
-        {/* Right Opponent */}
-        {rightOpp && <OpponentArea player={rightOpp} position="right" />}
       </div>
 
       {/* ── My Hand Area (Responsive Carousel on Mobile, Fan on Desktop) ── */}

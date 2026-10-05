@@ -36,6 +36,7 @@ function scoreCard(face) {
     case CARD_TYPE.WILD:          return 8;
     case CARD_TYPE.DRAW_FIVE:     return 7;
     case CARD_TYPE.DRAW_TWO:      return 6;
+    case CARD_TYPE.DRAW_ONE:      return 5;
     case CARD_TYPE.SKIP_EVERYONE: return 7;
     case CARD_TYPE.SKIP:          return 5;
     case CARD_TYPE.REVERSE:       return 4;

@@ -170,6 +170,10 @@ function resolveCardEffects(face, chosenColor, gameState) {
   };
 
   switch (face.type) {
+    case CARD_TYPE.DRAW_ONE:
+      effects.drawCount = 1;
+      effects.skipNext = true;
+      break;
     case CARD_TYPE.DRAW_TWO:
       effects.drawCount = 2;
       effects.skipNext = true;

@@ -66,7 +66,8 @@ const CARD_TYPE = Object.freeze({
   NUMBER: 'NUMBER',
   SKIP: 'SKIP',
   REVERSE: 'REVERSE',
-  DRAW_TWO: 'DRAW_TWO',         // Light side action
+  DRAW_ONE: 'DRAW_ONE',         // Light side action in UNO Flip
+  DRAW_TWO: 'DRAW_TWO',         // Classic UNO action / Wild Draw Two
   DRAW_FIVE: 'DRAW_FIVE',       // Dark side action (Two-Side only)
   WILD: 'WILD',
   WILD_DRAW_FOUR: 'WILD_DRAW_FOUR',   // Light side wild
