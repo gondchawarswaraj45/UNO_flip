@@ -98,7 +98,7 @@ function registerGameSocket(io) {
     }
   }
 
-  // ─── Bot turn executor ────────────────────────────────────────────────────
+  // ─── Bot Turn & Simulation System ──────────────────────────────────────────
 
   /**
    * If the current player is a bot, schedule their turn.
@@ -134,9 +134,27 @@ function registerGameSocket(io) {
           }
         );
 
-        // Bot UNO press
+        // Bot UNO press with broadcast event and reaction bubble
         if (botShouldPressUno(currentPlayer.id, currentPlayer.difficulty, r.gameState)) {
           processPressUno(currentPlayer.id, r.gameState);
+          io.to(r.id).emit('unoPressedBy', { playerId: currentPlayer.id });
+          io.to(r.id).emit('playerReaction', {
+            id: 'rx_' + Math.random().toString(36).substring(2, 8),
+            playerId: currentPlayer.id,
+            playerName: currentPlayer.name,
+            emoji: '🚨',
+            text: 'UNO!',
+            timestamp: Date.now(),
+          });
+        }
+
+        // Contextual bot reactions on special card plays
+        const top = r.gameState.discardPile[r.gameState.discardPile.length - 1];
+        const face = r.gameState.activeSide === 'DARK' ? top?.darkSide : top?.lightSide;
+        if (face?.type === 'FLIP') {
+          triggerBotReactions(io, r, 'FLIP', currentPlayer.id);
+        } else if (face?.type === 'DRAW_FIVE' || face?.type === 'WILD_DRAW_FOUR' || face?.type === 'WILD_DRAW_TWO') {
+          triggerBotReactions(io, r, 'DRAW_HEAVY', currentPlayer.id);
         }
       } else {
         result = processDrawCard(currentPlayer.id, r.gameState, () => {});
@@ -149,9 +167,113 @@ function registerGameSocket(io) {
         return;
       }
 
+      // Check if caught window opened for human or opponent
+      if (r.gameState.caughtWindow && r.gameState.caughtWindow.active) {
+        scheduleBotCaughtChallenge(io, r);
+      }
+
       // Recurse for next bot
       scheduleBotTurn(io, r);
     }, delay);
+  }
+
+  /**
+   * Challenge Caught window on behalf of an AI bot if a player failed to call UNO.
+   */
+  function scheduleBotCaughtChallenge(io, room) {
+    const state = room.gameState;
+    if (!state || !state.caughtWindow || !state.caughtWindow.active) return;
+    const { moveId, targetPlayerId } = state.caughtWindow;
+
+    // Check if target player has 1 card and forgot UNO
+    const targetHand = state.hands[targetPlayerId] || [];
+    const targetCalledUno = state.unoPressedBy[targetPlayerId];
+    if (targetHand.length !== 1 || targetCalledUno) return;
+
+    // Find AI bots that can challenge (not the target)
+    const bots = room.players.filter(p => p.isBot && p.id !== targetPlayerId);
+    if (bots.length === 0) return;
+
+    // Pick a bot
+    const bot = bots[Math.floor(Math.random() * bots.length)];
+    let chance = 0.45;
+    let delay = 1400;
+    if (bot.difficulty === 'HARD') {
+      chance = 0.8;
+      delay = 850 + Math.random() * 450;
+    } else if (bot.difficulty === 'MEDIUM') {
+      chance = 0.5;
+      delay = 1200 + Math.random() * 500;
+    } else {
+      return; // Easy bots do not challenge
+    }
+
+    if (Math.random() > chance) return;
+
+    setTimeout(() => {
+      const r = getRoom(room.id);
+      if (!r || !r.gameState || !r.gameState.caughtWindow?.active) return;
+      if (r.gameState.caughtWindow.moveId !== moveId || r.gameState.caughtWindow.resolved) return;
+
+      const res = processCaught(bot.id, targetPlayerId, moveId, r.gameState, (event, data) => {
+        if (event === 'caughtResolved') io.to(r.id).emit('caughtResolved', data);
+        if (event === 'stateBroadcast') broadcastGameState(io, r);
+      });
+
+      if (res.success) {
+        io.to(r.id).emit('playerReaction', {
+          id: 'rx_' + Math.random().toString(36).substring(2, 8),
+          playerId: bot.id,
+          playerName: bot.name,
+          emoji: '🚨',
+          text: 'CAUGHT! Draw +2!',
+          timestamp: Date.now(),
+        });
+        broadcastGameState(io, r);
+        scheduleBotTurn(io, r);
+      }
+    }, delay);
+  }
+
+  /**
+   * Contextual animated emoji reactions from bots to bring matches alive.
+   */
+  function triggerBotReactions(io, room, eventType, sourcePlayerId) {
+    if (!room || !room.players) return;
+    const bots = room.players.filter(p => p.isBot && p.id !== sourcePlayerId);
+    if (bots.length === 0) return;
+
+    // 35% chance to react
+    if (Math.random() > 0.45) return;
+    const bot = bots[Math.floor(Math.random() * bots.length)];
+
+    let emoji = '😎';
+    let text = null;
+
+    if (eventType === 'FLIP') {
+      const flipPhrases = ['Whoa, flipped!', 'Hold your cards!', 'Dark side time!', 'Table turned!'];
+      emoji = '🌪️';
+      text = flipPhrases[Math.floor(Math.random() * flipPhrases.length)];
+    } else if (eventType === 'DRAW_HEAVY') {
+      const ouchPhrases = ['Ouch!', 'Oof, that hurts!', 'Brutal move!', 'Good luck with that!'];
+      emoji = '😱';
+      text = ouchPhrases[Math.floor(Math.random() * ouchPhrases.length)];
+    } else if (eventType === 'UNO_CALLED') {
+      const unoPhrases = ['Already?!', 'Watch out!', 'Stop them!', 'Not so fast!'];
+      emoji = '👀';
+      text = unoPhrases[Math.floor(Math.random() * unoPhrases.length)];
+    }
+
+    setTimeout(() => {
+      io.to(room.id).emit('playerReaction', {
+        id: 'rx_' + Math.random().toString(36).substring(2, 8),
+        playerId: bot.id,
+        playerName: bot.name,
+        emoji,
+        text,
+        timestamp: Date.now(),
+      });
+    }, 400 + Math.random() * 600);
   }
 
   // ─── Connection ───────────────────────────────────────────────────────────
@@ -328,9 +450,22 @@ function registerGameSocket(io) {
 
         broadcastGameState(io, room);
 
+        // Check if top card triggers contextual bot reactions
+        const top = room.gameState.discardPile[room.gameState.discardPile.length - 1];
+        const face = room.gameState.activeSide === 'DARK' ? top?.darkSide : top?.lightSide;
+        if (face?.type === 'FLIP') {
+          triggerBotReactions(io, room, 'FLIP', playerId);
+        } else if (face?.type === 'DRAW_FIVE' || face?.type === 'WILD_DRAW_FOUR' || face?.type === 'WILD_DRAW_TWO') {
+          triggerBotReactions(io, room, 'DRAW_HEAVY', playerId);
+        }
+
         if (room.gameState.status === 'OVER') {
           handleGameOver(io, room);
         } else {
+          // Check if Caught window opened and schedule bot challenge
+          if (room.gameState.caughtWindow && room.gameState.caughtWindow.active) {
+            scheduleBotCaughtChallenge(io, room);
+          }
           scheduleBotTurn(io, room);
         }
 
@@ -354,6 +489,11 @@ function registerGameSocket(io) {
         if (!result.success) return cb({ ok: false, error: result.error });
 
         broadcastGameState(io, room);
+
+        if (room.gameState.caughtWindow && room.gameState.caughtWindow.active) {
+          scheduleBotCaughtChallenge(io, room);
+        }
+
         scheduleBotTurn(io, room);
         cb({ ok: true, moveId: result.moveId });
       } catch (e) {
@@ -373,6 +513,7 @@ function registerGameSocket(io) {
 
         // Broadcast that UNO was pressed (no hand info)
         io.to(roomId).emit('unoPressedBy', { playerId });
+        triggerBotReactions(io, room, 'UNO_CALLED', playerId);
         cb({ ok: true });
       } catch (e) {
         cb({ ok: false, error: e.message });

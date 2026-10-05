@@ -9,6 +9,7 @@ import useGameStore from '../../store/gameStore';
 import sound from '../../utils/audio';
 import LeaderboardModal from '../ui/LeaderboardModal';
 import ProfileModal, { FRAME_STYLES } from '../ui/ProfileModal';
+import RulesModal from '../ui/RulesModal';
 
 export default function ResultScreen() {
   const {
@@ -21,6 +22,8 @@ export default function ResultScreen() {
     setShowLeaderboard,
     showProfileModal,
     setShowProfileModal,
+    showRulesModal,
+    setShowRulesModal,
   } = useGameStore();
 
   const winner = gameResult?.winner;
@@ -298,6 +301,7 @@ export default function ResultScreen() {
 
       <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
+      <RulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
     </div>
   );
 }
