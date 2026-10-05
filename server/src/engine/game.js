@@ -239,8 +239,16 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
     advanceTurn(state);
   }
 
-  // Clear UNO status for the player who just played (they may need to press again)
-  delete state.unoPressedBy[playerId];
+  // Check UNO state: if player already called UNO and now has 1 card, preserve their call
+  const hasCalledUno = !!state.unoPressedBy[playerId];
+  const isNowOneCard = hand.length === 1;
+
+  if (isNowOneCard && hasCalledUno) {
+    // Kept safe — UNO call is honored
+  } else if (!isNowOneCard) {
+    // Reset UNO flag when holding 0 or >1 cards
+    delete state.unoPressedBy[playerId];
+  }
 
   // Create a move record
   const moveId = uuidv4();
@@ -250,13 +258,23 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
     cardId,
     timestamp: Date.now(),
     result: 'PLAYED',
-    unoPressed: false,
+    unoPressed: isNowOneCard && hasCalledUno,
     caught: false,
     caughtBy: null,
   };
 
-  // Open Caught window
-  openCaughtWindow(state, moveId, playerId);
+  // Open Caught window ONLY if the player holds 1 card and forgot to call UNO
+  if (isNowOneCard && !hasCalledUno) {
+    openCaughtWindow(state, moveId, playerId);
+  } else {
+    state.caughtWindow = {
+      active: false,
+      moveId: null,
+      targetPlayerId: null,
+      expiresAt: null,
+      resolved: false,
+    };
+  }
 
   // Check if the player won
   if (isWinner(playerId, state)) {
@@ -321,7 +339,7 @@ function processPressUno(playerId, state) {
   const hand = state.hands[playerId];
   if (!hand) return { success: false, error: 'PLAYER_NOT_FOUND' };
 
-  if (hand.length !== 1) {
+  if (hand.length !== 1 && hand.length !== 2) {
     return { success: false, error: 'NOT_IN_UNO_STATE' };
   }
 
@@ -331,6 +349,16 @@ function processPressUno(playerId, state) {
   }
   if (state.lastMove && state.lastMove.playerId === playerId) {
     state.lastMove.unoPressed = true;
+  }
+
+  // If a Caught window was targeting this player, resolve it immediately
+  if (state.caughtWindow && state.caughtWindow.targetPlayerId === playerId) {
+    state.caughtWindow.active = false;
+    state.caughtWindow.resolved = true;
+    if (state.caughtWindowTimer) {
+      clearTimeout(state.caughtWindowTimer);
+      state.caughtWindowTimer = null;
+    }
   }
 
   return { success: true };

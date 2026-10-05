@@ -653,6 +653,58 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   animation: tableFlipWoosh 0.5s ease-in-out;
 }
 
+/* ─── Card Shuffle & Distribution Animations ─────────────────── */
+
+@keyframes shuffleRiffleLeft {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-24px) rotate(-6deg); }
+  50% { transform: translateX(4px) rotate(2deg); }
+  75% { transform: translateX(-14px) rotate(-3deg); }
+}
+
+@keyframes shuffleRiffleRight {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(24px) rotate(6deg); }
+  50% { transform: translateX(-4px) rotate(-2deg); }
+  75% { transform: translateX(14px) rotate(3deg); }
+}
+
+.anim-shuffle-left {
+  animation: shuffleRiffleLeft 0.35s ease-in-out infinite;
+}
+
+.anim-shuffle-right {
+  animation: shuffleRiffleRight 0.35s ease-in-out infinite;
+}
+
+@keyframes dealFlyDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-160px) scale(0.4) rotate(12deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(6px) scale(1.05) rotate(-2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+.anim-deal-card {
+  animation: dealFlyDown 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+.color-card-pick:hover {
+  transform: translateY(-6px) scale(1.06);
+  filter: brightness(1.12);
+}
+
+.color-card-pick:active {
+  transform: translateY(0) scale(0.96);
+}
+
 /* ─── Responsive Adjustments ─────────────────────────────────── */
 @media (min-width: 768px) {
   .md-inline-flex { display: inline-flex !important; }

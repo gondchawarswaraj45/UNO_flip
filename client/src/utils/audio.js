@@ -87,6 +87,33 @@ class SoundEngine {
     osc.stop(now + 0.11);
   }
 
+  /** Riffle card shuffle sound effect */
+  shuffleDeck() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const start = this.ctx.currentTime;
+    for (let i = 0; i < 12; i++) {
+      const t = start + i * 0.055;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = i % 2 === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(260 + Math.random() * 220, t);
+      osc.frequency.exponentialRampToValueAtTime(140, t + 0.04);
+
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.05);
+    }
+  }
+
   /** Dramatic woosh when the game flips between Light & Dark */
   flipWoosh() {
     if (!this.enabled) return;

@@ -14,6 +14,14 @@ const { registerGameSocket } = require('./sockets/gameSocket');
 
 const PORT = process.env.PORT || 3001;
 
+// Global process error resilience
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[UNHANDLED REJECTION]:', reason);
+});
+
 const app    = express();
 const server = http.createServer(app);
 

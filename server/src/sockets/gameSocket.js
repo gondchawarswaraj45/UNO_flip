@@ -113,67 +113,85 @@ function registerGameSocket(io) {
     const delay = botThinkDelay(currentPlayer.difficulty);
 
     setTimeout(() => {
-      // Re-fetch state (it may have changed)
-      const r = getRoom(room.id);
-      if (!r || !r.gameState || r.gameState.status !== 'PLAYING') return;
-      if (r.gameState.currentPlayerId !== currentPlayer.id) return;
+      try {
+        // Re-fetch state (it may have changed)
+        const r = getRoom(room.id);
+        if (!r || !r.gameState || r.gameState.status !== 'PLAYING') return;
+        if (r.gameState.currentPlayerId !== currentPlayer.id) return;
 
-      const decision = botDecide(currentPlayer.id, currentPlayer.difficulty, r.gameState);
+        const decision = botDecide(currentPlayer.id, currentPlayer.difficulty, r.gameState);
 
-      let result;
-      if (decision.action === 'PLAY') {
-        result = processPlayCard(
-          currentPlayer.id,
-          decision.cardId,
-          decision.chosenColor,
-          r.gameState,
-          (event, data) => {
-            if (event === 'gameOver') {
-              io.to(r.id).emit('gameOver', data);
+        let result;
+        if (decision.action === 'PLAY' && decision.cardId) {
+          result = processPlayCard(
+            currentPlayer.id,
+            decision.cardId,
+            decision.chosenColor,
+            r.gameState,
+            (event, data) => {
+              if (event === 'gameOver') {
+                io.to(r.id).emit('gameOver', data);
+              }
+            }
+          );
+
+          // If playing failed (e.g. card invalid or stale state), fallback to draw so bot never hangs!
+          if (!result || !result.success) {
+            result = processDrawCard(currentPlayer.id, r.gameState, () => {});
+          } else {
+            // Bot UNO press with broadcast event and reaction bubble
+            if (botShouldPressUno(currentPlayer.id, currentPlayer.difficulty, r.gameState)) {
+              processPressUno(currentPlayer.id, r.gameState);
+              io.to(r.id).emit('unoPressedBy', { playerId: currentPlayer.id });
+              io.to(r.id).emit('playerReaction', {
+                id: 'rx_' + Math.random().toString(36).substring(2, 8),
+                playerId: currentPlayer.id,
+                playerName: currentPlayer.name,
+                emoji: '🚨',
+                text: 'UNO!',
+                timestamp: Date.now(),
+              });
+            }
+
+            // Contextual bot reactions on special card plays
+            const top = r.gameState.discardPile[r.gameState.discardPile.length - 1];
+            const face = r.gameState.activeSide === 'DARK' ? top?.darkSide : top?.lightSide;
+            if (face?.type === 'FLIP') {
+              triggerBotReactions(io, r, 'FLIP', currentPlayer.id);
+            } else if (face?.type === 'DRAW_FIVE' || face?.type === 'WILD_DRAW_FOUR' || face?.type === 'WILD_DRAW_TWO') {
+              triggerBotReactions(io, r, 'DRAW_HEAVY', currentPlayer.id);
             }
           }
-        );
-
-        // Bot UNO press with broadcast event and reaction bubble
-        if (botShouldPressUno(currentPlayer.id, currentPlayer.difficulty, r.gameState)) {
-          processPressUno(currentPlayer.id, r.gameState);
-          io.to(r.id).emit('unoPressedBy', { playerId: currentPlayer.id });
-          io.to(r.id).emit('playerReaction', {
-            id: 'rx_' + Math.random().toString(36).substring(2, 8),
-            playerId: currentPlayer.id,
-            playerName: currentPlayer.name,
-            emoji: '🚨',
-            text: 'UNO!',
-            timestamp: Date.now(),
-          });
+        } else {
+          result = processDrawCard(currentPlayer.id, r.gameState, () => {});
         }
 
-        // Contextual bot reactions on special card plays
-        const top = r.gameState.discardPile[r.gameState.discardPile.length - 1];
-        const face = r.gameState.activeSide === 'DARK' ? top?.darkSide : top?.lightSide;
-        if (face?.type === 'FLIP') {
-          triggerBotReactions(io, r, 'FLIP', currentPlayer.id);
-        } else if (face?.type === 'DRAW_FIVE' || face?.type === 'WILD_DRAW_FOUR' || face?.type === 'WILD_DRAW_TWO') {
-          triggerBotReactions(io, r, 'DRAW_HEAVY', currentPlayer.id);
+        broadcastGameState(io, r);
+
+        if (r.gameState.status === 'OVER') {
+          handleGameOver(io, r);
+          return;
         }
-      } else {
-        result = processDrawCard(currentPlayer.id, r.gameState, () => {});
+
+        // Check if caught window opened for human or opponent
+        if (r.gameState.caughtWindow && r.gameState.caughtWindow.active) {
+          scheduleBotCaughtChallenge(io, r);
+        }
+
+        // Recurse for next bot
+        scheduleBotTurn(io, r);
+      } catch (err) {
+        console.error('[Bot Turn Error]:', err);
+        // Resilient recovery: force a draw to ensure the game advances
+        try {
+          const r = getRoom(room.id);
+          if (r && r.gameState && r.gameState.status === 'PLAYING') {
+            processDrawCard(currentPlayer.id, r.gameState, () => {});
+            broadcastGameState(io, r);
+            scheduleBotTurn(io, r);
+          }
+        } catch (_) {}
       }
-
-      broadcastGameState(io, r);
-
-      if (r.gameState.status === 'OVER') {
-        handleGameOver(io, r);
-        return;
-      }
-
-      // Check if caught window opened for human or opponent
-      if (r.gameState.caughtWindow && r.gameState.caughtWindow.active) {
-        scheduleBotCaughtChallenge(io, r);
-      }
-
-      // Recurse for next bot
-      scheduleBotTurn(io, r);
     }, delay);
   }
 
@@ -199,11 +217,11 @@ function registerGameSocket(io) {
     let chance = 0.45;
     let delay = 1400;
     if (bot.difficulty === 'HARD') {
-      chance = 0.8;
-      delay = 850 + Math.random() * 450;
+      chance = 0.75;
+      delay = 1000 + Math.random() * 450;
     } else if (bot.difficulty === 'MEDIUM') {
-      chance = 0.5;
-      delay = 1200 + Math.random() * 500;
+      chance = 0.45;
+      delay = 1300 + Math.random() * 500;
     } else {
       return; // Easy bots do not challenge
     }
@@ -211,26 +229,30 @@ function registerGameSocket(io) {
     if (Math.random() > chance) return;
 
     setTimeout(() => {
-      const r = getRoom(room.id);
-      if (!r || !r.gameState || !r.gameState.caughtWindow?.active) return;
-      if (r.gameState.caughtWindow.moveId !== moveId || r.gameState.caughtWindow.resolved) return;
+      try {
+        const r = getRoom(room.id);
+        if (!r || !r.gameState || !r.gameState.caughtWindow?.active) return;
+        if (r.gameState.caughtWindow.moveId !== moveId || r.gameState.caughtWindow.resolved) return;
 
-      const res = processCaught(bot.id, targetPlayerId, moveId, r.gameState, (event, data) => {
-        if (event === 'caughtResolved') io.to(r.id).emit('caughtResolved', data);
-        if (event === 'stateBroadcast') broadcastGameState(io, r);
-      });
-
-      if (res.success) {
-        io.to(r.id).emit('playerReaction', {
-          id: 'rx_' + Math.random().toString(36).substring(2, 8),
-          playerId: bot.id,
-          playerName: bot.name,
-          emoji: '🚨',
-          text: 'CAUGHT! Draw +2!',
-          timestamp: Date.now(),
+        const res = processCaught(bot.id, targetPlayerId, moveId, r.gameState, (event, data) => {
+          if (event === 'caughtResolved') io.to(r.id).emit('caughtResolved', data);
+          if (event === 'stateBroadcast') broadcastGameState(io, r);
         });
-        broadcastGameState(io, r);
-        scheduleBotTurn(io, r);
+
+        if (res.success) {
+          io.to(r.id).emit('playerReaction', {
+            id: 'rx_' + Math.random().toString(36).substring(2, 8),
+            playerId: bot.id,
+            playerName: bot.name,
+            emoji: '🚨',
+            text: 'CAUGHT! Draw +2!',
+            timestamp: Date.now(),
+          });
+          broadcastGameState(io, r);
+          scheduleBotTurn(io, r);
+        }
+      } catch (err) {
+        console.error('[Bot Caught Error]:', err);
       }
     }, delay);
   }
@@ -265,14 +287,18 @@ function registerGameSocket(io) {
     }
 
     setTimeout(() => {
-      io.to(room.id).emit('playerReaction', {
-        id: 'rx_' + Math.random().toString(36).substring(2, 8),
-        playerId: bot.id,
-        playerName: bot.name,
-        emoji,
-        text,
-        timestamp: Date.now(),
-      });
+      try {
+        io.to(room.id).emit('playerReaction', {
+          id: 'rx_' + Math.random().toString(36).substring(2, 8),
+          playerId: bot.id,
+          playerName: bot.name,
+          emoji,
+          text,
+          timestamp: Date.now(),
+        });
+      } catch (err) {
+        console.error('[Bot Reaction Error]:', err);
+      }
     }, 400 + Math.random() * 600);
   }
 

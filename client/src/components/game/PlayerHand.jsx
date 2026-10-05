@@ -77,12 +77,14 @@ export default function PlayerHand({ onCardClick }) {
             <div
               key={card.id}
               onClick={() => handleCardTap(card)}
+              className="anim-deal-card"
               style={{
                 flexShrink: 0,
                 transform: isSelected ? 'translateY(-16px) scale(1.08)' : 'scale(1)',
                 transition: 'transform 0.18s ease',
                 zIndex: isSelected ? 40 : idx + 1,
                 cursor: 'pointer',
+                animationDelay: `${Math.min(idx, 8) * 0.06}s`,
               }}
             >
               <CardComponent
@@ -130,6 +132,7 @@ export default function PlayerHand({ onCardClick }) {
         return (
           <div
             key={card.id}
+            className="anim-deal-card"
             style={{
               position: 'absolute',
               left: `calc(50% + ${offsetX}px)`,
@@ -139,6 +142,7 @@ export default function PlayerHand({ onCardClick }) {
               zIndex: isSelected ? 50 : i + 1,
               transition: 'transform 0.18s ease',
               cursor: 'pointer',
+              animationDelay: `${Math.min(i, 8) * 0.06}s`,
             }}
             onClick={() => handleCardTap(card)}
           >

@@ -90,7 +90,7 @@ const DEFAULT_CONFIG = Object.freeze({
   colorMode: COLOR_MODE.FOUR,
   numberOfPlayers: 4,
   startingHandSize: 7,
-  caughtPenalty: 7,
+  caughtPenalty: 2,             // Standard official UNO penalty is +2 cards
   caughtWindowDuration: 3000,   // milliseconds
   turnTimerEnabled: false,       // NO turn timer per spec
   maxPlayers: 10,

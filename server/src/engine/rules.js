@@ -25,8 +25,9 @@ const { getActiveFace } = require('./cards');
  * @returns {{ color, type, value }}
  */
 function topFace(gameState) {
+  if (!gameState || !gameState.discardPile || gameState.discardPile.length === 0) return null;
   const top = gameState.discardPile[gameState.discardPile.length - 1];
-  return getActiveFace(top, gameState.activeSide);
+  return getActiveFace(top, gameState.activeSide) || null;
 }
 
 // ─── Core Validation ─────────────────────────────────────────────────────────
@@ -77,6 +78,9 @@ function validatePlay(playerId, cardId, gameState, chosenColor) {
 
   // 5. Get the top discard face
   const top = topFace(gameState);
+  if (!top) {
+    return { valid: true, reason: null };
+  }
 
   // 6. FLIP card — only legal in Two-Side mode
   if (face.type === CARD_TYPE.FLIP) {
@@ -128,7 +132,7 @@ function getLegalColors(gameState) {
  */
 function isUnoState(playerId, gameState) {
   const hand = gameState.hands[playerId];
-  return hand && hand.length === 1;
+  return hand && (hand.length === 1 || hand.length === 2);
 }
 
 /**
