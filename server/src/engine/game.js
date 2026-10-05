@@ -1,0 +1,539 @@
+/**
+ * Core Game State Machine.
+ *
+ * Responsible for:
+ *  - Initializing game state from config
+ *  - Processing player moves (playCard, drawCard, pressUno)
+ *  - Managing the turn order and direction
+ *  - Handling the FLIP mechanic (Two-Side mode)
+ *  - Running the Caught window timer (server-authoritative)
+ *  - Applying Caught penalties
+ *  - Declaring the winner
+ *
+ * The game state object held here is the SINGLE SOURCE OF TRUTH.
+ * Clients only receive sanitized views of this state.
+ */
+
+'use strict';
+
+const { v4: uuidv4 } = require('uuid');
+const { buildDeck, getActiveFace }        = require('./cards');
+const { shuffleDeck }                     = require('./shuffle');
+const { validatePlay, resolveCardEffects, isUnoState, isWinner } = require('./rules');
+const {
+  GAME_MODE,
+  ACTIVE_SIDE,
+  CARD_TYPE,
+  DEFAULT_CONFIG,
+} = require('./config');
+
+// ─── Game Factory ─────────────────────────────────────────────────────────────
+
+/**
+ * Create a brand-new game state.
+ *
+ * @param {object} config  Merged with DEFAULT_CONFIG.
+ * @param {Array<{id:string, name:string, isBot:boolean, difficulty?:string}>} players
+ * @returns {object}  Full internal game state.
+ */
+function createGame(config, players) {
+  const cfg = Object.assign({}, DEFAULT_CONFIG, config);
+
+  // Build and shuffle the deck
+  const deck = shuffleDeck(buildDeck(cfg.mode, cfg.colorMode));
+
+  // Deal starting hands
+  const hands = {};
+  for (const player of players) {
+    hands[player.id] = [];
+    for (let i = 0; i < cfg.startingHandSize; i++) {
+      hands[player.id].push(deck.pop());
+    }
+  }
+
+  // Flip the first card to the discard pile
+  // Re-draw if the first card is a Wild or Flip (house rule: keep it clean)
+  let firstCard;
+  do {
+    firstCard = deck.pop();
+    const face = getActiveFace(firstCard, ACTIVE_SIDE.LIGHT);
+    if (face.type === CARD_TYPE.WILD || face.type === CARD_TYPE.WILD_DRAW_FOUR ||
+        face.type === CARD_TYPE.WILD_DRAW_TWO || face.type === CARD_TYPE.FLIP) {
+      deck.unshift(firstCard); // push back to bottom
+      firstCard = null;
+    }
+  } while (!firstCard);
+
+  const initialFace = getActiveFace(firstCard, ACTIVE_SIDE.LIGHT);
+
+  const state = {
+    gameId: uuidv4(),
+    config: cfg,
+    status: 'PLAYING',           // 'WAITING' | 'PLAYING' | 'OVER'
+    players,                      // ordered array
+    hands,                        // { [playerId]: Card[] }
+    deck,                         // remaining draw pile
+    discardPile: [firstCard],
+    activeSide: ACTIVE_SIDE.LIGHT,
+    currentColor: initialFace.color,
+    direction: 1,                 // 1 = clockwise, -1 = counter-clockwise
+    currentPlayerIndex: 0,
+    currentPlayerId: players[0].id,
+
+    // UNO tracking: set of playerIds who have pressed UNO correctly
+    unoPressedBy: {},
+
+    // Move tracking for Caught system
+    lastMove: null,
+    caughtWindow: {
+      active: false,
+      moveId: null,
+      targetPlayerId: null,
+      expiresAt: null,
+      resolved: false,
+    },
+
+    winner: null,
+    turnCount: 0,
+    totalFlips: 0,
+    startedAt: Date.now(),
+    playerActions: Object.fromEntries(
+      players.map(p => [p.id, {
+        cardsPlayed: 0,
+        unoCalls: 0,
+        caughtSuccess: 0,
+        caughtPenalized: 0,
+      }])
+    ),
+  };
+
+  return state;
+}
+
+// ─── Turn Navigation ──────────────────────────────────────────────────────────
+
+/**
+ * Advance to the next player's index according to direction.
+ * Does NOT mutate state — returns the new index.
+ */
+function nextIndex(state, steps = 1) {
+  const n = state.players.length;
+  return ((state.currentPlayerIndex + state.direction * steps) % n + n) % n;
+}
+
+/**
+ * Advance the current player to the next in line.
+ * Mutates state.currentPlayerIndex and state.currentPlayerId.
+ */
+function advanceTurn(state, steps = 1) {
+  state.currentPlayerIndex = nextIndex(state, steps);
+  state.currentPlayerId    = state.players[state.currentPlayerIndex].id;
+  state.turnCount += 1;
+}
+
+// ─── Draw Helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Draw `count` cards from the deck into a player's hand.
+ * If the deck runs out, reshuffles the discard pile (except the top card).
+ *
+ * @param {string} playerId
+ * @param {number} count
+ * @param {object} state
+ * @returns {Card[]}  The cards that were drawn.
+ */
+function drawCards(playerId, count, state) {
+  const drawn = [];
+  for (let i = 0; i < count; i++) {
+    if (state.deck.length === 0) {
+      reshuffleDiscard(state);
+      if (state.deck.length === 0) break; // truly no cards left
+    }
+    const card = state.deck.pop();
+    state.hands[playerId].push(card);
+    drawn.push(card);
+  }
+  return drawn;
+}
+
+/**
+ * Reshuffle the discard pile back into the deck, keeping the top card.
+ */
+function reshuffleDiscard(state) {
+  const topCard = state.discardPile.pop();
+  state.deck    = shuffleDeck(state.discardPile);
+  state.discardPile = [topCard];
+}
+
+// ─── Move Processing ──────────────────────────────────────────────────────────
+
+/**
+ * Process a "play card" action.
+ *
+ * @param {string}      playerId
+ * @param {string}      cardId
+ * @param {string|null} chosenColor  — Required for Wild cards.
+ * @param {object}      state
+ * @param {Function}    emitEvent    — (eventName, data) callback to notify sockets.
+ * @returns {{ success: boolean, error?: string, moveId?: string }}
+ */
+function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
+  const validation = validatePlay(playerId, cardId, state, chosenColor);
+  if (!validation.valid) {
+    return { success: false, error: validation.reason };
+  }
+
+  // Remove card from hand
+  const hand  = state.hands[playerId];
+  const cardIndex = hand.findIndex(c => c.id === cardId);
+  const [card] = hand.splice(cardIndex, 1);
+
+  // Place on discard pile
+  state.discardPile.push(card);
+
+  const face    = getActiveFace(card, state.activeSide);
+  const effects = resolveCardEffects(face, chosenColor, state);
+
+  // Update game color
+  state.currentColor = effects.newColor;
+
+  // Handle FLIP
+  if (effects.flip && state.config.mode === GAME_MODE.TWO_SIDE) {
+    state.totalFlips = (state.totalFlips || 0) + 1;
+    state.activeSide = state.activeSide === ACTIVE_SIDE.LIGHT
+      ? ACTIVE_SIDE.DARK
+      : ACTIVE_SIDE.LIGHT;
+    // After flipping, the color becomes the dark side color of the played card
+    const newFace = getActiveFace(card, state.activeSide);
+    state.currentColor = newFace.color === 'WILD' ? chosenColor : newFace.color;
+  }
+
+  // Track cards played metric
+  if (state.playerActions && state.playerActions[playerId]) {
+    state.playerActions[playerId].cardsPlayed += 1;
+  }
+
+  // Handle direction reversal
+  if (effects.reverse) {
+    state.direction *= -1;
+    // In a 2-player game, Reverse acts like Skip
+    if (state.players.length === 2) {
+      effects.skipNext = true;
+    }
+  }
+
+  // Advance turn
+  if (effects.skipEveryone) {
+    // Skip everyone: current player stays, cycle skips all others once
+    // effectively the same player goes again (or next after full skip)
+    advanceTurn(state, state.players.length); // full cycle = skip all
+  } else if (effects.skipNext) {
+    // Apply draws to skipped player, then skip them
+    const skippedIndex = nextIndex(state);
+    const skippedId    = state.players[skippedIndex].id;
+    if (effects.drawCount > 0) {
+      drawCards(skippedId, effects.drawCount, state);
+    }
+    advanceTurn(state, 2); // skip one
+  } else {
+    advanceTurn(state);
+  }
+
+  // Clear UNO status for the player who just played (they may need to press again)
+  delete state.unoPressedBy[playerId];
+
+  // Create a move record
+  const moveId = uuidv4();
+  state.lastMove = {
+    moveId,
+    playerId,
+    cardId,
+    timestamp: Date.now(),
+    result: 'PLAYED',
+    unoPressed: false,
+    caught: false,
+    caughtBy: null,
+  };
+
+  // Open Caught window
+  openCaughtWindow(state, moveId, playerId);
+
+  // Check if the player won
+  if (isWinner(playerId, state)) {
+    state.status = 'OVER';
+    state.winner = playerId;
+    if (state.caughtWindowTimer) clearTimeout(state.caughtWindowTimer);
+    emitEvent('gameOver', { winner: playerId });
+    return { success: true, moveId };
+  }
+
+  emitEvent('stateBroadcast', null);
+  return { success: true, moveId };
+}
+
+/**
+ * Process a "draw card" action (player chooses to draw instead of playing).
+ *
+ * @param {string}   playerId
+ * @param {object}   state
+ * @param {Function} emitEvent
+ * @returns {{ success: boolean, error?: string }}
+ */
+function processDrawCard(playerId, state, emitEvent) {
+  if (state.currentPlayerId !== playerId) {
+    return { success: false, error: 'NOT_YOUR_TURN' };
+  }
+
+  const drawn = drawCards(playerId, 1, state);
+  if (drawn.length === 0) {
+    return { success: false, error: 'DECK_EMPTY' };
+  }
+
+  // Create move record (drawing is a move — Caught window opens)
+  const moveId = uuidv4();
+  state.lastMove = {
+    moveId,
+    playerId,
+    cardId: null,
+    timestamp: Date.now(),
+    result: 'DREW',
+    unoPressed: false,
+    caught: false,
+    caughtBy: null,
+  };
+
+  // Advance turn after draw (player cannot play drawn card automatically)
+  advanceTurn(state);
+
+  openCaughtWindow(state, moveId, playerId);
+  emitEvent('stateBroadcast', null);
+  return { success: true, moveId, drawnCard: drawn[0] };
+}
+
+/**
+ * Process a player pressing the UNO button.
+ *
+ * @param {string}   playerId
+ * @param {object}   state
+ * @returns {{ success: boolean, error?: string }}
+ */
+function processPressUno(playerId, state) {
+  const hand = state.hands[playerId];
+  if (!hand) return { success: false, error: 'PLAYER_NOT_FOUND' };
+
+  if (hand.length !== 1) {
+    return { success: false, error: 'NOT_IN_UNO_STATE' };
+  }
+
+  state.unoPressedBy[playerId] = true;
+  if (state.playerActions && state.playerActions[playerId]) {
+    state.playerActions[playerId].unoCalls += 1;
+  }
+  if (state.lastMove && state.lastMove.playerId === playerId) {
+    state.lastMove.unoPressed = true;
+  }
+
+  return { success: true };
+}
+
+// ─── Caught System ────────────────────────────────────────────────────────────
+
+/**
+ * Open the Caught window after a move is completed.
+ * Sets a server-side timer to close it after caughtWindowDuration ms.
+ */
+function openCaughtWindow(state, moveId, targetPlayerId) {
+  // Clear any previous timer
+  if (state.caughtWindowTimer) {
+    clearTimeout(state.caughtWindowTimer);
+    state.caughtWindowTimer = null;
+  }
+
+  const duration = state.config.caughtWindowDuration;
+  const expiresAt = Date.now() + duration;
+
+  state.caughtWindow = {
+    active: true,
+    moveId,
+    targetPlayerId,
+    expiresAt,
+    resolved: false,
+  };
+
+  // Auto-close after duration
+  state.caughtWindowTimer = setTimeout(() => {
+    if (state.caughtWindow.moveId === moveId) {
+      state.caughtWindow.active = false;
+    }
+  }, duration);
+}
+
+/**
+ * Process a Caught action.
+ *
+ * Validates:
+ *  1. catcherId !== targetPlayerId (no self-catching)
+ *  2. The Caught window is still open
+ *  3. The moveId matches the current move
+ *  4. The window has not already been resolved
+ *  5. The move was actually illegal OR the player failed to press UNO
+ *
+ * Uses atomic resolution — only ONE caught action wins.
+ *
+ * @param {string}   catcherId      Player pressing Caught.
+ * @param {string}   targetPlayerId Player being caught.
+ * @param {string}   moveId
+ * @param {object}   state
+ * @param {Function} emitEvent
+ * @returns {{ success: boolean, error?: string }}
+ */
+function processCaught(catcherId, targetPlayerId, moveId, state, emitEvent) {
+  // 1. Self-catch not allowed
+  if (catcherId === targetPlayerId) {
+    return { success: false, error: 'SELF_CATCH_NOT_ALLOWED' };
+  }
+
+  // 2. Check window is open
+  const win = state.caughtWindow;
+  if (!win.active) {
+    return { success: false, error: 'CAUGHT_WINDOW_CLOSED' };
+  }
+
+  // 3. Check moveId matches
+  if (win.moveId !== moveId) {
+    return { success: false, error: 'STALE_MOVE_ID' };
+  }
+
+  // 4. Already resolved?
+  if (win.resolved) {
+    return { success: false, error: 'ALREADY_CAUGHT' };
+  }
+
+  // 5. Check expiry (server-side double-check)
+  if (Date.now() > win.expiresAt) {
+    win.active = false;
+    return { success: false, error: 'CAUGHT_WINDOW_EXPIRED' };
+  }
+
+  // 6. Validate the violation
+  const lastMove = state.lastMove;
+  if (!lastMove || lastMove.moveId !== moveId) {
+    return { success: false, error: 'MOVE_NOT_FOUND' };
+  }
+
+  // Check: Did the target player fail to press UNO when they should have?
+  const targetHand = state.hands[targetPlayerId];
+  const unoPressedCorrectly = state.unoPressedBy[targetPlayerId];
+  const shouldHavePressedUno = targetHand && targetHand.length === 1 && !unoPressedCorrectly;
+
+  // Check: Was the last move a wrong move (result = 'ILLEGAL' stored by validation)?
+  // In our system, illegal moves are rejected before they alter state, so they won't
+  // appear in lastMove with result='PLAYED'. We check UNO failure here.
+  const isValidCatch = shouldHavePressedUno;
+
+  if (!isValidCatch) {
+    return { success: false, error: 'NO_VIOLATION_DETECTED' };
+  }
+
+  // ATOMICALLY resolve — mark window as resolved immediately
+  win.resolved = true;
+  win.active   = false;
+  if (state.caughtWindowTimer) {
+    clearTimeout(state.caughtWindowTimer);
+    state.caughtWindowTimer = null;
+  }
+
+  // Apply penalty: +7 cards to targetPlayerId
+  const penalty = state.config.caughtPenalty;
+  drawCards(targetPlayerId, penalty, state);
+  delete state.unoPressedBy[targetPlayerId];
+
+  // Track caught statistics
+  if (state.playerActions) {
+    if (state.playerActions[catcherId]) {
+      state.playerActions[catcherId].caughtSuccess += 1;
+    }
+    if (state.playerActions[targetPlayerId]) {
+      state.playerActions[targetPlayerId].caughtPenalized += 1;
+    }
+  }
+
+  // Record
+  lastMove.caught   = true;
+  lastMove.caughtBy = catcherId;
+
+  emitEvent('caughtResolved', {
+    catcherId,
+    targetPlayerId,
+    penaltyCards: penalty,
+    moveId,
+  });
+  emitEvent('stateBroadcast', null);
+
+  return { success: true };
+}
+
+// ─── Public State View ────────────────────────────────────────────────────────
+
+/**
+ * Build the public game state — safe to broadcast to ALL clients.
+ * Does NOT include any player's hand.
+ *
+ * @param {object} state
+ * @returns {object}
+ */
+function getPublicState(state) {
+  return {
+    gameId: state.gameId,
+    status: state.status,
+    config: state.config,
+    players: state.players.map(p => ({
+      id:        p.id,
+      name:      p.name,
+      isBot:     p.isBot,
+      cardCount: (state.hands[p.id] || []).length,
+      unoPressedCorrectly: !!state.unoPressedBy[p.id],
+    })),
+    discardPile: [state.discardPile[state.discardPile.length - 1]], // only top card
+    deckCount:   state.deck.length,
+    activeSide:  state.activeSide,
+    currentColor: state.currentColor,
+    direction:   state.direction,
+    currentPlayerId: state.currentPlayerId,
+    caughtWindow: {
+      active:        state.caughtWindow.active,
+      moveId:        state.caughtWindow.moveId,
+      targetPlayerId: state.caughtWindow.targetPlayerId,
+      expiresAt:     state.caughtWindow.expiresAt,
+      resolved:      state.caughtWindow.resolved,
+    },
+    winner:    state.winner,
+    turnCount: state.turnCount,
+    totalFlips: state.totalFlips || 0,
+    startedAt: state.startedAt || Date.now(),
+  };
+}
+
+/**
+ * Get the private hand for a specific player.
+ * ONLY send this to the requesting player's socket — never broadcast.
+ *
+ * @param {string} playerId
+ * @param {object} state
+ * @returns {Card[]}
+ */
+function getPlayerHand(playerId, state) {
+  return state.hands[playerId] || [];
+}
+
+module.exports = {
+  createGame,
+  processPlayCard,
+  processDrawCard,
+  processPressUno,
+  processCaught,
+  drawCards,
+  getPublicState,
+  getPlayerHand,
+  openCaughtWindow,
+};
