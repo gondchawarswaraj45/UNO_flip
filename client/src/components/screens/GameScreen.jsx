@@ -22,6 +22,7 @@ import ArcadeHeader from '../ui/ArcadeHeader';
 import QuickReactionTray from '../game/QuickReactionTray';
 import ProfileModal, { FRAME_STYLES } from '../ui/ProfileModal';
 import LeaderboardModal from '../ui/LeaderboardModal';
+import RulesModal from '../ui/RulesModal';
 import { CARD_TYPE, COLOR_HEX } from '../../utils/constants';
 import sound from '../../utils/audio';
 
@@ -42,6 +43,8 @@ export default function GameScreen() {
     setShowLeaderboard,
     showProfileModal,
     setShowProfileModal,
+    showRulesModal,
+    setShowRulesModal,
     activeReactions,
   } = useGameStore();
 
@@ -556,9 +559,10 @@ export default function GameScreen() {
         />
       )}
 
-      {/* Modals: Profile & Leaderboard */}
+      {/* Modals: Profile, Leaderboard, Rules */}
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
       <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
+      <RulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
     </div>
   );
 }

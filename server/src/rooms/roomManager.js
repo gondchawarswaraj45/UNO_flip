@@ -271,6 +271,43 @@ function getLobbyState(room) {
   };
 }
 
+const SOLO_BOT_NAMES = ['Maya (Bot)', 'Alex (Bot)', 'Sam (Bot)', 'Leo (Bot)', 'Zoe (Bot)'];
+
+/**
+ * Instantly launch a Solo Game against Computer Bots without intermediate lobby.
+ */
+function createSoloGame(hostSocketId, hostName, config = {}, botCount = 3, difficulty = 'MEDIUM', providedUserId = null) {
+  const { room, playerId } = createRoom(hostSocketId, hostName, config, providedUserId);
+  const count = Math.min(Math.max(1, botCount), 5);
+  for (let i = 0; i < count; i++) {
+    const name = SOLO_BOT_NAMES[i % SOLO_BOT_NAMES.length];
+    addBot(room.id, name, difficulty);
+  }
+  const started = startGame(room.id, playerId);
+  if (started.error) return { error: started.error };
+  return { room: started.room, playerId };
+}
+
+/**
+ * Matchmaking: Find an open public match or create a new public room.
+ */
+function findOrCreateQuickMatch(hostSocketId, hostName, config = {}, providedUserId = null) {
+  // Find any waiting quick-match room
+  for (const room of rooms.values()) {
+    if (room.status === 'LOBBY' && room.isQuickMatch && room.players.length < (room.config.maxPlayers || 4)) {
+      const joinResult = joinRoom(room.id, hostSocketId, hostName, providedUserId);
+      if (!joinResult.error) {
+        return joinResult;
+      }
+    }
+  }
+
+  // Create new quick-match room
+  const { room, playerId } = createRoom(hostSocketId, hostName, config, providedUserId);
+  room.isQuickMatch = true;
+  return { room, playerId };
+}
+
 module.exports = {
   createRoom,
   joinRoom,
@@ -278,6 +315,8 @@ module.exports = {
   removeBot,
   updateConfig,
   startGame,
+  createSoloGame,
+  findOrCreateQuickMatch,
   playerDisconnected,
   getRoom,
   getRoomBySocketId,

@@ -11,6 +11,7 @@ import sound from '../../utils/audio';
 import LeaderboardModal from '../ui/LeaderboardModal';
 import ArcadeHeader from '../ui/ArcadeHeader';
 import ProfileModal from '../ui/ProfileModal';
+import RulesModal from '../ui/RulesModal';
 
 const MODE_OPTIONS = [
   { value: 'CLASSIC', label: 'Classic UNO', icon: '🃏', desc: 'Single-face play. Choice of 4 or 5 colors.' },
@@ -40,6 +41,8 @@ export default function LobbyScreen() {
     setShowLeaderboard,
     showProfileModal,
     setShowProfileModal,
+    showRulesModal,
+    setShowRulesModal,
   } = useGameStore();
 
   const [botName, setBotName]         = useState('');
@@ -368,6 +371,7 @@ export default function LobbyScreen() {
 
       <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
+      <RulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
     </div>
   );
 }

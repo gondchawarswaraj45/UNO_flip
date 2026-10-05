@@ -109,7 +109,7 @@ export default function CardComponent({
 
   return (
     <div
-      className={`card-base ${sizeClass} ${selected ? 'selected' : ''} ${isDiscard ? 'card-lg' : ''}`}
+      className={`card-base ${sizeClass} ${selected ? 'selected' : ''} ${isDiscard ? 'card-lg card-discard-pop' : ''}`}
       style={{
         background: isWild
           ? 'linear-gradient(135deg, #141824 0%, #1a2236 50%, #0f1422 100%)'

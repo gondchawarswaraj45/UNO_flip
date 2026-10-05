@@ -197,6 +197,8 @@ const useGameStore = create((set, get) => ({
   setShowLeaderboard: (v) => set({ showLeaderboard: v }),
   showProfileModal: false,
   setShowProfileModal: (v) => set({ showProfileModal: v }),
+  showRulesModal: false,
+  setShowRulesModal: (v) => set({ showRulesModal: v }),
 
   // ─── Lobby state ─────────────────────────────────────────────────────────────
   lobbyState: null,

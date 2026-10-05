@@ -15,8 +15,8 @@
 
 const {
   createRoom, joinRoom, addBot, removeBot,
-  updateConfig, startGame, playerDisconnected,
-  getRoom, getPlayerBySocketId, getLobbyState, deleteRoom,
+  updateConfig, startGame, createSoloGame, findOrCreateQuickMatch,
+  playerDisconnected, getRoom, getPlayerBySocketId, getLobbyState, deleteRoom,
 } = require('../rooms/roomManager');
 
 const {
@@ -168,6 +168,62 @@ function registerGameSocket(io) {
         socket.data.playerId = playerId;
         socket.data.roomId   = room.id;
         cb({ ok: true, roomId: room.id, playerId, lobby: getLobbyState(room) });
+      } catch (e) {
+        cb({ ok: false, error: e.message });
+      }
+    });
+
+    // ─── Play with Computer (Instant Solo Mode) ──────────────────────────
+    socket.on('startSoloGame', ({ playerName, config, botCount = 3, difficulty = 'MEDIUM', userId }, cb) => {
+      try {
+        const result = createSoloGame(socket.id, playerName, config || {}, botCount, difficulty, userId);
+        if (result.error) return cb({ ok: false, error: result.error });
+
+        const room = result.room;
+        socket.join(room.id);
+        socket.data.playerId = result.playerId;
+        socket.data.roomId   = room.id;
+
+        io.to(room.id).emit('gameStarted', getLobbyState(room));
+        broadcastGameState(io, room);
+        scheduleBotTurn(io, room);
+
+        cb({ ok: true, roomId: room.id, playerId: result.playerId, lobby: getLobbyState(room) });
+      } catch (e) {
+        cb({ ok: false, error: e.message });
+      }
+    });
+
+    // ─── Play Online / Quick Match with Random Players ──────────────────
+    socket.on('quickMatch', ({ playerName, config, userId }, cb) => {
+      try {
+        const result = findOrCreateQuickMatch(socket.id, playerName, config || {}, userId);
+        if (result.error) return cb({ ok: false, error: result.error });
+
+        const room = result.room;
+        socket.join(room.id);
+        socket.data.playerId = result.playerId;
+        socket.data.roomId   = room.id;
+
+        io.to(room.id).emit('lobbyUpdate', getLobbyState(room));
+
+        // Auto-launch if room reaches 4 players
+        let isStarted = false;
+        if (room.players.length >= 4) {
+          startGame(room.id, room.hostId);
+          io.to(room.id).emit('gameStarted', getLobbyState(room));
+          broadcastGameState(io, room);
+          scheduleBotTurn(io, room);
+          isStarted = true;
+        }
+
+        cb({
+          ok: true,
+          roomId: room.id,
+          playerId: result.playerId,
+          lobby: getLobbyState(room),
+          started: isStarted,
+        });
       } catch (e) {
         cb({ ok: false, error: e.message });
       }

@@ -26,6 +26,7 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
     toggleSound,
     setShowLeaderboard,
     setShowProfileModal,
+    setShowRulesModal,
     showQuickChat,
     setShowQuickChat,
   } = useGameStore();
@@ -210,6 +211,19 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
             <span style={{ fontSize: '0.8rem', display: 'none' }} className="sm-inline">Chat</span>
           </button>
         )}
+
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={() => {
+            sound.buttonClick();
+            setShowRulesModal(true);
+          }}
+          title="Game Rules & Action Card Guide"
+          style={{ padding: '6px 12px', borderRadius: 'var(--radius-lg)' }}
+        >
+          <span>📖</span>
+          <span style={{ fontSize: '0.8rem', display: 'none' }} className="sm-inline">Rules</span>
+        </button>
 
         <button
           className="btn btn-ghost btn-sm"
