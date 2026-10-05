@@ -23,6 +23,7 @@ import QuickReactionTray from '../game/QuickReactionTray';
 import ProfileModal, { FRAME_STYLES } from '../ui/ProfileModal';
 import LeaderboardModal from '../ui/LeaderboardModal';
 import RulesModal from '../ui/RulesModal';
+import ShuffleDealAnimation from '../game/ShuffleDealAnimation';
 import { CARD_TYPE, COLOR_HEX } from '../../utils/constants';
 import sound from '../../utils/audio';
 
@@ -50,8 +51,18 @@ export default function GameScreen() {
 
   const [actionError, setActionError] = useState('');
   const [drawLoading, setDrawLoading] = useState(false);
+  const [hasShuffled, setHasShuffled] = useState(false);
+  const prevGameId = useRef(gameState?.gameId);
   const prevActiveSide = useRef(gameState?.activeSide);
   const prevIsMyTurn = useRef(false);
+
+  // Reset shuffle animation when a new match begins
+  useEffect(() => {
+    if (gameState?.gameId && gameState.gameId !== prevGameId.current) {
+      prevGameId.current = gameState.gameId;
+      setHasShuffled(false);
+    }
+  }, [gameState?.gameId]);
 
   // Audio cues for turn changes and board flips
   useEffect(() => {
@@ -189,7 +200,15 @@ export default function GameScreen() {
       }}
     >
       {/* Table Ambient Felt Background */}
-      <div className="table-felt" />
+      <div className={`table-felt ${activeSide === 'DARK' ? 'table-felt-dark' : ''}`} />
+
+      {/* Start-of-Match Cinematic Card Shuffle & Deal Animation */}
+      {!hasShuffled && isPlaying && (
+        <ShuffleDealAnimation
+          activeSide={activeSide}
+          onComplete={() => setHasShuffled(true)}
+        />
+      )}
 
       {/* Top Arcade HUD (Profile Pill, Room Code, Chat Trigger, Sound) */}
       <ArcadeHeader showRoomCode={true} showChat={true} />

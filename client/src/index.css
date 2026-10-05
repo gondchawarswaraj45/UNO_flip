@@ -105,6 +105,54 @@ html, body, #root {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─── Casino Game Table & Felt Ambience ──────────────────────── */
+.game-table {
+  width: 100%;
+  height: 100dvh;
+  position: relative;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+.table-felt {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, #18263e 0%, #0d1626 50%, #060a12 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.table-felt::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 36px;
+  border: 1.5px solid rgba(229, 185, 76, 0.22);
+  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.88), 0 0 35px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.table-felt::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(650px, 92vw);
+  height: min(420px, 62vh);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(229, 185, 76, 0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.table-felt-dark {
+  background: radial-gradient(ellipse at 50% 45%, #2a163a 0%, #150920 50%, #08030d 100%) !important;
+}
+
+.table-felt-dark::before {
+  border-color: rgba(168, 85, 247, 0.3) !important;
+}
+
 /* ─── Typography ────────────────────────────────────────────── */
 .font-display { font-family: 'Outfit', sans-serif; }
 
@@ -402,6 +450,13 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6);
   pointer-events: none;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.table-felt.table-felt-dark {
+  background: radial-gradient(ellipse, rgba(38, 12, 54, 0.65) 0%, rgba(20, 8, 30, 0.3) 70%, transparent 100%);
+  border-color: rgba(168, 85, 247, 0.18);
+  box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.8), 0 0 60px rgba(168, 85, 247, 0.15);
 }
 
 /* ─── Side Flip Indicator ────────────────────────────────────── */
@@ -692,8 +747,78 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   }
 }
 
+@keyframes dealFlyUp {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, -180px) scale(0.45) rotate(15deg);
+  }
+}
+
+@keyframes dealFlyLeft {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-220px, -40px) scale(0.45) rotate(-25deg);
+  }
+}
+
+@keyframes dealFlyRight {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(220px, -40px) scale(0.45) rotate(25deg);
+  }
+}
+
+@keyframes dealFlyBottom {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 200px) scale(0.6) rotate(-8deg);
+  }
+}
+
 .anim-deal-card {
   animation: dealFlyDown 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+.deal-phase-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 50%, rgba(6, 9, 15, 0.72) 0%, rgba(4, 6, 10, 0.88) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: auto;
+  animation: fadeIn 0.25s ease;
+}
+
+.riffle-deck-card {
+  width: 72px;
+  height: 108px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.7), inset 0 0 0 2px rgba(255,255,255,0.4);
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: all 0.2s ease;
 }
 
 .color-card-pick:hover {

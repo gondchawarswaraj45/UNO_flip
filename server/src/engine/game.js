@@ -323,7 +323,18 @@ function processDrawCard(playerId, state, emitEvent) {
   // Advance turn after draw (player cannot play drawn card automatically)
   advanceTurn(state);
 
-  openCaughtWindow(state, moveId, playerId);
+  const hand = state.hands[playerId];
+  if (hand && hand.length === 1 && !state.unoPressedBy[playerId]) {
+    openCaughtWindow(state, moveId, playerId);
+  } else {
+    state.caughtWindow = {
+      active: false,
+      moveId: null,
+      targetPlayerId: null,
+      expiresAt: null,
+      resolved: false,
+    };
+  }
   emitEvent('stateBroadcast', null);
   return { success: true, moveId, drawnCard: drawn[0] };
 }
