@@ -44,6 +44,7 @@ class GameRepository {
             id: userId,
             username: username || 'Player',
             avatar: avatar || null,
+            avatar_url: avatar || null,
             last_seen_at: now,
           }, { onConflict: 'id' })
           .select()
@@ -160,7 +161,11 @@ class GameRepository {
 
     if (isConfigured && supabase) {
       try {
-        await supabase.from('room_members').insert([record]);
+        const { error } = await supabase.from('room_participants').insert([record]);
+        if (error) {
+          // Fallback to room_members if view/table differs
+          await supabase.from('room_members').insert([record]);
+        }
       } catch (err) {
         console.warn('[Repository] recordPlayerJoin exception:', err.message);
       }
@@ -219,7 +224,7 @@ class GameRepository {
             user_id: st.id,
             username: st.name,
             is_bot: Boolean(st.isBot),
-            rank: idx + 1,
+            placement: idx + 1,
             cards_remaining: st.cardCount || 0,
             score_awarded: idx === 0 ? 100 : Math.max(0, 50 - (st.cardCount || 0) * 5),
           }));
@@ -323,7 +328,7 @@ class GameRepository {
       try {
         const { data, error } = await supabase
           .from('player_stats')
-          .select('*, users(username, avatar)')
+          .select('*, users(username, avatar, avatar_url)')
           .eq('user_id', userId)
           .maybeSingle();
 
@@ -331,7 +336,7 @@ class GameRepository {
           return {
             userId: data.user_id,
             username: data.users?.username || 'Player',
-            avatar: data.users?.avatar || null,
+            avatar: data.users?.avatar_url || data.users?.avatar || null,
             matchesPlayed: data.matches_played,
             matchesWon: data.matches_won,
             winRatePct: data.matches_played > 0 ? ((data.matches_won / data.matches_played) * 100).toFixed(1) : '0.0',

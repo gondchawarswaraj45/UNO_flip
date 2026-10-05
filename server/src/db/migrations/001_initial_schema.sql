@@ -1,5 +1,5 @@
 -- ============================================================================
--- Schema: schema.sql
+-- Migration: 001_initial_schema.sql
 -- Description: Complete initial schema for UNO Flip persistent layer in PostgreSQL / Supabase.
 -- Real-time gameplay state is strictly maintained in Node.js server memory.
 -- PostgreSQL / Supabase stores users, rooms, membership logs, game records, 
