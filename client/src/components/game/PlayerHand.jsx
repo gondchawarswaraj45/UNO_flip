@@ -73,6 +73,7 @@ export default function PlayerHand({ onCardClick }) {
       >
         {myHand.map((card, idx) => {
           const isSelected = card.id === selectedCardId;
+          const isDrawnThisTurn = gameState?.hasDrawnThisTurn && card.id === gameState?.drawnCardId;
           return (
             <div
               key={card.id}
@@ -84,9 +85,33 @@ export default function PlayerHand({ onCardClick }) {
                 transition: 'transform 0.18s ease',
                 zIndex: isSelected ? 40 : idx + 1,
                 cursor: 'pointer',
+                position: 'relative',
                 animationDelay: `${Math.min(idx, 8) * 0.06}s`,
               }}
             >
+              {isDrawnThisTurn && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -10,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                    color: '#ffffff',
+                    fontSize: '0.58rem',
+                    fontWeight: 900,
+                    letterSpacing: '0.04em',
+                    padding: '1px 6px',
+                    borderRadius: 99,
+                    boxShadow: '0 0 10px rgba(245, 158, 11, 0.8)',
+                    whiteSpace: 'nowrap',
+                    zIndex: 50,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  ✦ DRAWN
+                </div>
+              )}
               <CardComponent
                 card={card}
                 activeSide={activeSide}
@@ -115,6 +140,7 @@ export default function PlayerHand({ onCardClick }) {
     >
       {myHand.map((card, i) => {
         const isSelected = card.id === selectedCardId;
+        const isDrawnThisTurn = gameState?.hasDrawnThisTurn && card.id === gameState?.drawnCardId;
 
         // Fan layout: cards spread in an adaptive arc
         const fanSpread = Math.min(count * 28, 560);
@@ -146,6 +172,30 @@ export default function PlayerHand({ onCardClick }) {
             }}
             onClick={() => handleCardTap(card)}
           >
+            {isDrawnThisTurn && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: -12,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                  color: '#ffffff',
+                  fontSize: '0.62rem',
+                  fontWeight: 900,
+                  letterSpacing: '0.04em',
+                  padding: '2px 8px',
+                  borderRadius: 99,
+                  boxShadow: '0 0 12px rgba(245, 158, 11, 0.8)',
+                  whiteSpace: 'nowrap',
+                  zIndex: 60,
+                  pointerEvents: 'none',
+                  animation: 'fadeIn 0.2s ease',
+                }}
+              >
+                ✦ DRAWN
+              </div>
+            )}
             <CardComponent
               card={card}
               activeSide={activeSide}

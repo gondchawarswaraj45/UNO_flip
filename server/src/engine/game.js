@@ -95,6 +95,8 @@ function createGame(config, players) {
 
     winner: null,
     finishers: [],               // Ordered list of finishers: [{ playerId, playerName, rank, isBot, cardCount, finishedAt }]
+    hasDrawnThisTurn: false,     // Official rule: Player must draw before passing
+    drawnCardId: null,           // Tracks card taken from bundle
     turnCount: 0,
     totalFlips: 0,
     startedAt: Date.now(),
@@ -144,6 +146,8 @@ function nextActiveIndex(state, steps = 1) {
 function advanceTurn(state, steps = 1) {
   state.currentPlayerIndex = nextActiveIndex(state, steps);
   state.currentPlayerId    = state.players[state.currentPlayerIndex].id;
+  state.hasDrawnThisTurn   = false;
+  state.drawnCardId        = null;
   state.turnCount += 1;
 }
 
@@ -228,6 +232,10 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
   if (state.playerActions && state.playerActions[playerId]) {
     state.playerActions[playerId].cardsPlayed += 1;
   }
+
+  // Reset turn draw tracking
+  state.hasDrawnThisTurn = false;
+  state.drawnCardId = null;
 
   // Handle direction reversal
   if (effects.reverse) {
@@ -386,11 +394,18 @@ function processDrawCard(playerId, state, emitEvent) {
   if (state.currentPlayerId !== playerId) {
     return { success: false, error: 'NOT_YOUR_TURN' };
   }
+  if (state.hasDrawnThisTurn) {
+    return { success: false, error: 'ALREADY_DRAWN_THIS_TURN' };
+  }
 
   const drawn = drawCards(playerId, 1, state);
   if (drawn.length === 0) {
     return { success: false, error: 'DECK_EMPTY' };
   }
+
+  // Mark that player has drawn a card this turn
+  state.hasDrawnThisTurn = true;
+  state.drawnCardId = drawn[0]?.id || null;
 
   // Create move record (drawing is a move — Caught window opens)
   const moveId = uuidv4();
@@ -405,8 +420,7 @@ function processDrawCard(playerId, state, emitEvent) {
     caughtBy: null,
   };
 
-  // Advance turn after draw (player cannot play drawn card automatically)
-  advanceTurn(state);
+  // Official rule: Turn does NOT advance automatically! Player may now drop a card or pass!
 
   const drawingPlayer = state.players.find(p => p.id === playerId);
   state.lastActionNotification = {
@@ -437,6 +451,56 @@ function processDrawCard(playerId, state, emitEvent) {
   }
   emitEvent('stateBroadcast', null);
   return { success: true, moveId, drawnCard: drawn[0] };
+}
+
+/**
+ * Process a "pass turn" action.
+ * Official UNO Flip rule: Player CANNOT pass unless they have drawn a card from the bundle on their turn.
+ *
+ * @param {string}   playerId
+ * @param {object}   state
+ * @param {Function} emitEvent
+ * @returns {{ success: boolean, error?: string }}
+ */
+function processPassTurn(playerId, state, emitEvent) {
+  if (state.currentPlayerId !== playerId) {
+    return { success: false, error: 'NOT_YOUR_TURN' };
+  }
+  if (!state.hasDrawnThisTurn) {
+    return { success: false, error: 'CANNOT_PASS_WITHOUT_DRAWING' };
+  }
+
+  state.hasDrawnThisTurn = false;
+  state.drawnCardId = null;
+
+  const passingPlayer = state.players.find(p => p.id === playerId);
+  state.lastActionNotification = {
+    id: uuidv4(),
+    type: 'PASS',
+    playedById: playerId,
+    playedByName: passingPlayer ? passingPlayer.name : 'Player',
+    targetId: playerId,
+    targetName: passingPlayer ? passingPlayer.name : 'Player',
+    cardType: 'PASS',
+    cardValue: null,
+    cardColor: null,
+    drawCount: 0,
+    timestamp: Date.now(),
+  };
+
+  state.caughtWindow = {
+    active: false,
+    moveId: null,
+    targetPlayerId: null,
+    expiresAt: null,
+    resolved: false,
+  };
+
+  // Turn advances to next active player
+  advanceTurn(state, 1);
+
+  emitEvent('stateBroadcast', null);
+  return { success: true };
 }
 
 /**
@@ -659,6 +723,8 @@ function getPublicState(state) {
       resolved:      state.caughtWindow.resolved,
     },
     winner:    state.winner,
+    hasDrawnThisTurn: !!state.hasDrawnThisTurn,
+    drawnCardId: state.hasDrawnThisTurn ? state.drawnCardId : null,
     turnCount: state.turnCount,
     totalFlips: state.totalFlips || 0,
     startedAt: state.startedAt || Date.now(),
@@ -682,6 +748,7 @@ module.exports = {
   createGame,
   processPlayCard,
   processDrawCard,
+  processPassTurn,
   processPressUno,
   processCaught,
   drawCards,

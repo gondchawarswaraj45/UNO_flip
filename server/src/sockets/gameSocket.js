@@ -20,7 +20,7 @@ const {
 } = require('../rooms/roomManager');
 
 const {
-  processPlayCard, processDrawCard, processPressUno,
+  processPlayCard, processDrawCard, processPassTurn, processPressUno,
   processCaught, getPublicState, getPlayerHand, drawCards,
 } = require('../engine/game');
 
@@ -219,7 +219,70 @@ function registerGameSocket(io) {
             }
           }
         } else {
+          // Bot takes a card from the bundle
           result = processDrawCard(currentPlayer.id, r.gameState, () => {});
+          broadcastGameState(io, r);
+
+          // Give a short human-like pause before bot drops card or passes
+          setTimeout(() => {
+            try {
+              const r2 = getRoom(room.id);
+              if (!r2 || !r2.gameState || r2.gameState.status !== 'PLAYING') return;
+              if (r2.gameState.currentPlayerId !== currentPlayer.id) return;
+
+              // Check if bot can legally play (e.g. the drawn card matches)
+              const postDraw = botDecide(currentPlayer.id, currentPlayer.difficulty, r2.gameState);
+              if (postDraw.action === 'PLAY' && postDraw.cardId) {
+                const playRes = processPlayCard(
+                  currentPlayer.id,
+                  postDraw.cardId,
+                  postDraw.chosenColor,
+                  r2.gameState,
+                  (event, data) => {
+                    if (event === 'gameOver') io.to(r2.id).emit('gameOver', data);
+                    else if (event === 'playerDrewPenalty') io.to(r2.id).emit('actionAlert', data);
+                    else if (event === 'playerFinished') io.to(r2.id).emit('playerFinished', data);
+                  }
+                );
+                if (playRes && playRes.success) {
+                  if (botShouldPressUno(currentPlayer.id, currentPlayer.difficulty, r2.gameState)) {
+                    processPressUno(currentPlayer.id, r2.gameState);
+                    io.to(r2.id).emit('unoPressedBy', {
+                      playerId: currentPlayer.id,
+                      playerName: currentPlayer.name,
+                      timestamp: Date.now(),
+                    });
+                  }
+                } else {
+                  // Fallback: pass turn
+                  processPassTurn(currentPlayer.id, r2.gameState, () => {});
+                }
+              } else {
+                // Cannot play: pass turn
+                processPassTurn(currentPlayer.id, r2.gameState, () => {});
+              }
+
+              broadcastGameState(io, r2);
+
+              if (r2.gameState.status === 'OVER') {
+                handleGameOver(io, r2);
+                return;
+              }
+
+              scheduleBotTurn(io, r2);
+            } catch (botPostErr) {
+              console.error('[Bot Post-Draw Error]:', botPostErr);
+              try {
+                const rFallback = getRoom(room.id);
+                if (rFallback && rFallback.gameState && rFallback.gameState.hasDrawnThisTurn) {
+                  processPassTurn(currentPlayer.id, rFallback.gameState, () => {});
+                  broadcastGameState(io, rFallback);
+                  scheduleBotTurn(io, rFallback);
+                }
+              } catch (_) {}
+            }
+          }, 650);
+          return;
         }
 
         broadcastGameState(io, r);
@@ -607,8 +670,35 @@ function registerGameSocket(io) {
           scheduleBotCaughtChallenge(io, room);
         }
 
-        scheduleBotTurn(io, room);
+        // Turn does NOT advance to next player on draw — current player now has option to play or pass!
         if (cb) cb({ ok: true, moveId: result.moveId });
+      } catch (e) {
+        if (cb) cb({ ok: false, error: e.message });
+      }
+    });
+
+    socket.on('passTurn', (data, cb) => {
+      try {
+        const roomId   = socket.data.roomId;
+        const room     = getRoom(roomId);
+        if (!room || !room.gameState) return (cb || (() => {}))({ ok: false, error: 'GAME_NOT_STARTED' });
+        const playerId = room.isOffline ? (data?.asPlayerId || room.gameState.currentPlayerId) : socket.data.playerId;
+
+        const result = processPassTurn(playerId, room.gameState, (event, evtData) => {
+          if (event === 'gameOver') io.to(roomId).emit('gameOver', evtData);
+        });
+
+        if (!result.success) return (cb || (() => {}))({ ok: false, error: result.error });
+
+        broadcastGameState(io, room);
+
+        if (room.gameState.status === 'OVER') {
+          handleGameOver(io, room);
+        } else {
+          scheduleBotTurn(io, room);
+        }
+
+        if (cb) cb({ ok: true });
       } catch (e) {
         if (cb) cb({ ok: false, error: e.message });
       }

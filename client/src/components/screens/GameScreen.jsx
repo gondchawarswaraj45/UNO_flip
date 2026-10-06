@@ -16,6 +16,7 @@ import PlayerHand from '../game/PlayerHand';
 import OpponentArea from '../game/OpponentArea';
 import UnoButton from '../game/UnoButton';
 import CaughtButton from '../game/CaughtButton';
+import PassButton from '../game/PassButton';
 import ColorPicker from '../game/ColorPicker';
 import GameInfo from '../game/GameInfo';
 import ArcadeHeader from '../ui/ArcadeHeader';
@@ -125,6 +126,7 @@ export default function GameScreen() {
 
   const [actionError, setActionError] = useState('');
   const [drawLoading, setDrawLoading] = useState(false);
+  const [passLoading, setPassLoading] = useState(false);
   const [hasShuffled, setHasShuffled] = useState(false);
   const prevGameId = useRef(gameState?.gameId);
   const prevActiveSide = useRef(gameState?.activeSide);
@@ -228,6 +230,10 @@ export default function GameScreen() {
 
   function handleDraw() {
     if (!isMyTurn || !isPlaying || drawLoading) return;
+    if (gameState.hasDrawnThisTurn) {
+      setActionError('You already drew a card this turn! Drop a matching card or press Pass Turn.');
+      return;
+    }
     setDrawLoading(true);
     setSelectedCardId(null);
     sound.drawCard();
@@ -237,6 +243,26 @@ export default function GameScreen() {
     socket.emit('drawCard', { asPlayerId }, (res) => {
       setDrawLoading(false);
       if (!res.ok) setActionError(res.error || 'Draw not permitted');
+    });
+  }
+
+  // ─── Pass Turn ────────────────────────────────────────────────────────────
+
+  function handlePass() {
+    if (!isMyTurn || !isPlaying || passLoading) return;
+    if (!gameState.hasDrawnThisTurn) {
+      setActionError('Official Rule: You must draw a card from the bundle before passing!');
+      return;
+    }
+    setPassLoading(true);
+    setSelectedCardId(null);
+    sound.flipWoosh();
+    sound.vibrate(20);
+
+    const asPlayerId = isOffline ? gameState.currentPlayerId : myPlayerId;
+    socket.emit('passTurn', { asPlayerId }, (res) => {
+      setPassLoading(false);
+      if (!res.ok) setActionError(res.error || 'Cannot pass turn');
     });
   }
 
@@ -337,8 +363,14 @@ export default function GameScreen() {
                   alignItems: 'center',
                   gap: 6,
                   cursor: isMyTurn && isPlaying ? 'pointer' : 'default',
+                  opacity: gameState.hasDrawnThisTurn ? 0.75 : 1,
                 }}
                 onClick={handleDraw}
+                title={
+                  gameState.hasDrawnThisTurn
+                    ? 'Card already drawn this turn! Play a matching card or press Pass.'
+                    : 'Draw 1 card from the deck'
+                }
               >
                 <div
                   style={{
@@ -353,7 +385,7 @@ export default function GameScreen() {
                       activeSide === 'DARK' ? 'rgba(168,85,247,0.45)' : 'rgba(229,185,76,0.45)'
                     }`,
                     boxShadow:
-                      isMyTurn && isPlaying
+                      isMyTurn && isPlaying && !gameState.hasDrawnThisTurn
                         ? activeSide === 'DARK'
                           ? '0 0 28px rgba(168,85,247,0.6)'
                           : '0 0 28px rgba(229,185,76,0.5)'
@@ -364,7 +396,7 @@ export default function GameScreen() {
                     flexDirection: 'column',
                     gap: 4,
                     transition: 'all 0.2s ease',
-                    transform: isMyTurn && isPlaying ? 'scale(1.06)' : 'scale(1)',
+                    transform: isMyTurn && isPlaying && !gameState.hasDrawnThisTurn ? 'scale(1.06)' : 'scale(1)',
                   }}
                 >
                   <span
@@ -390,12 +422,12 @@ export default function GameScreen() {
                 <span
                   style={{
                     fontSize: '0.7rem',
-                    color: 'var(--text-muted)',
+                    color: gameState.hasDrawnThisTurn ? '#22c55e' : 'var(--text-muted)',
                     fontWeight: 700,
                     letterSpacing: '0.05em',
                   }}
                 >
-                  DRAW
+                  {gameState.hasDrawnThisTurn ? 'DRAWN ✓' : 'DRAW'}
                 </span>
               </div>
 
@@ -485,11 +517,25 @@ export default function GameScreen() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  background: isMyTurn ? 'rgba(229, 185, 76, 0.2)' : 'rgba(16, 24, 38, 0.8)',
-                  border: `1.5px solid ${isMyTurn ? 'rgba(229, 185, 76, 0.6)' : 'var(--border-subtle)'}`,
-                  boxShadow: isMyTurn ? '0 0 20px rgba(229, 185, 76, 0.35)' : 'none',
+                  background: isMyTurn
+                    ? gameState.hasDrawnThisTurn
+                      ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(234, 179, 8, 0.22))'
+                      : 'rgba(229, 185, 76, 0.2)'
+                    : 'rgba(16, 24, 38, 0.8)',
+                  border: `1.5px solid ${
+                    isMyTurn
+                      ? gameState.hasDrawnThisTurn
+                        ? 'rgba(16, 185, 129, 0.7)'
+                        : 'rgba(229, 185, 76, 0.6)'
+                      : 'var(--border-subtle)'
+                  }`,
+                  boxShadow: isMyTurn
+                    ? gameState.hasDrawnThisTurn
+                      ? '0 0 22px rgba(16, 185, 129, 0.45)'
+                      : '0 0 20px rgba(229, 185, 76, 0.35)'
+                    : 'none',
                   borderRadius: 99,
-                  padding: '5px 16px',
+                  padding: '6px 18px',
                   animation: isMyTurn ? 'pulseGoldRing 1.5s infinite' : 'none',
                 }}
               >
@@ -498,7 +544,11 @@ export default function GameScreen() {
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    background: isMyTurn ? 'var(--gold-primary)' : 'var(--text-muted)',
+                    background: isMyTurn
+                      ? gameState.hasDrawnThisTurn
+                        ? '#10b981'
+                        : 'var(--gold-primary)'
+                      : 'var(--text-muted)',
                   }}
                 />
                 <span
@@ -510,9 +560,13 @@ export default function GameScreen() {
                   }}
                 >
                   {isOffline
-                    ? `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? 'Player'}'S TURN (PASS & PLAY)`
+                    ? `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? 'Player'}'S TURN ${
+                        gameState.hasDrawnThisTurn ? '— DROP CARD OR PASS' : '(PASS & PLAY)'
+                      }`
                     : isMyTurn
-                    ? 'YOUR TURN — TAP A CARD OR DRAW'
+                    ? gameState.hasDrawnThisTurn
+                      ? '💡 CARD DRAWN! DROP A CARD OR PRESS PASS'
+                      : 'YOUR TURN — TAP A CARD OR DRAW'
                     : `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? '…'}'s Turn`}
                 </span>
               </div>
@@ -672,16 +726,30 @@ export default function GameScreen() {
               {/* Caught Challenge Button */}
               <CaughtButton onCaught={handleCaught} />
 
-              {/* Quick Draw Card Button */}
+              {/* Action: Draw & Pass Buttons (Per Official UNO Flip Rulebook) */}
               {isMyTurn && isPlaying && (
-                <button
-                  className="btn btn-ghost"
-                  onClick={handleDraw}
-                  disabled={drawLoading}
-                  style={{ padding: '9px 16px', fontSize: '0.85rem' }}
-                >
-                  {drawLoading ? 'Drawing…' : '📤 Draw'}
-                </button>
+                <>
+                  <button
+                    className={`draw-action-btn ${gameState.hasDrawnThisTurn ? 'drawn' : ''}`}
+                    id="draw-btn"
+                    onClick={handleDraw}
+                    disabled={drawLoading}
+                    style={{ padding: '10px 18px', fontSize: '0.9rem' }}
+                    title={
+                      gameState.hasDrawnThisTurn
+                        ? 'You have already drawn a card this turn! Drop a card or pass.'
+                        : 'Draw 1 card from the bundle'
+                    }
+                  >
+                    {drawLoading ? 'Drawing…' : gameState.hasDrawnThisTurn ? '✓ Drawn' : '📤 Draw'}
+                  </button>
+
+                  <PassButton
+                    onPass={handlePass}
+                    onCannotPass={(err) => setActionError(err)}
+                    loading={passLoading}
+                  />
+                </>
               )}
             </>
           )}

@@ -389,6 +389,88 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   50%       { box-shadow: 0 0 28px rgba(217, 119, 6, 0.9); }
 }
 
+/* ─── PASS Turn Button ────────────────────────────────────────── */
+.pass-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 0.98rem;
+  letter-spacing: 0.05em;
+  padding: 11px 22px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  cursor: not-allowed;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  opacity: 0.45;
+  user-select: none;
+}
+
+.pass-btn.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 60%, #047857 100%);
+  color: #ffffff;
+  border: 1.5px solid rgba(167, 243, 208, 0.7);
+  box-shadow: 0 6px 22px rgba(16, 185, 129, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  opacity: 1;
+  animation: pulsePass 1.4s ease-in-out infinite;
+}
+
+.pass-btn.active:hover {
+  transform: scale(1.06) translateY(-2px);
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.75);
+}
+
+.pass-btn.active:active {
+  transform: scale(0.96);
+}
+
+@keyframes pulsePass {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4), 0 4px 14px rgba(0, 0, 0, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(16, 185, 129, 0.8), 0 6px 18px rgba(0, 0, 0, 0.5);
+    transform: scale(1.03);
+  }
+}
+
+/* ─── DRAW Action Button ───────────────────────────────────────── */
+.draw-action-btn {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #f8fafc;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 0.98rem;
+  letter-spacing: 0.05em;
+  padding: 11px 22px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid rgba(229, 185, 76, 0.45);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.draw-action-btn:hover:not(:disabled) {
+  transform: scale(1.05) translateY(-2px);
+  border-color: rgba(229, 185, 76, 0.8);
+  box-shadow: 0 8px 24px rgba(229, 185, 76, 0.35);
+}
+
+.draw-action-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.draw-action-btn.drawn {
+  opacity: 0.55;
+  border-color: rgba(255, 255, 255, 0.2);
+  cursor: not-allowed;
+}
+
 /* ─── Game Table Atmosphere ──────────────────────────────────── */
 .game-table {
   position: relative;

@@ -80,6 +80,19 @@ export default function RulesModal({ isOpen, onClose }) {
                 </p>
               </div>
 
+              <div style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 95, 70, 0.15))', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
+                <h4 style={{ color: '#34d399', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>🔄</span> Turn Flow: Drop, Draw & Pass (Official Rules)
+                </h4>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  On your turn, you must drop an eligible matching card from your hand, or take 1 card from the Draw bundle.
+                </p>
+                <ul style={{ fontSize: '0.82rem', paddingLeft: 16, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <li><strong>Play or Pass After Drawing:</strong> If the card you picked up can be played, you are free to drop it in the same turn. Otherwise, you press <strong>Pass</strong>.</li>
+                  <li><strong>Strict Pass Constraint:</strong> You <em>cannot</em> press Pass unless you have drawn a card from the bundle first!</li>
+                </ul>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
                 <div style={{ background: 'var(--bg-card)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                   <h4 style={{ color: '#93c5fd', marginBottom: 6 }}>Classic UNO Mode</h4>
