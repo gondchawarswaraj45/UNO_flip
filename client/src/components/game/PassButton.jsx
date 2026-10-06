@@ -20,10 +20,15 @@ export default function PassButton({ onPass, onCannotPass, loading }) {
   const isPlaying = gameState?.status === 'PLAYING';
   const hasDrawn = !!gameState?.hasDrawnThisTurn;
 
-  const canPass = isMyTurn && isPlaying && hasDrawn && !loading;
+  const isAttackActive = !!gameState?.pendingDrawStack?.active;
+  const canPass = isMyTurn && isPlaying && hasDrawn && !isAttackActive && !loading;
 
   function handleClick(e) {
     e?.stopPropagation?.();
+    if (isAttackActive) {
+      onCannotPass?.('⚡ Cannot pass during a Draw Attack! Counter with a Draw card or take the penalty.');
+      return;
+    }
     if (!canPass) {
       if (!isMyTurn) {
         onCannotPass?.('Wait for your turn to pass');

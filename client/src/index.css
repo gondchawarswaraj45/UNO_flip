@@ -1021,3 +1021,14 @@ p  { color: var(--text-secondary); line-height: 1.6; }
     opacity: 0;
   }
 }
+
+@keyframes pulseAttack {
+  0% {
+    box-shadow: 0 0 14px rgba(239, 68, 68, 0.5), inset 0 0 10px rgba(239, 68, 68, 0.3);
+    transform: scale(1);
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.95), inset 0 0 18px rgba(239, 68, 68, 0.6);
+    transform: scale(1.04);
+  }
+}

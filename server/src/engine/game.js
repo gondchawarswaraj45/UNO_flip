@@ -19,7 +19,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { buildDeck, getActiveFace }        = require('./cards');
 const { shuffleDeck }                     = require('./shuffle');
-const { validatePlay, resolveCardEffects, isUnoState, isWinner } = require('./rules');
+const { validatePlay, resolveCardEffects, isUnoState, isWinner, getDrawCardPenalty } = require('./rules');
 const {
   GAME_MODE,
   ACTIVE_SIDE,
@@ -97,6 +97,16 @@ function createGame(config, players) {
     finishers: [],               // Ordered list of finishers: [{ playerId, playerName, rank, isBot, cardCount, finishedAt }]
     hasDrawnThisTurn: false,     // Official rule: Player must draw before passing
     drawnCardId: null,           // Tracks card taken from bundle
+
+    // Progressive Draw Stacking Engine (+1, +2, +4, +5 progressive counter & accumulation)
+    pendingDrawStack: {
+      active: false,
+      totalCards: 0,
+      currentLevel: 0,
+      initiatorId: null,
+      history: [],
+    },
+
     turnCount: 0,
     totalFlips: 0,
     startedAt: Date.now(),
@@ -251,8 +261,45 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
   let skippedId = null;
   let skippedPlayer = null;
 
-  // Advance turn to next active players
-  if (effects.skipEveryone) {
+  const drawPenalty = getDrawCardPenalty(face);
+
+  if (drawPenalty > 0) {
+    // Progressive Draw Stacking (+1, +2, +4, +5):
+    // Accumulate totalCards, set minimum level, and pass attack to next player!
+    if (state.pendingDrawStack && state.pendingDrawStack.active) {
+      state.pendingDrawStack.totalCards += drawPenalty;
+      state.pendingDrawStack.currentLevel = Math.max(state.pendingDrawStack.currentLevel, drawPenalty);
+      state.pendingDrawStack.history.push({ playerId, type: face.type, count: drawPenalty });
+    } else {
+      state.pendingDrawStack = {
+        active: true,
+        totalCards: drawPenalty,
+        currentLevel: drawPenalty,
+        initiatorId: playerId,
+        history: [{ playerId, type: face.type, count: drawPenalty }],
+      };
+    }
+
+    // Turn advances to next player who must now counter with equal/higher or take penalty
+    advanceTurn(state, 1);
+
+    const targetPlayer = state.players[state.currentPlayerIndex];
+    state.lastActionNotification = {
+      id: uuidv4(),
+      type: 'DRAW_STACK',
+      playedById: playerId,
+      playedByName: playedBy ? playedBy.name : 'Player',
+      targetId: targetPlayer ? targetPlayer.id : null,
+      targetName: targetPlayer ? targetPlayer.name : null,
+      cardType: face.type,
+      cardValue: face.value,
+      cardColor: face.color,
+      drawCount: state.pendingDrawStack.totalCards,
+      currentLevel: state.pendingDrawStack.currentLevel,
+      timestamp: Date.now(),
+    };
+    emitEvent('playerDrewPenalty', state.lastActionNotification);
+  } else if (effects.skipEveryone) {
     // If player still has cards, they play again. If they emptied their hand, advance to next active.
     if (hand.length > 0) {
       // Current player continues
@@ -260,35 +307,30 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
       advanceTurn(state, 1);
     }
   } else if (effects.skipNext) {
-    // Apply draws to the next active player, then skip them
+    // Standard skip card (skip next player)
     const skippedIndex = nextActiveIndex(state, 1);
     skippedId    = state.players[skippedIndex].id;
     skippedPlayer = state.players[skippedIndex];
-    if (effects.drawCount > 0) {
-      drawCards(skippedId, effects.drawCount, state);
-    }
     advanceTurn(state, 2); // skip the target active player
   } else {
     advanceTurn(state, 1);
   }
 
-  // Record action notification for tabletop UI
-  state.lastActionNotification = {
-    id: uuidv4(),
-    type: effects.drawCount > 0 ? 'PENALTY_DRAW' : (effects.skipEveryone ? 'SKIP_EVERYONE' : (effects.skipNext ? 'SKIP' : (effects.flip ? 'FLIP' : 'PLAY'))),
-    playedById: playerId,
-    playedByName: playedBy ? playedBy.name : 'Player',
-    targetId: skippedId,
-    targetName: skippedPlayer ? skippedPlayer.name : null,
-    cardType: face.type,
-    cardValue: face.value,
-    cardColor: face.color,
-    drawCount: effects.drawCount || 0,
-    timestamp: Date.now(),
-  };
-
-  if (effects.drawCount > 0) {
-    emitEvent('playerDrewPenalty', state.lastActionNotification);
+  // Record action notification for non-stacking plays
+  if (drawPenalty === 0) {
+    state.lastActionNotification = {
+      id: uuidv4(),
+      type: effects.skipEveryone ? 'SKIP_EVERYONE' : (effects.skipNext ? 'SKIP' : (effects.flip ? 'FLIP' : 'PLAY')),
+      playedById: playerId,
+      playedByName: playedBy ? playedBy.name : 'Player',
+      targetId: skippedId,
+      targetName: skippedPlayer ? skippedPlayer.name : null,
+      cardType: face.type,
+      cardValue: face.value,
+      cardColor: face.color,
+      drawCount: 0,
+      timestamp: Date.now(),
+    };
   }
 
   // Check UNO state: if player already called UNO and now has 1 card, preserve their call
@@ -394,6 +436,68 @@ function processDrawCard(playerId, state, emitEvent) {
   if (state.currentPlayerId !== playerId) {
     return { success: false, error: 'NOT_YOUR_TURN' };
   }
+
+  // Under Progressive Draw Stack: Player takes the ENTIRE accumulated penalty!
+  if (state.pendingDrawStack && state.pendingDrawStack.active) {
+    const penaltyTotal = state.pendingDrawStack.totalCards;
+    const drawn = drawCards(playerId, penaltyTotal, state);
+
+    // Reset draw stack
+    state.pendingDrawStack = {
+      active: false,
+      totalCards: 0,
+      currentLevel: 0,
+      initiatorId: null,
+      history: [],
+    };
+
+    state.hasDrawnThisTurn = false;
+    state.drawnCardId = null;
+
+    const moveId = uuidv4();
+    state.lastMove = {
+      moveId,
+      playerId,
+      cardId: null,
+      timestamp: Date.now(),
+      result: 'DREW_PENALTY',
+      unoPressed: false,
+      caught: false,
+      caughtBy: null,
+    };
+
+    const drawingPlayer = state.players.find(p => p.id === playerId);
+    state.lastActionNotification = {
+      id: uuidv4(),
+      type: 'PENALTY_DRAW',
+      playedById: playerId,
+      playedByName: drawingPlayer ? drawingPlayer.name : 'Player',
+      targetId: playerId,
+      targetName: drawingPlayer ? drawingPlayer.name : 'Player',
+      cardType: 'DRAW',
+      cardValue: null,
+      cardColor: null,
+      drawCount: penaltyTotal,
+      timestamp: Date.now(),
+    };
+
+    state.caughtWindow = {
+      active: false,
+      moveId: null,
+      targetPlayerId: null,
+      expiresAt: null,
+      resolved: false,
+    };
+
+    // User rule: "last player have to take total cards ( +1 & +1 & +2 = 4) ... and then next player will continue the game"
+    advanceTurn(state, 1);
+
+    emitEvent('playerDrewPenalty', state.lastActionNotification);
+    emitEvent('stateBroadcast', null);
+
+    return { success: true, moveId, penaltyTaken: penaltyTotal, drawnCount: drawn.length };
+  }
+
   if (state.hasDrawnThisTurn) {
     return { success: false, error: 'ALREADY_DRAWN_THIS_TURN' };
   }
@@ -465,6 +569,9 @@ function processDrawCard(playerId, state, emitEvent) {
 function processPassTurn(playerId, state, emitEvent) {
   if (state.currentPlayerId !== playerId) {
     return { success: false, error: 'NOT_YOUR_TURN' };
+  }
+  if (state.pendingDrawStack && state.pendingDrawStack.active) {
+    return { success: false, error: 'CANNOT_PASS_DURING_DRAW_ATTACK' };
   }
   if (!state.hasDrawnThisTurn) {
     return { success: false, error: 'CANNOT_PASS_WITHOUT_DRAWING' };
@@ -725,6 +832,13 @@ function getPublicState(state) {
     winner:    state.winner,
     hasDrawnThisTurn: !!state.hasDrawnThisTurn,
     drawnCardId: state.hasDrawnThisTurn ? state.drawnCardId : null,
+    pendingDrawStack: state.pendingDrawStack ? {
+      active: !!state.pendingDrawStack.active,
+      totalCards: state.pendingDrawStack.totalCards || 0,
+      currentLevel: state.pendingDrawStack.currentLevel || 0,
+      initiatorId: state.pendingDrawStack.initiatorId || null,
+      history: state.pendingDrawStack.history || [],
+    } : { active: false, totalCards: 0, currentLevel: 0, initiatorId: null, history: [] },
     turnCount: state.turnCount,
     totalFlips: state.totalFlips || 0,
     startedAt: state.startedAt || Date.now(),

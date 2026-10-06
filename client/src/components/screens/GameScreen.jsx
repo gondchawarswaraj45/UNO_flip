@@ -218,7 +218,16 @@ export default function GameScreen() {
     const asPlayerId = isOffline ? gameState.currentPlayerId : myPlayerId;
     socket.emit('playCard', { cardId, chosenColor, asPlayerId }, (res) => {
       if (!res.ok) {
-        setActionError(res.error || 'Invalid move according to authoritative rules');
+        if (res.error === 'MUST_COUNTER_WITH_DRAW_CARD') {
+          const lvl = gameState.pendingDrawStack?.currentLevel || 1;
+          const total = gameState.pendingDrawStack?.totalCards || 1;
+          setActionError(`⚡ Active Attack (+${total})! You must counter with a +${lvl} or higher Draw card, or take the penalty.`);
+        } else if (res.error === 'CANNOT_DOWNGRADE_DRAW_STACK') {
+          const lvl = gameState.pendingDrawStack?.currentLevel || 2;
+          setActionError(`🚫 Cannot downgrade! You cannot play a lower draw card on a +${lvl} attack. Play +${lvl} or higher, or take the penalty.`);
+        } else {
+          setActionError(res.error || 'Invalid move according to authoritative rules');
+        }
         setSelectedCardId(null);
       } else {
         setSelectedCardId(null);
@@ -230,7 +239,7 @@ export default function GameScreen() {
 
   function handleDraw() {
     if (!isMyTurn || !isPlaying || drawLoading) return;
-    if (gameState.hasDrawnThisTurn) {
+    if (gameState.hasDrawnThisTurn && !gameState.pendingDrawStack?.active) {
       setActionError('You already drew a card this turn! Drop a matching card or press Pass Turn.');
       return;
     }
@@ -256,6 +265,10 @@ export default function GameScreen() {
 
   function handlePass() {
     if (!isMyTurn || !isPlaying || passLoading) return;
+    if (gameState.pendingDrawStack?.active) {
+      setActionError('⚡ Cannot pass during a Draw Attack! Play a counter card or take the penalty.');
+      return;
+    }
     if (!gameState.hasDrawnThisTurn) {
       setActionError('Official Rule: You must draw a card from the bundle before passing!');
       return;
@@ -268,7 +281,13 @@ export default function GameScreen() {
     const asPlayerId = isOffline ? gameState.currentPlayerId : myPlayerId;
     socket.emit('passTurn', { asPlayerId }, (res) => {
       setPassLoading(false);
-      if (!res.ok) setActionError(res.error || 'Cannot pass turn');
+      if (!res.ok) {
+        if (res.error === 'CANNOT_PASS_DURING_DRAW_ATTACK') {
+          setActionError('⚡ Cannot pass during a Draw Attack! Play a counter card or take the penalty.');
+        } else {
+          setActionError(res.error || 'Cannot pass turn');
+        }
+      }
     });
   }
 
@@ -369,11 +388,13 @@ export default function GameScreen() {
                   alignItems: 'center',
                   gap: 6,
                   cursor: isMyTurn && isPlaying ? 'pointer' : 'default',
-                  opacity: gameState.hasDrawnThisTurn ? 0.75 : 1,
+                  opacity: gameState.hasDrawnThisTurn && !gameState.pendingDrawStack?.active ? 0.75 : 1,
                 }}
                 onClick={handleDraw}
                 title={
-                  gameState.hasDrawnThisTurn
+                  gameState.pendingDrawStack?.active
+                    ? `Active Draw Stack! Take ${gameState.pendingDrawStack.totalCards} penalty cards and pass turn.`
+                    : gameState.hasDrawnThisTurn
                     ? 'Card already drawn this turn! Play a matching card or press Pass.'
                     : 'Draw 1 card from the deck'
                 }
@@ -387,38 +408,41 @@ export default function GameScreen() {
                       activeSide === 'DARK'
                         ? 'linear-gradient(135deg, #181024 0%, #2e124d 100%)'
                         : 'linear-gradient(135deg, #0e1726 0%, #1e293b 100%)',
-                    border: `2px solid ${
-                      activeSide === 'DARK' ? 'rgba(168,85,247,0.45)' : 'rgba(229,185,76,0.45)'
-                    }`,
-                    boxShadow:
-                      isMyTurn && isPlaying && !gameState.hasDrawnThisTurn
-                        ? activeSide === 'DARK'
-                          ? '0 0 28px rgba(168,85,247,0.6)'
-                          : '0 0 28px rgba(229,185,76,0.5)'
-                        : '0 8px 24px rgba(0,0,0,0.6)',
+                    border: gameState.pendingDrawStack?.active
+                      ? '2.5px solid #ef4444'
+                      : `2px solid ${
+                          activeSide === 'DARK' ? 'rgba(168,85,247,0.45)' : 'rgba(229,185,76,0.45)'
+                        }`,
+                    boxShadow: gameState.pendingDrawStack?.active
+                      ? '0 0 32px rgba(239,68,68,0.85)'
+                      : isMyTurn && isPlaying && !gameState.hasDrawnThisTurn
+                      ? activeSide === 'DARK'
+                        ? '0 0 28px rgba(168,85,247,0.6)'
+                        : '0 0 28px rgba(229,185,76,0.5)'
+                      : '0 8px 24px rgba(0,0,0,0.6)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexDirection: 'column',
                     gap: 4,
                     transition: 'all 0.2s ease',
-                    transform: isMyTurn && isPlaying && !gameState.hasDrawnThisTurn ? 'scale(1.06)' : 'scale(1)',
+                    transform: isMyTurn && isPlaying && (!gameState.hasDrawnThisTurn || gameState.pendingDrawStack?.active) ? 'scale(1.06)' : 'scale(1)',
                   }}
                 >
                   <span
                     style={{
                       fontSize: '1.6rem',
-                      color: activeSide === 'DARK' ? '#c084fc' : '#facc15',
+                      color: gameState.pendingDrawStack?.active ? '#ef4444' : activeSide === 'DARK' ? '#c084fc' : '#facc15',
                       opacity: 0.9,
                     }}
                   >
-                    {activeSide === 'DARK' ? '◈' : '✦'}
+                    {gameState.pendingDrawStack?.active ? '⚡' : activeSide === 'DARK' ? '◈' : '✦'}
                   </span>
                   <span
                     style={{
                       fontSize: '0.7rem',
                       fontWeight: 800,
-                      color: 'var(--text-secondary)',
+                      color: gameState.pendingDrawStack?.active ? '#fca5a5' : 'var(--text-secondary)',
                       letterSpacing: '0.06em',
                     }}
                   >
@@ -428,12 +452,20 @@ export default function GameScreen() {
                 <span
                   style={{
                     fontSize: '0.7rem',
-                    color: gameState.hasDrawnThisTurn ? '#22c55e' : 'var(--text-muted)',
+                    color: gameState.pendingDrawStack?.active
+                      ? '#ef4444'
+                      : gameState.hasDrawnThisTurn
+                      ? '#22c55e'
+                      : 'var(--text-muted)',
                     fontWeight: 700,
                     letterSpacing: '0.05em',
                   }}
                 >
-                  {gameState.hasDrawnThisTurn ? 'DRAWN ✓' : 'DRAW'}
+                  {gameState.pendingDrawStack?.active
+                    ? `TAKE +${gameState.pendingDrawStack.totalCards}`
+                    : gameState.hasDrawnThisTurn
+                    ? 'DRAWN ✓'
+                    : 'DRAW'}
                 </span>
               </div>
 
@@ -490,6 +522,59 @@ export default function GameScreen() {
                 </span>
               </div>
             </div>
+
+            {/* Real-time Progressive Draw Attack Stack Banner */}
+            {gameState.pendingDrawStack?.active && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '7px 20px',
+                  borderRadius: 99,
+                  background: 'linear-gradient(135deg, rgba(220,38,38,0.45), rgba(153,27,27,0.6))',
+                  border: '2px solid rgba(248,113,113,0.9)',
+                  boxShadow: '0 0 30px rgba(239,68,68,0.75)',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  fontWeight: 900,
+                  letterSpacing: '0.03em',
+                  animation: 'pulseGoldRing 1.2s infinite',
+                }}
+              >
+                <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                <span>
+                  {isMyTurn
+                    ? `DRAW ATTACK: +${gameState.pendingDrawStack.totalCards} CARDS PENDING! Counter with +${gameState.pendingDrawStack.currentLevel} or higher, or take penalty!`
+                    : `DRAW STACK: +${gameState.pendingDrawStack.totalCards} PENDING (Min +${gameState.pendingDrawStack.currentLevel}) → ${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? 'Player'}'s turn`}
+                </span>
+              </div>
+            )}
+
+            {/* Real-time Draw Stack Notification */}
+            {gameState.lastActionNotification?.type === 'DRAW_STACK' && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '5px 16px',
+                  borderRadius: 99,
+                  background: 'linear-gradient(135deg, rgba(234,179,8,0.35), rgba(180,83,9,0.5))',
+                  border: '1.5px solid rgba(250,204,21,0.8)',
+                  boxShadow: '0 0 20px rgba(234,179,8,0.5)',
+                  color: '#fef08a',
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  animation: 'fadeIn 0.25s ease',
+                }}
+              >
+                <span>🔥</span>
+                <span>
+                  {gameState.lastActionNotification.playedByName} stacked a Draw card! Total penalty now: +{gameState.lastActionNotification.drawCount}!
+                </span>
+              </div>
+            )}
 
             {/* Real-time Penalty Draw Alert Banner (+1, +4, +5) */}
             {gameState.lastActionNotification?.type === 'PENALTY_DRAW' && gameState.lastActionNotification.drawCount > 0 && (
@@ -762,19 +847,35 @@ export default function GameScreen() {
                 style={{
                   padding: '10px 18px',
                   fontSize: '0.9rem',
-                  opacity: !isMyTurn || !isPlaying ? 0.4 : gameState.hasDrawnThisTurn ? 0.65 : 1,
+                  opacity: !isMyTurn || !isPlaying ? 0.4 : gameState.hasDrawnThisTurn && !gameState.pendingDrawStack?.active ? 0.65 : 1,
                   cursor: !isMyTurn || !isPlaying ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s ease',
+                  ...(gameState.pendingDrawStack?.active && isMyTurn ? {
+                    background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                    color: '#ffffff',
+                    fontWeight: 900,
+                    border: '1.5px solid #f87171',
+                    boxShadow: '0 0 24px rgba(239, 68, 68, 0.8)',
+                    animation: 'pulseAttack 1.2s infinite alternate',
+                  } : {}),
                 }}
                 title={
                   !isMyTurn
                     ? 'Wait for your turn'
+                    : gameState.pendingDrawStack?.active
+                    ? `Active Draw Stack! Take ${gameState.pendingDrawStack.totalCards} penalty cards and pass turn.`
                     : gameState.hasDrawnThisTurn
                     ? 'You have already drawn a card this turn! Drop a card or pass.'
                     : 'Draw 1 card from the bundle'
                 }
               >
-                {drawLoading ? 'Drawing…' : gameState.hasDrawnThisTurn ? '✓ Drawn' : '📤 Draw'}
+                {drawLoading
+                  ? 'Drawing…'
+                  : gameState.pendingDrawStack?.active && isMyTurn
+                  ? `📥 Take Penalty (+${gameState.pendingDrawStack.totalCards} Cards)`
+                  : gameState.hasDrawnThisTurn
+                  ? '✓ Drawn'
+                  : '📤 Draw'}
               </button>
 
               {/* Pass Turn Button (Always visible in action bar) */}

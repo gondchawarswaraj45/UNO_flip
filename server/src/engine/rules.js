@@ -33,6 +33,20 @@ function topFace(gameState) {
 // ─── Core Validation ─────────────────────────────────────────────────────────
 
 /**
+ * Returns the draw penalty count of a card face, or 0 if it is not a draw card.
+ * @param {object} face
+ * @returns {number}
+ */
+function getDrawCardPenalty(face) {
+  if (!face) return 0;
+  if (face.type === CARD_TYPE.DRAW_ONE) return 1;
+  if (face.type === CARD_TYPE.DRAW_TWO || face.type === CARD_TYPE.WILD_DRAW_TWO) return 2;
+  if (face.type === CARD_TYPE.WILD_DRAW_FOUR) return 4;
+  if (face.type === CARD_TYPE.DRAW_FIVE) return 5;
+  return 0;
+}
+
+/**
  * Determine whether a specific card can be legally played by a player.
  *
  * @param {string} playerId
@@ -58,6 +72,32 @@ function validatePlay(playerId, cardId, gameState, chosenColor) {
   const face = getActiveFace(card, gameState.activeSide);
   if (!face) {
     return { valid: false, reason: 'INVALID_CARD_SIDE' };
+  }
+
+  // ─── Progressive Draw Stacking Rule ───────────────────────────────────────
+  // If a draw attack (+1, +2, +4, +5) is pending on this player:
+  // - Player can only counter with an EQUAL or HIGHER draw card (+1, +2, +4, etc.)
+  // - Cannot downgrade (e.g. cannot play +1 on a +2 attack)
+  // - Cannot play non-draw cards while under attack
+  if (gameState.pendingDrawStack && gameState.pendingDrawStack.active) {
+    const cardPenalty = getDrawCardPenalty(face);
+    if (cardPenalty === 0) {
+      return { valid: false, reason: 'MUST_COUNTER_WITH_DRAW_CARD' };
+    }
+    if (cardPenalty < gameState.pendingDrawStack.currentLevel) {
+      return { valid: false, reason: 'CANNOT_DOWNGRADE_DRAW_STACK' };
+    }
+    // Validate Wild Draw color selection
+    if (face.type === CARD_TYPE.WILD_DRAW_FOUR || face.type === CARD_TYPE.WILD_DRAW_TWO) {
+      if (!chosenColor) {
+        return { valid: false, reason: 'WILD_REQUIRES_COLOR_CHOICE' };
+      }
+      const legalColors = getLegalColors(gameState);
+      if (!legalColors.includes(chosenColor)) {
+        return { valid: false, reason: 'INVALID_CHOSEN_COLOR' };
+      }
+    }
+    return { valid: true, reason: null };
   }
 
   // 4. Wild cards — always playable (with color choice validation)
@@ -218,4 +258,4 @@ function resolveCardEffects(face, chosenColor, gameState) {
   return effects;
 }
 
-module.exports = { validatePlay, resolveCardEffects, isUnoState, isWinner, getLegalColors };
+module.exports = { validatePlay, resolveCardEffects, isUnoState, isWinner, getLegalColors, getDrawCardPenalty };

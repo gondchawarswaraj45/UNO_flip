@@ -37,7 +37,7 @@ export default function LandingScreen() {
   } = useGameStore();
 
   const [name, setName]         = useState(myName || profile.username || 'Player');
-  const [selectedMode, setSelectedMode] = useState('online'); // 'online' | 'friends_online' | 'friends_offline' | 'computer'
+  const [selectedMode, setSelectedMode] = useState(null); // null = Page 1 (select mode); 'online' | 'friends_online' | 'friends_offline' | 'computer' = Page 2 (configure)
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
@@ -310,166 +310,318 @@ export default function LandingScreen() {
             position: 'relative',
           }}
         >
-          {/* Player Identity Bar */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: '8px 14px',
-            marginBottom: 16,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-              <span style={{ fontSize: '1.4rem' }}>{profile.avatar || '👑'}</span>
-              <div style={{ flex: 1 }}>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PLAYER NAME</span>
-                <input
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  maxLength={18}
+          {!selectedMode ? (
+            /* ═══════════════════════════════════════════════════════════════════
+               STEP 1: CHOOSE GAME MODE ONLY
+               ═══════════════════════════════════════════════════════════════════ */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ textAlign: 'center', marginBottom: 2 }}>
+                <span style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-gold)',
+                  background: 'rgba(229, 185, 76, 0.1)',
+                  padding: '3px 12px',
+                  borderRadius: 99,
+                  border: '1px solid rgba(229, 185, 76, 0.25)',
+                  display: 'inline-block',
+                  marginBottom: 6,
+                }}>
+                  Step 1 of 2: Mode Selection
+                </span>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
+                  Select Game Mode
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                  Choose how you want to play to proceed to setup:
+                </p>
+              </div>
+
+              {/* 4 Dedicated Game Modes Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 12,
+              }}>
+                {/* Mode 1: Play Online */}
+                <div
+                  className="mode-card"
+                  onClick={() => { sound.buttonClick(); setSelectedMode('online'); setError(''); }}
                   style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#ffffff',
-                    fontWeight: 700,
-                    fontSize: '0.95rem',
-                    outline: 'none',
-                    width: '100%',
+                    padding: '16px 14px',
+                    background: 'linear-gradient(145deg, rgba(14, 116, 144, 0.2) 0%, rgba(15, 23, 42, 0.85) 100%)',
+                    borderColor: 'rgba(56, 189, 248, 0.35)',
+                    cursor: 'pointer',
                   }}
-                  placeholder="Enter name…"
-                />
-              </div>
-            </div>
-            <button
-              onClick={() => setShowProfileModal(true)}
-              style={{
-                background: 'rgba(229, 185, 76, 0.12)',
-                border: '1px solid rgba(229, 185, 76, 0.35)',
-                color: 'var(--text-gold)',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                borderRadius: 99,
-                padding: '4px 10px',
-                cursor: 'pointer',
-              }}
-            >
-              Avatar 🎨
-            </button>
-          </div>
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.6rem' }}>🌐</span>
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      background: '#0284c7',
+                      color: '#ffffff',
+                    }}>
+                      ONLINE
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>
+                    Play Online
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
+                    Quick random match with players worldwide
+                  </span>
+                  <div style={{
+                    marginTop: 4,
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    color: '#38bdf8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}>
+                    Select Mode →
+                  </div>
+                </div>
 
-          {/* ── 4 Game Modes Grid ── */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: 10,
-            marginBottom: 16,
-          }}>
-            {/* Mode 1: Play Online */}
-            <div
-              className={`mode-card ${selectedMode === 'online' ? 'active-online' : ''}`}
-              onClick={() => { sound.buttonClick(); setSelectedMode('online'); setError(''); }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '1.4rem' }}>🌐</span>
-                <span style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  padding: '2px 7px',
-                  borderRadius: 99,
-                  background: selectedMode === 'online' ? '#0284c7' : 'rgba(255,255,255,0.08)',
-                  color: selectedMode === 'online' ? '#ffffff' : 'var(--text-muted)',
-                }}>
-                  ONLINE
-                </span>
-              </div>
-              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedMode === 'online' ? '#38bdf8' : '#ffffff' }}>
-                Play Online
-              </span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
-                Quick random match with players worldwide
-              </span>
-            </div>
+                {/* Mode 2: Play with Friends Online */}
+                <div
+                  className="mode-card"
+                  onClick={() => { sound.buttonClick(); setSelectedMode('friends_online'); setError(''); }}
+                  style={{
+                    padding: '16px 14px',
+                    background: 'linear-gradient(145deg, rgba(21, 128, 61, 0.2) 0%, rgba(15, 23, 42, 0.85) 100%)',
+                    borderColor: 'rgba(74, 222, 128, 0.35)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.6rem' }}>👥</span>
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      background: '#16a34a',
+                      color: '#ffffff',
+                    }}>
+                      FRIENDS
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '1rem', fontWeight: 800, color: '#4ade80' }}>
+                    Friends Online
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
+                    Create private room or join with 6-letter code
+                  </span>
+                  <div style={{
+                    marginTop: 4,
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    color: '#4ade80',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}>
+                    Select Mode →
+                  </div>
+                </div>
 
-            {/* Mode 2: Play with Friends Online */}
-            <div
-              className={`mode-card ${selectedMode === 'friends_online' ? 'active-friends-online' : ''}`}
-              onClick={() => { sound.buttonClick(); setSelectedMode('friends_online'); setError(''); }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '1.4rem' }}>👥</span>
-                <span style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  padding: '2px 7px',
-                  borderRadius: 99,
-                  background: selectedMode === 'friends_online' ? '#16a34a' : 'rgba(255,255,255,0.08)',
-                  color: selectedMode === 'friends_online' ? '#ffffff' : 'var(--text-muted)',
-                }}>
-                  FRIENDS
-                </span>
-              </div>
-              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedMode === 'friends_online' ? '#4ade80' : '#ffffff' }}>
-                Friends Online
-              </span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
-                Create private room or join with code
-              </span>
-            </div>
+                {/* Mode 3: Play with Friends Offline */}
+                <div
+                  className="mode-card"
+                  onClick={() => { sound.buttonClick(); setSelectedMode('friends_offline'); setError(''); }}
+                  style={{
+                    padding: '16px 14px',
+                    background: 'linear-gradient(145deg, rgba(217, 119, 6, 0.2) 0%, rgba(15, 23, 42, 0.85) 100%)',
+                    borderColor: 'rgba(251, 191, 36, 0.35)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.6rem' }}>🛋️</span>
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      background: '#d97706',
+                      color: '#ffffff',
+                    }}>
+                      PASS & PLAY
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '1rem', fontWeight: 800, color: '#fbbf24' }}>
+                    Friends Offline
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
+                    Local pass & play on this single screen (2–6 players)
+                  </span>
+                  <div style={{
+                    marginTop: 4,
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    color: '#fbbf24',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}>
+                    Select Mode →
+                  </div>
+                </div>
 
-            {/* Mode 3: Play with Friends Offline */}
-            <div
-              className={`mode-card ${selectedMode === 'friends_offline' ? 'active-friends-offline' : ''}`}
-              onClick={() => { sound.buttonClick(); setSelectedMode('friends_offline'); setError(''); }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '1.4rem' }}>🛋️</span>
-                <span style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  padding: '2px 7px',
-                  borderRadius: 99,
-                  background: selectedMode === 'friends_offline' ? '#d97706' : 'rgba(255,255,255,0.08)',
-                  color: selectedMode === 'friends_offline' ? '#ffffff' : 'var(--text-muted)',
-                }}>
-                  PASS & PLAY
-                </span>
+                {/* Mode 4: Play with Computers */}
+                <div
+                  className="mode-card"
+                  onClick={() => { sound.buttonClick(); setSelectedMode('computer'); setError(''); }}
+                  style={{
+                    padding: '16px 14px',
+                    background: 'linear-gradient(145deg, rgba(124, 58, 237, 0.2) 0%, rgba(15, 23, 42, 0.85) 100%)',
+                    borderColor: 'rgba(192, 132, 252, 0.35)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.6rem' }}>🤖</span>
+                    <span style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      background: '#7c3aed',
+                      color: '#ffffff',
+                    }}>
+                      VS BOTS
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '1rem', fontWeight: 800, color: '#c084fc' }}>
+                    Play with Computers
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
+                    Solo match vs smart AI bots (2–6 players)
+                  </span>
+                  <div style={{
+                    marginTop: 4,
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    color: '#c084fc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}>
+                    Select Mode →
+                  </div>
+                </div>
               </div>
-              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedMode === 'friends_offline' ? '#fbbf24' : '#ffffff' }}>
-                Friends Offline
-              </span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
-                Local pass & play on this single screen
-              </span>
             </div>
+          ) : (
+            /* ═══════════════════════════════════════════════════════════════════
+               STEP 2: CONFIGURE SELECTED MODE & LAUNCH
+               ═══════════════════════════════════════════════════════════════════ */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* Back to Game Modes Header */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingBottom: 10,
+                borderBottom: '1px solid var(--border-subtle)',
+              }}>
+                <button
+                  onClick={() => { sound.buttonClick(); setSelectedMode(null); setError(''); }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid var(--border-mid)',
+                    borderRadius: 99,
+                    color: '#ffffff',
+                    padding: '6px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.16)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+                >
+                  <span>←</span>
+                  <span>Back to Game Modes</span>
+                </button>
 
-            {/* Mode 4: Play with Computers */}
-            <div
-              className={`mode-card ${selectedMode === 'computer' ? 'active-computer' : ''}`}
-              onClick={() => { sound.buttonClick(); setSelectedMode('computer'); setError(''); }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '1.4rem' }}>🤖</span>
-                <span style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  padding: '2px 7px',
-                  borderRadius: 99,
-                  background: selectedMode === 'computer' ? '#7c3aed' : 'rgba(255,255,255,0.08)',
-                  color: selectedMode === 'computer' ? '#ffffff' : 'var(--text-muted)',
-                }}>
-                  VS BOTS
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '1.2rem' }}>
+                    {selectedMode === 'online' ? '🌐' :
+                     selectedMode === 'friends_online' ? '👥' :
+                     selectedMode === 'friends_offline' ? '🛋️' : '🤖'}
+                  </span>
+                  <span style={{
+                    fontSize: '0.88rem',
+                    fontWeight: 800,
+                    color:
+                      selectedMode === 'online' ? '#38bdf8' :
+                      selectedMode === 'friends_online' ? '#4ade80' :
+                      selectedMode === 'friends_offline' ? '#fbbf24' : '#c084fc',
+                  }}>
+                    {selectedMode === 'online' ? 'Play Online Setup' :
+                     selectedMode === 'friends_online' ? 'Friends Online Setup' :
+                     selectedMode === 'friends_offline' ? 'Pass & Play Setup' : 'Computer Match Setup'}
+                  </span>
+                </div>
               </div>
-              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedMode === 'computer' ? '#c084fc' : '#ffffff' }}>
-                Play with Computers
-              </span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
-                Solo match vs smart AI bots
-              </span>
-            </div>
-          </div>
+
+              {/* Player Identity Bar */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: '8px 14px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <span style={{ fontSize: '1.4rem' }}>{profile.avatar || '👑'}</span>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PLAYER NAME</span>
+                    <input
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      maxLength={18}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#ffffff',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        outline: 'none',
+                        width: '100%',
+                      }}
+                      placeholder="Enter name…"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowProfileModal(true)}
+                  style={{
+                    background: 'rgba(229, 185, 76, 0.12)',
+                    border: '1px solid rgba(229, 185, 76, 0.35)',
+                    color: 'var(--text-gold)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    borderRadius: 99,
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Avatar 🎨
+                </button>
+              </div>
 
           {/* ── Respective Options & Configurations ── */}
 
@@ -994,6 +1146,8 @@ export default function LandingScreen() {
              selectedMode === 'friends_offline' ? `🎮 Start Offline Pass & Play (${offlineCount} Players)` :
              `🤖 Launch Computer Match (${computerTotal} Players)`}
           </button>
+            </div>
+          )}
         </div>
 
         {/* Quick Rules Guide Button */}

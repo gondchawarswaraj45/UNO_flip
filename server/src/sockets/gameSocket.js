@@ -219,9 +219,22 @@ function registerGameSocket(io) {
             }
           }
         } else {
-          // Bot takes a card from the bundle
-          result = processDrawCard(currentPlayer.id, r.gameState, () => {});
+          // Bot takes cards (either penalty stack or normal 1-card draw)
+          const wasUnderStack = !!(r.gameState.pendingDrawStack && r.gameState.pendingDrawStack.active);
+          result = processDrawCard(currentPlayer.id, r.gameState, (event, data) => {
+            if (event === 'playerDrewPenalty') io.to(r.id).emit('actionAlert', data);
+          });
           broadcastGameState(io, r);
+
+          if (wasUnderStack) {
+            // Penalty stack drawn: turn advanced automatically to next player
+            if (r.gameState.status === 'OVER') {
+              handleGameOver(io, r);
+              return;
+            }
+            scheduleBotTurn(io, r);
+            return;
+          }
 
           // Give a short human-like pause before bot drops card or passes
           setTimeout(() => {
