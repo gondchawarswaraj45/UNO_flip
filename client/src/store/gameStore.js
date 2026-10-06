@@ -256,6 +256,16 @@ const useGameStore = create((set, get) => ({
     return gameState.players.find((p) => p.id === myPlayerId) || null;
   },
 
+  // ─── Real-Time Action Alerts & Bot Thinking ─────────────────────────────────
+  actionAlert: null,
+  setActionAlert: (actionAlert) => set({ actionAlert }),
+  botThinking: {},
+  setBotThinking: (botId, thinking) => set((s) => ({ botThinking: { ...s.botThinking, [botId]: thinking } })),
+  offlineActivePlayerId: null,
+  setOfflineActivePlayerId: (id) => set({ offlineActivePlayerId: id }),
+  isOfflineMode: false,
+  setIsOfflineMode: (v) => set({ isOfflineMode: v }),
+
   reset: () =>
     set({
       gameState: null,
@@ -269,6 +279,10 @@ const useGameStore = create((set, get) => ({
       gameResult: null,
       lobbyState: null,
       roomId: null,
+      actionAlert: null,
+      botThinking: {},
+      offlineActivePlayerId: null,
+      isOfflineMode: false,
       screen: 'LANDING',
     }),
 }));

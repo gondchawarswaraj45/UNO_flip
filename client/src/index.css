@@ -826,3 +826,59 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   .uno-btn { font-size: 1.05rem; padding: 8px 14px; }
   .caught-btn { font-size: 0.78rem; padding: 7px 12px; }
 }
+
+/* ─── Mode Cards for Luxury Home Hub ──────────────────────────── */
+.mode-card {
+  border-radius: var(--radius-lg);
+  padding: 16px 14px;
+  background: rgba(16, 24, 38, 0.75);
+  border: 1.5px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.25s var(--ease-smooth);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+
+.mode-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-bright);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.mode-card.active-online {
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.3) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border-color: #38bdf8;
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.4);
+}
+
+.mode-card.active-friends-online {
+  background: linear-gradient(135deg, rgba(21, 128, 61, 0.3) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border-color: #4ade80;
+  box-shadow: 0 0 24px rgba(74, 222, 128, 0.4);
+}
+
+.mode-card.active-friends-offline {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.3) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border-color: #fbbf24;
+  box-shadow: 0 0 24px rgba(251, 191, 36, 0.4);
+}
+
+.mode-card.active-computer {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.3) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border-color: #c084fc;
+  box-shadow: 0 0 24px rgba(192, 132, 252, 0.4);
+}
+
+.dot-pulse {
+  display: inline-block;
+  animation: pulseDot 1s infinite alternate;
+}
+
+@keyframes pulseDot {
+  0% { opacity: 0.3; }
+  100% { opacity: 1; }
+}

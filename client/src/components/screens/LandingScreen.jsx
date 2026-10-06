@@ -1,12 +1,11 @@
 /**
- * Landing Screen — Studio-grade game entry with luxury felt atmosphere.
- * Features:
- *  - 🤖 Play with Computer (Instant Solo Bot Match with custom mode, bot count & difficulty)
- *  - ⚡ Play Online / Quick Match (Instant matchmaking with random online players)
- *  - ➕ Create Private Room (with custom 6-digit code for friends)
- *  - 🔗 Join Room (enter existing room code)
- *  - 📜 Comprehensive Rules & How-to-Play Guide
- *  - 🎨 Profile Customizer and Permanent Supabase Database Stats
+ * Landing Screen — Studio-grade game hub with luxury felt atmosphere.
+ *
+ * 4 Dedicated Game Modes:
+ *  1. 🌐 Play Online — Quick matchmaking with players worldwide
+ *  2. 👥 Play with Friends Online — Host private lobby or join with 6-digit room code
+ *  3. 🛋️ Play with Friends Offline — Pass & Play local multiplayer on this device (2 to 6 players)
+ *  4. 🤖 Play with Computers — Solo match with intelligent AI bots (2 to 6 players, custom difficulty)
  */
 
 import React, { useState, useEffect } from 'react';
@@ -34,23 +33,36 @@ export default function LandingScreen() {
     setMyName,
     setMyPlayerId,
     setLobbyState,
+    setIsOfflineMode,
   } = useGameStore();
 
   const [name, setName]         = useState(myName || profile.username || 'Player');
-  const [joinCode, setJoinCode] = useState('');
-  const [tab, setTab]           = useState('solo'); // 'solo' | 'quick' | 'create' | 'join'
+  const [selectedMode, setSelectedMode] = useState('online'); // 'online' | 'friends_online' | 'friends_offline' | 'computer'
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  // Solo Match Configurations
-  const [soloMode, setSoloMode]         = useState('TWO_SIDE'); // 'CLASSIC' | 'TWO_SIDE'
-  const [soloColorMode, setSoloColor]   = useState('FOUR');     // 'FOUR' | 'FIVE'
-  const [soloBots, setSoloBots]         = useState(3);          // 1 (1v1) | 2 (3-player) | 3 (4-player)
-  const [soloDiff, setSoloDiff]         = useState('MEDIUM');   // 'EASY' | 'MEDIUM' | 'HARD'
+  // ── Mode 1: Play Online ───────────────────────────────────────────────────
+  const [onlineVariant, setOnlineVariant] = useState('TWO_SIDE'); // 'TWO_SIDE' | 'CLASSIC'
+  const [onlineColor, setOnlineColor]     = useState('FOUR');     // 'FOUR' | 'FIVE'
 
-  // Quick Match Configuration
-  const [quickMode, setQuickMode]       = useState('TWO_SIDE');
-  const [quickColor, setQuickColor]     = useState('FOUR');
+  // ── Mode 2: Play with Friends Online ──────────────────────────────────────
+  const [friendsOnlineTab, setFriendsOnlineTab] = useState('host'); // 'host' | 'join'
+  const [friendVariant, setFriendVariant]       = useState('TWO_SIDE');
+  const [friendColor, setFriendColor]           = useState('FOUR');
+  const [friendMaxPlayers, setFriendMaxPlayers] = useState(4);
+  const [joinCode, setJoinCode]                 = useState('');
+
+  // ── Mode 3: Play with Friends Offline (Pass & Play) ───────────────────────
+  const [offlineCount, setOfflineCount]     = useState(3); // 2 to 6
+  const [offlineNames, setOfflineNames]     = useState(['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5', 'Player 6']);
+  const [offlineVariant, setOfflineVariant] = useState('TWO_SIDE');
+  const [offlineColor, setOfflineColor]     = useState('FOUR');
+
+  // ── Mode 4: Play with Computers ───────────────────────────────────────────
+  const [computerTotal, setComputerTotal]   = useState(4); // 2 to 6 total players (1 to 5 bots)
+  const [computerDiff, setComputerDiff]     = useState('MEDIUM'); // 'EASY' | 'MEDIUM' | 'HARD'
+  const [computerVariant, setComputerVariant] = useState('TWO_SIDE');
+  const [computerColor, setComputerColor]   = useState('FOUR');
 
   useEffect(() => {
     if (profile.username && profile.username !== name) {
@@ -58,51 +70,42 @@ export default function LandingScreen() {
     }
   }, [profile.username]);
 
-  // ─── 1. Play with Computer (Instant Solo Mode) ──────────────────────────────
-  async function handleStartSolo() {
-    if (!name.trim()) return setError('Please enter your player name');
-    setError('');
-    setLoading(true);
-    setMyName(name.trim());
-    sound.buttonClick();
+  // Keep first offline player name in sync with main name
+  useEffect(() => {
+    setOfflineNames(prev => {
+      const copy = [...prev];
+      copy[0] = name || 'Player 1';
+      return copy;
+    });
+  }, [name]);
 
-    socket.emit(
-      'startSoloGame',
-      {
-        playerName: name.trim(),
-        config: { mode: soloMode, colorMode: soloColorMode },
-        botCount: soloBots,
-        difficulty: soloDiff,
-        userId: myUserId,
-      },
-      (res) => {
-        setLoading(false);
-        if (!res.ok) return setError(res.error || 'Failed to start solo match');
-        setMyPlayerId(res.playerId);
-        setLobbyState(res.lobby);
-        setScreen('GAME');
-      }
-    );
+  function handleOfflineNameChange(index, newName) {
+    setOfflineNames(prev => {
+      const copy = [...prev];
+      copy[index] = newName;
+      return copy;
+    });
   }
 
-  // ─── 2. Play Online / Quick Match (Randoms) ─────────────────────────────────
-  async function handleQuickMatch() {
+  // ── Action 1: Play Online (Quick Match) ───────────────────────────────────
+  async function handlePlayOnline() {
     if (!name.trim()) return setError('Please enter your player name');
     setError('');
     setLoading(true);
     setMyName(name.trim());
+    setIsOfflineMode(false);
     sound.buttonClick();
 
     socket.emit(
       'quickMatch',
       {
         playerName: name.trim(),
-        config: { mode: quickMode, colorMode: quickColor },
+        config: { mode: onlineVariant, colorMode: onlineColor },
         userId: myUserId,
       },
       (res) => {
         setLoading(false);
-        if (!res.ok) return setError(res.error || 'Failed to join quick match');
+        if (!res.ok) return setError(res.error || 'Failed to join online match');
         setMyPlayerId(res.playerId);
         setLobbyState(res.lobby);
         if (res.started) {
@@ -114,39 +117,111 @@ export default function LandingScreen() {
     );
   }
 
-  // ─── 3. Create Private Room ─────────────────────────────────────────────────
-  async function handleCreate() {
+  // ── Action 2A: Host Private Online Room ───────────────────────────────────
+  async function handleHostRoom() {
+    if (!name.trim()) return setError('Please enter your player name');
+    setError('');
+    setLoading(true);
+    setMyName(name.trim());
+    setIsOfflineMode(false);
+    sound.buttonClick();
+
+    socket.emit(
+      'createRoom',
+      {
+        playerName: name.trim(),
+        config: { mode: friendVariant, colorMode: friendColor, maxPlayers: friendMaxPlayers },
+        userId: myUserId,
+      },
+      (res) => {
+        setLoading(false);
+        if (!res.ok) return setError(res.error || 'Failed to create room');
+        setMyPlayerId(res.playerId);
+        setLobbyState(res.lobby);
+        setScreen('LOBBY');
+      }
+    );
+  }
+
+  // ── Action 2B: Join Private Online Room ───────────────────────────────────
+  async function handleJoinRoom() {
+    if (!name.trim())     return setError('Please enter your player name');
+    if (!joinCode.trim()) return setError('Please enter the 6-letter room code');
+    setError('');
+    setLoading(true);
+    setMyName(name.trim());
+    setIsOfflineMode(false);
+    sound.buttonClick();
+
+    socket.emit(
+      'joinRoom',
+      { roomId: joinCode.trim().toUpperCase(), playerName: name.trim(), userId: myUserId },
+      (res) => {
+        setLoading(false);
+        if (!res.ok) return setError(res.error || 'Failed to join room');
+        setMyPlayerId(res.playerId);
+        setLobbyState(res.lobby);
+        setScreen('LOBBY');
+      }
+    );
+  }
+
+  // ── Action 3: Play with Friends Offline (Pass & Play) ─────────────────────
+  async function handlePlayOffline() {
     if (!name.trim()) return setError('Please enter your player name');
     setError('');
     setLoading(true);
     setMyName(name.trim());
     sound.buttonClick();
 
-    socket.emit('createRoom', { playerName: name.trim(), config: {}, userId: myUserId }, (res) => {
-      setLoading(false);
-      if (!res.ok) return setError(res.error || 'Failed to create room');
-      setMyPlayerId(res.playerId);
-      setLobbyState(res.lobby);
-      setScreen('LOBBY');
-    });
+    const activeNames = offlineNames.slice(0, offlineCount).map((n, i) => n.trim() || `Player ${i + 1}`);
+
+    socket.emit(
+      'startOfflineGame',
+      {
+        playerNames: activeNames,
+        config: { mode: offlineVariant, colorMode: offlineColor },
+        userId: myUserId,
+      },
+      (res) => {
+        setLoading(false);
+        if (!res.ok) return setError(res.error || 'Failed to start offline match');
+        setIsOfflineMode(true);
+        setMyPlayerId(res.playerId);
+        setLobbyState(res.lobby);
+        setScreen('GAME');
+      }
+    );
   }
 
-  // ─── 4. Join Room by Code ───────────────────────────────────────────────────
-  async function handleJoin() {
-    if (!name.trim())     return setError('Please enter your player name');
-    if (!joinCode.trim()) return setError('Please enter the 6-letter room code');
+  // ── Action 4: Play with Computers (AI Bots) ───────────────────────────────
+  async function handlePlayComputer() {
+    if (!name.trim()) return setError('Please enter your player name');
     setError('');
     setLoading(true);
     setMyName(name.trim());
+    setIsOfflineMode(false);
     sound.buttonClick();
 
-    socket.emit('joinRoom', { roomId: joinCode.trim().toUpperCase(), playerName: name.trim(), userId: myUserId }, (res) => {
-      setLoading(false);
-      if (!res.ok) return setError(res.error || 'Failed to join room');
-      setMyPlayerId(res.playerId);
-      setLobbyState(res.lobby);
-      setScreen('LOBBY');
-    });
+    const botCount = Math.max(1, computerTotal - 1);
+
+    socket.emit(
+      'startSoloGame',
+      {
+        playerName: name.trim(),
+        config: { mode: computerVariant, colorMode: computerColor },
+        botCount,
+        difficulty: computerDiff,
+        userId: myUserId,
+      },
+      (res) => {
+        setLoading(false);
+        if (!res.ok) return setError(res.error || 'Failed to start computer match');
+        setMyPlayerId(res.playerId);
+        setLobbyState(res.lobby);
+        setScreen('GAME');
+      }
+    );
   }
 
   return (
@@ -171,15 +246,16 @@ export default function LandingScreen() {
         <div className="landing-orb" style={{ width: 450, height: 450, top: '45%', right: '15%', background: '#EAB308', opacity: 0.08 }} />
       </div>
 
-      {/* Center Main Panel Container */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '12px 16px' }}>
-        {/* Hero Header */}
-        <div className="anim-fade-in-up" style={{ textAlign: 'center', position: 'relative', zIndex: 2, marginBottom: 16 }}>
+      {/* Center Main Container */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '16px 18px', zIndex: 2 }}>
+        
+        {/* Title Header */}
+        <div className="anim-fade-in-up" style={{ textAlign: 'center', marginBottom: 16 }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            padding: '5px 14px',
+            padding: '4px 14px',
             borderRadius: 99,
             background: 'rgba(229, 185, 76, 0.1)',
             border: '1px solid rgba(229, 185, 76, 0.3)',
@@ -190,11 +266,11 @@ export default function LandingScreen() {
             textTransform: 'uppercase',
             marginBottom: 8,
           }}>
-            <span>🎴</span> Authoritative Digital Card Studio
+            <span>🎴</span> Digital Card Arena
           </div>
 
           <h1 style={{
-            fontSize: 'clamp(2.4rem, 6vw, 4.4rem)',
+            fontSize: 'clamp(2.4rem, 6vw, 4rem)',
             background: 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 40%, #e5b94c 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -203,17 +279,17 @@ export default function LandingScreen() {
           }}>
             UNO FLIP
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: 440, margin: '0 auto' }}>
-            Dual-sided gameplay. Fast-action counter-calls, solo practice with AI, and online multiplayer.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: 480, margin: '0 auto' }}>
+            Dual-sided deck. Authentic rules, real-time counters, online multiplayer, and local pass & play.
           </p>
 
           {!connected && (
             <div style={{
               marginTop: 10,
-              padding: '5px 14px',
+              padding: '4px 14px',
               borderRadius: 99,
-              background: 'rgba(220, 38, 38, 0.12)',
-              border: '1px solid rgba(220, 38, 38, 0.3)',
+              background: 'rgba(220, 38, 38, 0.15)',
+              border: '1px solid rgba(220, 38, 38, 0.35)',
               color: '#f87171',
               fontSize: '0.78rem',
               fontWeight: 600,
@@ -224,260 +300,653 @@ export default function LandingScreen() {
           )}
         </div>
 
-        {/* Main Glass Staging Card */}
+        {/* Main Hub Box */}
         <div
           className="glass-strong anim-fade-in-up"
           style={{
             borderRadius: 'var(--radius-2xl)',
             padding: '20px 22px',
-            width: 'min(460px, 95vw)',
+            width: 'min(580px, 96vw)',
             position: 'relative',
-            zIndex: 2,
           }}
         >
-          {/* 4 Mode Selection Tabs */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 16 }}>
-            {[
-              { id: 'solo',   label: '🤖 Solo Bot', desc: 'vs AI' },
-              { id: 'quick',  label: '⚡ Online',   desc: 'Match' },
-              { id: 'create', label: '➕ Host',     desc: 'Private' },
-              { id: 'join',   label: '🔗 Join',     desc: 'Code' },
-            ].map(t => (
-              <button
-                key={t.id}
-                className={`btn ${tab === t.id ? 'btn-primary' : 'btn-ghost'}`}
-                style={{
-                  padding: '7px 4px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                  borderRadius: 'var(--radius-md)',
-                  border: tab === t.id ? '1.5px solid rgba(229,185,76,0.6)' : '1px solid var(--border-subtle)',
-                }}
-                onClick={() => { sound.buttonClick(); setTab(t.id); setError(''); }}
-              >
-                <span style={{ fontSize: '0.82rem', fontWeight: 800 }}>{t.label}</span>
-                <span style={{ fontSize: '0.65rem', color: tab === t.id ? '#fde047' : 'var(--text-muted)' }}>{t.desc}</span>
-              </button>
-            ))}
+          {/* Player Identity Bar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            padding: '8px 14px',
+            marginBottom: 16,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
+              <span style={{ fontSize: '1.4rem' }}>{profile.avatar || '👑'}</span>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', fontWeight: 600 }}>PLAYER NAME</span>
+                <input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  maxLength={18}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    outline: 'none',
+                    width: '100%',
+                  }}
+                  placeholder="Enter name…"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => setShowProfileModal(true)}
+              style={{
+                background: 'rgba(229, 185, 76, 0.12)',
+                border: '1px solid rgba(229, 185, 76, 0.35)',
+                color: 'var(--text-gold)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                borderRadius: 99,
+                padding: '4px 10px',
+                cursor: 'pointer',
+              }}
+            >
+              Avatar 🎨
+            </button>
           </div>
 
-          {/* Player Name Input Field */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Player Identity
-              </label>
-              <button
-                onClick={() => setShowProfileModal(true)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-gold)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
-              >
-                Customize Avatar 🎨
-              </button>
-            </div>
-            <input
-              className="input"
-              placeholder="Enter player name…"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              maxLength={18}
-              style={{ padding: '10px 14px', fontSize: '0.92rem' }}
-            />
-          </div>
-
-          {/* ── TAB 1: SOLO PLAY WITH COMPUTER ── */}
-          {tab === 'solo' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-              {/* Game Mode Toggle */}
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
-                  GAME MODE
-                </span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {[
-                    { id: 'TWO_SIDE', label: '🔄 Two-Side FLIP' },
-                    { id: 'CLASSIC',  label: '🃏 Classic UNO' },
-                  ].map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => { sound.buttonClick(); setSoloMode(m.id); }}
-                      style={{
-                        flex: 1,
-                        padding: '7px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        background: soloMode === m.id ? 'rgba(229,185,76,0.18)' : 'rgba(255,255,255,0.03)',
-                        border: `1.5px solid ${soloMode === m.id ? 'var(--gold-primary)' : 'var(--border-subtle)'}`,
-                        color: soloMode === m.id ? 'var(--text-gold)' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color Mode & Bot Count Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-                {/* Colors */}
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
-                    COLOR PALETTE
-                  </span>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {[
-                      { id: 'FOUR', label: '4 Colors' },
-                      { id: 'FIVE', label: '5 Colors' },
-                    ].map(c => (
-                      <button
-                        key={c.id}
-                        onClick={() => { sound.buttonClick(); setSoloColor(c.id); }}
-                        style={{
-                          flex: 1,
-                          padding: '6px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          background: soloColorMode === c.id ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${soloColorMode === c.id ? '#60a5fa' : 'var(--border-subtle)'}`,
-                          color: soloColorMode === c.id ? '#93c5fd' : 'var(--text-secondary)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Number of Computer Opponents */}
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
-                    AI OPPONENTS
-                  </span>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {[
-                      { count: 1, label: '1v1' },
-                      { count: 2, label: '3-P' },
-                      { count: 3, label: '4-P' },
-                    ].map(b => (
-                      <button
-                        key={b.count}
-                        onClick={() => { sound.buttonClick(); setSoloBots(b.count); }}
-                        style={{
-                          flex: 1,
-                          padding: '6px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          background: soloBots === b.count ? 'rgba(229,185,76,0.18)' : 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${soloBots === b.count ? 'var(--gold-primary)' : 'var(--border-subtle)'}`,
-                          color: soloBots === b.count ? 'var(--text-gold)' : 'var(--text-secondary)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {b.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── TAB 2: PLAY ONLINE / QUICK MATCH ── */}
-          {tab === 'quick' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-              <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                <span style={{ fontSize: '0.82rem', color: '#93c5fd', fontWeight: 700, display: 'block', marginBottom: 2 }}>
-                  ⚡ Instant Online Matchmaking
-                </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Jump into an active match with other players worldwide. If none are open, a public match is created immediately.
-                </span>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
-                  DESIRED GAME MODE
-                </span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  {[
-                    { id: 'TWO_SIDE', label: '🔄 Two-Side FLIP' },
-                    { id: 'CLASSIC',  label: '🃏 Classic UNO' },
-                  ].map(m => (
-                    <button
-                      key={m.id}
-                      onClick={() => { sound.buttonClick(); setQuickMode(m.id); }}
-                      style={{
-                        flex: 1,
-                        padding: '7px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.8rem',
-                        fontWeight: 700,
-                        background: quickMode === m.id ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.03)',
-                        border: `1.5px solid ${quickMode === m.id ? '#60a5fa' : 'var(--border-subtle)'}`,
-                        color: quickMode === m.id ? '#93c5fd' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── TAB 3: CREATE PRIVATE ROOM ── */}
-          {tab === 'create' && (
-            <div style={{ marginBottom: 16, background: 'rgba(229,185,76,0.08)', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(229,185,76,0.25)' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-gold)', fontWeight: 700, display: 'block', marginBottom: 2 }}>
-                🔒 Host Private Room
-              </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Generates a unique 6-digit code. Configure custom house rules, add AI bots, and invite friends.
-              </span>
-            </div>
-          )}
-
-          {/* ── TAB 4: JOIN ROOM BY CODE ── */}
-          {tab === 'join' && (
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                6-Digit Invitation Code
-              </label>
-              <input
-                className="input"
-                placeholder="e.g. 7X3K9M"
-                value={joinCode}
-                onChange={e => setJoinCode(e.target.value.toUpperCase())}
-                onKeyDown={e => e.key === 'Enter' && handleJoin()}
-                maxLength={6}
-                style={{
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.2em',
+          {/* ── 4 Game Modes Grid ── */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 10,
+            marginBottom: 16,
+          }}>
+            {/* Mode 1: Play Online */}
+            <div
+              className={`mode-card ${selectedMode === 'online' ? 'active-online' : ''}`}
+              onClick={() => { sound.buttonClick(); setSelectedMode('online'); setError(''); }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.4rem' }}>🌐</span>
+                <span style={{
+                  fontSize: '0.65rem',
                   fontWeight: 800,
-                  fontSize: '1.15rem',
-                  textAlign: 'center',
-                }}
-              />
+                  padding: '2px 7px',
+                  borderRadius: 99,
+                  background: selectedMode === 'online' ? '#0284c7' : 'rgba(255,255,255,0.08)',
+                  color: selectedMode === 'online' ? '#ffffff' : 'var(--text-muted)',
+                }}>
+                  ONLINE
+                </span>
+              </div>
+              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedMode === 'online' ? '#38bdf8' : '#ffffff' }}>
+                Play Online
+              </span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
+                Quick random match with players worldwide
+              </span>
+            </div>
+
+            {/* Mode 2: Play with Friends Online */}
+            <div
+              className={`mode-card ${selectedMode === 'friends_online' ? 'active-friends-online' : ''}`}
+              onClick={() => { sound.buttonClick(); setSelectedMode('friends_online'); setError(''); }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.4rem' }}>👥</span>
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  padding: '2px 7px',
+                  borderRadius: 99,
+                  background: selectedMode === 'friends_online' ? '#16a34a' : 'rgba(255,255,255,0.08)',
+                  color: selectedMode === 'friends_online' ? '#ffffff' : 'var(--text-muted)',
+                }}>
+                  FRIENDS
+                </span>
+              </div>
+              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedMode === 'friends_online' ? '#4ade80' : '#ffffff' }}>
+                Friends Online
+              </span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
+                Create private room or join with code
+              </span>
+            </div>
+
+            {/* Mode 3: Play with Friends Offline */}
+            <div
+              className={`mode-card ${selectedMode === 'friends_offline' ? 'active-friends-offline' : ''}`}
+              onClick={() => { sound.buttonClick(); setSelectedMode('friends_offline'); setError(''); }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.4rem' }}>🛋️</span>
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  padding: '2px 7px',
+                  borderRadius: 99,
+                  background: selectedMode === 'friends_offline' ? '#d97706' : 'rgba(255,255,255,0.08)',
+                  color: selectedMode === 'friends_offline' ? '#ffffff' : 'var(--text-muted)',
+                }}>
+                  PASS & PLAY
+                </span>
+              </div>
+              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedMode === 'friends_offline' ? '#fbbf24' : '#ffffff' }}>
+                Friends Offline
+              </span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
+                Local pass & play on this single screen
+              </span>
+            </div>
+
+            {/* Mode 4: Play with Computers */}
+            <div
+              className={`mode-card ${selectedMode === 'computer' ? 'active-computer' : ''}`}
+              onClick={() => { sound.buttonClick(); setSelectedMode('computer'); setError(''); }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.4rem' }}>🤖</span>
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  padding: '2px 7px',
+                  borderRadius: 99,
+                  background: selectedMode === 'computer' ? '#7c3aed' : 'rgba(255,255,255,0.08)',
+                  color: selectedMode === 'computer' ? '#ffffff' : 'var(--text-muted)',
+                }}>
+                  VS BOTS
+                </span>
+              </div>
+              <span style={{ fontSize: '0.95rem', fontWeight: 800, color: selectedMode === 'computer' ? '#c084fc' : '#ffffff' }}>
+                Play with Computers
+              </span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>
+                Solo match vs smart AI bots
+              </span>
+            </div>
+          </div>
+
+          {/* ── Respective Options & Configurations ── */}
+
+          {/* 1. PLAY ONLINE OPTIONS */}
+          {selectedMode === 'online' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                  GAME VARIANT
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[
+                    { id: 'TWO_SIDE', label: '🔄 Two-Side FLIP (Official 112 Cards)' },
+                    { id: 'CLASSIC',  label: '🃏 Classic UNO (108 Cards)' },
+                  ].map(v => (
+                    <button
+                      key={v.id}
+                      onClick={() => { sound.buttonClick(); setOnlineVariant(v.id); }}
+                      style={{
+                        flex: 1,
+                        padding: '9px 10px',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        background: onlineVariant === v.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.04)',
+                        border: `1.5px solid ${onlineVariant === v.id ? '#38bdf8' : 'var(--border-subtle)'}`,
+                        color: onlineVariant === v.id ? '#38bdf8' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                  COLOR CONFIGURATION
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[
+                    { id: 'FOUR', label: '🎨 4 Colors (Standard)' },
+                    { id: 'FIVE', label: '🌈 5 Colors (with Purple)' },
+                  ].map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => { sound.buttonClick(); setOnlineColor(c.id); }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 10px',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        background: onlineColor === c.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.04)',
+                        border: `1.5px solid ${onlineColor === c.id ? '#38bdf8' : 'var(--border-subtle)'}`,
+                        color: onlineColor === c.id ? '#38bdf8' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Error Notification */}
+          {/* 2. PLAY WITH FRIENDS ONLINE OPTIONS */}
+          {selectedMode === 'friends_online' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+              {/* Host vs Join Tabs */}
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[
+                  { id: 'host', label: '➕ Host Private Room' },
+                  { id: 'join', label: '🔗 Join with Code' },
+                ].map(sub => (
+                  <button
+                    key={sub.id}
+                    onClick={() => { sound.buttonClick(); setFriendsOnlineTab(sub.id); setError(''); }}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      background: friendsOnlineTab === sub.id ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.04)',
+                      border: `1.5px solid ${friendsOnlineTab === sub.id ? '#4ade80' : 'var(--border-subtle)'}`,
+                      color: friendsOnlineTab === sub.id ? '#4ade80' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
+
+              {friendsOnlineTab === 'host' ? (
+                <>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                      GAME VARIANT
+                    </span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { id: 'TWO_SIDE', label: '🔄 Two-Side FLIP' },
+                        { id: 'CLASSIC',  label: '🃏 Classic UNO' },
+                      ].map(v => (
+                        <button
+                          key={v.id}
+                          onClick={() => { sound.buttonClick(); setFriendVariant(v.id); }}
+                          style={{
+                            flex: 1,
+                            padding: '8px',
+                            borderRadius: 'var(--radius-md)',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            background: friendVariant === v.id ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.04)',
+                            border: `1.5px solid ${friendVariant === v.id ? '#4ade80' : 'var(--border-subtle)'}`,
+                            color: friendVariant === v.id ? '#4ade80' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {v.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                        COLORS
+                      </span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {['FOUR', 'FIVE'].map(c => (
+                          <button
+                            key={c}
+                            onClick={() => { sound.buttonClick(); setFriendColor(c); }}
+                            style={{
+                              flex: 1,
+                              padding: '7px',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: friendColor === c ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.04)',
+                              border: `1px solid ${friendColor === c ? '#4ade80' : 'var(--border-subtle)'}`,
+                              color: friendColor === c ? '#4ade80' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {c === 'FOUR' ? '4 Colors' : '5 Colors'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                        MAX PLAYERS
+                      </span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {[2, 3, 4, 6].map(num => (
+                          <button
+                            key={num}
+                            onClick={() => { sound.buttonClick(); setFriendMaxPlayers(num); }}
+                            style={{
+                              flex: 1,
+                              padding: '7px',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: friendMaxPlayers === num ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255,255,255,0.04)',
+                              border: `1px solid ${friendMaxPlayers === num ? '#4ade80' : 'var(--border-subtle)'}`,
+                              color: friendMaxPlayers === num ? '#4ade80' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {num}P
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                    6-LETTER ROOM CODE
+                  </span>
+                  <input
+                    className="input"
+                    placeholder="e.g. ABRNDH"
+                    value={joinCode}
+                    onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                    maxLength={6}
+                    style={{
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.25em',
+                      fontWeight: 900,
+                      fontSize: '1.25rem',
+                      textAlign: 'center',
+                      padding: '10px',
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. PLAY WITH FRIENDS OFFLINE (PASS & PLAY) OPTIONS */}
+          {selectedMode === 'friends_offline' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+              {/* Player Count Selector */}
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                  NUMBER OF LOCAL PLAYERS (TABLE SIZES ACCORDINGLY)
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[2, 3, 4, 5, 6].map(count => (
+                    <button
+                      key={count}
+                      onClick={() => { sound.buttonClick(); setOfflineCount(count); }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 4px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.82rem',
+                        fontWeight: 800,
+                        background: offlineCount === count ? 'rgba(251, 191, 36, 0.25)' : 'rgba(255,255,255,0.04)',
+                        border: `1.5px solid ${offlineCount === count ? '#fbbf24' : 'var(--border-subtle)'}`,
+                        color: offlineCount === count ? '#fbbf24' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {count} Players
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dynamic Name Inputs for Each Seat */}
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                  PLAYER NAMES
+                </span>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: offlineCount > 4 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+                  gap: 6,
+                }}>
+                  {Array.from({ length: offlineCount }).map((_, i) => (
+                    <input
+                      key={i}
+                      value={offlineNames[i] || `Player ${i + 1}`}
+                      onChange={e => handleOfflineNameChange(i, e.target.value)}
+                      maxLength={14}
+                      placeholder={`Player ${i + 1}`}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        color: '#ffffff',
+                        padding: '6px 10px',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        outline: 'none',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Variant and Color for Offline */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                    VARIANT
+                  </span>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[
+                      { id: 'TWO_SIDE', label: 'FLIP' },
+                      { id: 'CLASSIC', label: 'Classic' },
+                    ].map(v => (
+                      <button
+                        key={v.id}
+                        onClick={() => { sound.buttonClick(); setOfflineVariant(v.id); }}
+                        style={{
+                          flex: 1,
+                          padding: '7px',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: offlineVariant === v.id ? 'rgba(251, 191, 36, 0.25)' : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${offlineVariant === v.id ? '#fbbf24' : 'var(--border-subtle)'}`,
+                          color: offlineVariant === v.id ? '#fbbf24' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                    COLORS
+                  </span>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {['FOUR', 'FIVE'].map(c => (
+                      <button
+                        key={c}
+                        onClick={() => { sound.buttonClick(); setOfflineColor(c); }}
+                        style={{
+                          flex: 1,
+                          padding: '7px',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: offlineColor === c ? 'rgba(251, 191, 36, 0.25)' : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${offlineColor === c ? '#fbbf24' : 'var(--border-subtle)'}`,
+                          color: offlineColor === c ? '#fbbf24' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {c === 'FOUR' ? '4 Colors' : '5 Colors'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. PLAY WITH COMPUTERS (AI BOTS) OPTIONS */}
+          {selectedMode === 'computer' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+              {/* Total Players (Table Sizing) */}
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                  TABLE SEATS ({computerTotal} PLAYERS = YOU + {computerTotal - 1} AI BOTS)
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[
+                    { total: 2, label: '2 Players (1v1)' },
+                    { total: 3, label: '3 Players' },
+                    { total: 4, label: '4 Players' },
+                    { total: 5, label: '5 Players' },
+                    { total: 6, label: '6 Players (Big Table)' },
+                  ].map(p => (
+                    <button
+                      key={p.total}
+                      onClick={() => { sound.buttonClick(); setComputerTotal(p.total); }}
+                      style={{
+                        flex: 1,
+                        padding: '7px 3px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        background: computerTotal === p.total ? 'rgba(192, 132, 252, 0.25)' : 'rgba(255,255,255,0.04)',
+                        border: `1.5px solid ${computerTotal === p.total ? '#c084fc' : 'var(--border-subtle)'}`,
+                        color: computerTotal === p.total ? '#c084fc' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bot Difficulty */}
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>
+                  AI DIFFICULTY (BALANCED THINKING SPEED)
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[
+                    { id: 'EASY',   label: '😊 Relaxed' },
+                    { id: 'MEDIUM', label: '⚖️ Balanced' },
+                    { id: 'HARD',   label: '🔥 Master' },
+                  ].map(d => (
+                    <button
+                      key={d.id}
+                      onClick={() => { sound.buttonClick(); setComputerDiff(d.id); }}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        background: computerDiff === d.id ? 'rgba(192, 132, 252, 0.25)' : 'rgba(255,255,255,0.04)',
+                        border: `1.5px solid ${computerDiff === d.id ? '#c084fc' : 'var(--border-subtle)'}`,
+                        color: computerDiff === d.id ? '#c084fc' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Variant and Colors for Computer */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                    VARIANT
+                  </span>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[
+                      { id: 'TWO_SIDE', label: '🔄 FLIP' },
+                      { id: 'CLASSIC', label: '🃏 Classic' },
+                    ].map(v => (
+                      <button
+                        key={v.id}
+                        onClick={() => { sound.buttonClick(); setComputerVariant(v.id); }}
+                        style={{
+                          flex: 1,
+                          padding: '7px',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: computerVariant === v.id ? 'rgba(192, 132, 252, 0.25)' : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${computerVariant === v.id ? '#c084fc' : 'var(--border-subtle)'}`,
+                          color: computerVariant === v.id ? '#c084fc' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 4 }}>
+                    COLORS
+                  </span>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {['FOUR', 'FIVE'].map(c => (
+                      <button
+                        key={c}
+                        onClick={() => { sound.buttonClick(); setComputerColor(c); }}
+                        style={{
+                          flex: 1,
+                          padding: '7px',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          background: computerColor === c ? 'rgba(192, 132, 252, 0.25)' : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${computerColor === c ? '#c084fc' : 'var(--border-subtle)'}`,
+                          color: computerColor === c ? '#c084fc' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {c === 'FOUR' ? '4 Colors' : '5 Colors'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
           {error && (
             <div style={{
-              padding: '8px 12px',
+              padding: '8px 14px',
               borderRadius: 'var(--radius-md)',
               background: 'rgba(220, 38, 38, 0.15)',
               border: '1px solid rgba(220, 38, 38, 0.35)',
               color: '#fca5a5',
               fontSize: '0.8rem',
               marginBottom: 12,
-              fontWeight: 500,
+              fontWeight: 600,
             }}>
               {error}
             </div>
@@ -485,24 +954,49 @@ export default function LandingScreen() {
 
           {/* Primary Action Button */}
           <button
-            className="btn btn-gold btn-lg w-full"
+            className={`btn btn-lg w-full ${
+              selectedMode === 'online' ? 'btn-primary' :
+              selectedMode === 'friends_online' ? 'btn-emerald' :
+              selectedMode === 'friends_offline' ? 'btn-gold' :
+              'btn-purple'
+            }`}
+            style={{
+              padding: '14px',
+              fontSize: '1.05rem',
+              fontWeight: 900,
+              letterSpacing: '0.02em',
+              background:
+                selectedMode === 'online' ? 'linear-gradient(135deg, #0284c7, #0369a1)' :
+                selectedMode === 'friends_online' ? 'linear-gradient(135deg, #16a34a, #15803d)' :
+                selectedMode === 'friends_offline' ? 'linear-gradient(135deg, #d97706, #b45309)' :
+                'linear-gradient(135deg, #7c3aed, #6d28d9)',
+              color: '#ffffff',
+              boxShadow:
+                selectedMode === 'online' ? '0 0 24px rgba(2, 132, 199, 0.4)' :
+                selectedMode === 'friends_online' ? '0 0 24px rgba(22, 163, 74, 0.4)' :
+                selectedMode === 'friends_offline' ? '0 0 24px rgba(217, 119, 6, 0.4)' :
+                '0 0 24px rgba(124, 58, 237, 0.4)',
+              border: 'none',
+              cursor: 'pointer',
+              borderRadius: 'var(--radius-md)',
+            }}
             onClick={
-              tab === 'solo'   ? handleStartSolo :
-              tab === 'quick'  ? handleQuickMatch :
-              tab === 'create' ? handleCreate :
-              handleJoin
+              selectedMode === 'online' ? handlePlayOnline :
+              selectedMode === 'friends_online' ? (friendsOnlineTab === 'host' ? handleHostRoom : handleJoinRoom) :
+              selectedMode === 'friends_offline' ? handlePlayOffline :
+              handlePlayComputer
             }
             disabled={!connected || loading}
           >
             {loading ? 'Connecting…' :
-             tab === 'solo'   ? `Play with Computer (${soloBots} Bots) 🤖` :
-             tab === 'quick'  ? 'Find Online Match ⚡' :
-             tab === 'create' ? 'Host Private Room 🔒' :
-             'Enter Match Room 🔗'}
+             selectedMode === 'online' ? '⚡ Find Online Match Now' :
+             selectedMode === 'friends_online' ? (friendsOnlineTab === 'host' ? '➕ Create Room & Get Code' : '🔗 Join Room via Code') :
+             selectedMode === 'friends_offline' ? `🎮 Start Offline Pass & Play (${offlineCount} Players)` :
+             `🤖 Launch Computer Match (${computerTotal} Players)`}
           </button>
         </div>
 
-        {/* Quick Rules & How to Play Button */}
+        {/* Quick Rules Guide Button */}
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => { sound.buttonClick(); setShowRulesModal(true); }}
@@ -528,11 +1022,11 @@ export default function LandingScreen() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        <span>Classic & Two-Side FLIP</span>
+        <span>4 Game Modes</span>
         <span>•</span>
-        <span>4 & 5 Color Palettes</span>
+        <span>Online & Offline Pass & Play</span>
         <span>•</span>
-        <span>Authoritative Verification</span>
+        <span>Authoritative Server Verification</span>
       </div>
 
       {/* Modals: Leaderboard, Profile, Rules */}

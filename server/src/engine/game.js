@@ -222,6 +222,10 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
     }
   }
 
+  const playedBy = state.players.find(p => p.id === playerId);
+  let skippedId = null;
+  let skippedPlayer = null;
+
   // Advance turn
   if (effects.skipEveryone) {
     // Skip everyone: current player stays, cycle skips all others once
@@ -230,13 +234,33 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
   } else if (effects.skipNext) {
     // Apply draws to skipped player, then skip them
     const skippedIndex = nextIndex(state);
-    const skippedId    = state.players[skippedIndex].id;
+    skippedId    = state.players[skippedIndex].id;
+    skippedPlayer = state.players[skippedIndex];
     if (effects.drawCount > 0) {
       drawCards(skippedId, effects.drawCount, state);
     }
     advanceTurn(state, 2); // skip one
   } else {
     advanceTurn(state);
+  }
+
+  // Record action notification for tabletop UI
+  state.lastActionNotification = {
+    id: uuidv4(),
+    type: effects.drawCount > 0 ? 'PENALTY_DRAW' : (effects.skipEveryone ? 'SKIP_EVERYONE' : (effects.skipNext ? 'SKIP' : (effects.flip ? 'FLIP' : 'PLAY'))),
+    playedById: playerId,
+    playedByName: playedBy ? playedBy.name : 'Player',
+    targetId: skippedId,
+    targetName: skippedPlayer ? skippedPlayer.name : null,
+    cardType: face.type,
+    cardValue: face.value,
+    cardColor: face.color,
+    drawCount: effects.drawCount || 0,
+    timestamp: Date.now(),
+  };
+
+  if (effects.drawCount > 0) {
+    emitEvent('playerDrewPenalty', state.lastActionNotification);
   }
 
   // Check UNO state: if player already called UNO and now has 1 card, preserve their call
@@ -322,6 +346,21 @@ function processDrawCard(playerId, state, emitEvent) {
 
   // Advance turn after draw (player cannot play drawn card automatically)
   advanceTurn(state);
+
+  const drawingPlayer = state.players.find(p => p.id === playerId);
+  state.lastActionNotification = {
+    id: uuidv4(),
+    type: 'DRAW',
+    playedById: playerId,
+    playedByName: drawingPlayer ? drawingPlayer.name : 'Player',
+    targetId: playerId,
+    targetName: drawingPlayer ? drawingPlayer.name : 'Player',
+    cardType: 'DRAW',
+    cardValue: null,
+    cardColor: null,
+    drawCount: 1,
+    timestamp: Date.now(),
+  };
 
   const hand = state.hands[playerId];
   if (hand && hand.length === 1 && !state.unoPressedBy[playerId]) {
@@ -550,6 +589,7 @@ function getPublicState(state) {
     turnCount: state.turnCount,
     totalFlips: state.totalFlips || 0,
     startedAt: state.startedAt || Date.now(),
+    lastActionNotification: state.lastActionNotification || null,
   };
 }
 

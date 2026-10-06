@@ -162,7 +162,8 @@ export default function GameScreen() {
   const topCard   = discardPile?.[0] || null;
   const myInfo    = players.find((p) => p.id === myPlayerId);
   const opponents = players.filter((p) => p.id !== myPlayerId);
-  const isMyTurn  = gameState.currentPlayerId === myPlayerId;
+  const isOffline = !!gameState.isOffline || !!useGameStore.getState().isOfflineMode;
+  const isMyTurn  = isOffline ? true : gameState.currentPlayerId === myPlayerId;
   const isPlaying = status === 'PLAYING';
 
   // Compute dynamic table dimensions based on total player count
@@ -211,7 +212,8 @@ export default function GameScreen() {
 
   function sendPlay(cardId, chosenColor) {
     setActionError('');
-    socket.emit('playCard', { cardId, chosenColor }, (res) => {
+    const asPlayerId = isOffline ? gameState.currentPlayerId : myPlayerId;
+    socket.emit('playCard', { cardId, chosenColor, asPlayerId }, (res) => {
       if (!res.ok) {
         setActionError(res.error || 'Invalid move according to authoritative rules');
         setSelectedCardId(null);
@@ -230,7 +232,8 @@ export default function GameScreen() {
     sound.drawCard();
     sound.vibrate(20);
 
-    socket.emit('drawCard', null, (res) => {
+    const asPlayerId = isOffline ? gameState.currentPlayerId : myPlayerId;
+    socket.emit('drawCard', { asPlayerId }, (res) => {
       setDrawLoading(false);
       if (!res.ok) setActionError(res.error || 'Draw not permitted');
     });
@@ -241,7 +244,8 @@ export default function GameScreen() {
   function handleUnoPress() {
     sound.unoShout();
     sound.vibrate([40, 30, 40]);
-    socket.emit('pressUno', null, (res) => {
+    const asPlayerId = isOffline ? gameState.currentPlayerId : myPlayerId;
+    socket.emit('pressUno', { asPlayerId }, (res) => {
       if (!res.ok) setActionError(res.error || 'Cannot call UNO now');
     });
   }
@@ -251,7 +255,8 @@ export default function GameScreen() {
   function handleCaught({ targetPlayerId, moveId }) {
     sound.caughtAlarm();
     sound.vibrate([50, 40, 50]);
-    socket.emit('pressCaught', { targetPlayerId, moveId }, (res) => {
+    const asCatcherId = isOffline ? gameState.currentPlayerId : myPlayerId;
+    socket.emit('pressCaught', { targetPlayerId, moveId, asCatcherId }, (res) => {
       if (!res.ok) setActionError(res.error || 'Caught challenge rejected');
     });
   }
@@ -447,6 +452,31 @@ export default function GameScreen() {
               </div>
             </div>
 
+            {/* Real-time Penalty Draw Alert Banner (+1, +4, +5) */}
+            {gameState.lastActionNotification?.type === 'PENALTY_DRAW' && gameState.lastActionNotification.drawCount > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '5px 16px',
+                  borderRadius: 99,
+                  background: 'linear-gradient(135deg, rgba(220,38,38,0.3), rgba(153,27,27,0.4))',
+                  border: '1.5px solid rgba(248,113,113,0.7)',
+                  boxShadow: '0 0 20px rgba(220,38,38,0.5)',
+                  color: '#fee2e2',
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
+                  animation: 'fadeIn 0.25s ease',
+                }}
+              >
+                <span>⚡</span>
+                <span>
+                  {gameState.lastActionNotification.playedByName} played +{gameState.lastActionNotification.drawCount}! {gameState.lastActionNotification.targetName} takes {gameState.lastActionNotification.drawCount} cards & is skipped!
+                </span>
+              </div>
+            )}
+
             {/* Turn Announcement Banner */}
             {isPlaying && (
               <div
@@ -478,7 +508,11 @@ export default function GameScreen() {
                     letterSpacing: '0.02em',
                   }}
                 >
-                  {isMyTurn ? 'YOUR TURN — TAP A CARD OR DRAW' : `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? '…'}'s Turn`}
+                  {isOffline
+                    ? `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? 'Player'}'S TURN (PASS & PLAY)`
+                    : isMyTurn
+                    ? 'YOUR TURN — TAP A CARD OR DRAW'
+                    : `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? '…'}'s Turn`}
                 </span>
               </div>
             )}

@@ -74,8 +74,38 @@ export function useSocket() {
 
     // ─── Private hand (only for this player) ──────────────────────────────────
 
-    socket.on('handUpdate', ({ cards }) => {
+    socket.on('handUpdate', ({ cards, activePlayerId, isOffline }) => {
       setMyHand(cards);
+      if (isOffline) {
+        useGameStore.getState().setOfflineActivePlayerId(activePlayerId);
+        useGameStore.getState().setIsOfflineMode(true);
+      }
+    });
+
+    // ─── Tabletop Action Alerts (Penalty Draws, Flips, Skips) ──────────────────
+    socket.on('actionAlert', (action) => {
+      if (!action) return;
+      useGameStore.getState().setActionAlert(action);
+
+      const myId = useGameStore.getState().myPlayerId;
+      if (action.type === 'PENALTY_DRAW' && action.drawCount > 0) {
+        sound.dealCard();
+        if (action.targetId === myId) {
+          toast.error(`⚡ Hit with +${action.drawCount}! You took ${action.drawCount} card${action.drawCount > 1 ? 's' : ''} and lost your turn!`, { duration: 3500 });
+        } else {
+          toast(`⚡ ${action.playedByName} played +${action.drawCount}! ${action.targetName} takes ${action.drawCount} card${action.drawCount > 1 ? 's' : ''} & is skipped!`, { icon: '🎴', duration: 3500 });
+        }
+      } else if (action.type === 'FLIP') {
+        sound.cardFlip();
+        toast('🔄 FLIP! All cards switched to the opposite side!', { icon: '✨' });
+      } else if (action.type === 'SKIP_EVERYONE') {
+        toast(`🌀 ${action.playedByName} played Skip Everyone!`, { icon: '⚡' });
+      }
+    });
+
+    // ─── Bot Thinking Indicator ───────────────────────────────────────────────
+    socket.on('botThinking', ({ botId, thinking }) => {
+      useGameStore.getState().setBotThinking(botId, thinking);
     });
 
     // ─── Caught / UNO events ───────────────────────────────────────────────────

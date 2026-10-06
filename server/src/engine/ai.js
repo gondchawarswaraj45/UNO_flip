@@ -190,13 +190,13 @@ function botShouldPressUno(botId, difficulty, state) {
   return (state.hands[botId] || []).length === 1;
 }
 
-// Add a small random delay to make bots feel more human-like (ms)
+// Realistic human-paced delay to build excitement and let players track every action (ms)
 function botThinkDelay(difficulty) {
   switch (difficulty) {
-    case AI_DIFFICULTY.HARD:   return 800 + Math.random() * 700;
-    case AI_DIFFICULTY.MEDIUM: return 500 + Math.random() * 500;
+    case AI_DIFFICULTY.HARD:   return 1600 + Math.random() * 700; // 1.6s - 2.3s
+    case AI_DIFFICULTY.MEDIUM: return 2000 + Math.random() * 800; // 2.0s - 2.8s
     case AI_DIFFICULTY.EASY:
-    default:                   return 300 + Math.random() * 400;
+    default:                   return 1800 + Math.random() * 800; // 1.8s - 2.6s
   }
 }
 

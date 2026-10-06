@@ -15,7 +15,7 @@
 
 const {
   createRoom, joinRoom, addBot, removeBot,
-  updateConfig, startGame, createSoloGame, findOrCreateQuickMatch,
+  updateConfig, startGame, createSoloGame, createOfflineGame, findOrCreateQuickMatch,
   playerDisconnected, getRoom, getPlayerBySocketId, getLobbyState, deleteRoom,
 } = require('../rooms/roomManager');
 
@@ -87,13 +87,24 @@ function registerGameSocket(io) {
 
   function broadcastGameState(io, room) {
     const pub = getPublicState(room.gameState);
+    pub.isOffline = !!room.isOffline;
     io.to(room.id).emit('gameState', pub);
 
-    // Send private hand to each human player
-    for (const player of room.players) {
-      if (!player.isBot && player.socketId) {
-        const hand = getPlayerHand(player.id, room.gameState);
-        io.to(player.socketId).emit('handUpdate', { cards: hand });
+    if (room.isOffline) {
+      // In offline pass & play, emit the active turn player's hand to the host socket
+      const activeHand = getPlayerHand(room.gameState.currentPlayerId, room.gameState);
+      io.to(room.hostSocketId).emit('handUpdate', {
+        cards: activeHand,
+        activePlayerId: room.gameState.currentPlayerId,
+        isOffline: true,
+      });
+    } else {
+      // Send private hand to each human player
+      for (const player of room.players) {
+        if (!player.isBot && player.socketId) {
+          const hand = getPlayerHand(player.id, room.gameState);
+          io.to(player.socketId).emit('handUpdate', { cards: hand });
+        }
       }
     }
   }
@@ -110,10 +121,19 @@ function registerGameSocket(io) {
     const currentPlayer = room.players.find(p => p.id === state.currentPlayerId);
     if (!currentPlayer || !currentPlayer.isBot) return;
 
-    const delay = botThinkDelay(currentPlayer.difficulty);
+    let delay = botThinkDelay(currentPlayer.difficulty);
+    // Add extra suspense after penalty cards or deck flip so players can digest the move
+    if (state.lastActionNotification && (state.lastActionNotification.drawCount > 0 || state.lastActionNotification.type === 'FLIP' || state.lastActionNotification.type === 'SKIP_EVERYONE')) {
+      delay += 850;
+    }
+
+    // Broadcast thinking indicator so opponents show animated "Thinking..." bubble
+    io.to(room.id).emit('botThinking', { botId: currentPlayer.id, thinking: true });
 
     setTimeout(() => {
       try {
+        io.to(room.id).emit('botThinking', { botId: currentPlayer.id, thinking: false });
+
         // Re-fetch state (it may have changed)
         const r = getRoom(room.id);
         if (!r || !r.gameState || r.gameState.status !== 'PLAYING') return;
@@ -131,6 +151,8 @@ function registerGameSocket(io) {
             (event, data) => {
               if (event === 'gameOver') {
                 io.to(r.id).emit('gameOver', data);
+              } else if (event === 'playerDrewPenalty') {
+                io.to(r.id).emit('actionAlert', data);
               }
             }
           );
@@ -342,6 +364,26 @@ function registerGameSocket(io) {
       }
     });
 
+    // ─── Play with Friends Offline (Pass & Play) ─────────────────────────
+    socket.on('startOfflineGame', ({ playerNames, config, userId }, cb) => {
+      try {
+        const result = createOfflineGame(socket.id, playerNames, config || {}, userId);
+        if (result.error) return cb({ ok: false, error: result.error });
+
+        const room = result.room;
+        socket.join(room.id);
+        socket.data.playerId = result.playerId;
+        socket.data.roomId   = room.id;
+
+        io.to(room.id).emit('gameStarted', getLobbyState(room));
+        broadcastGameState(io, room);
+
+        cb({ ok: true, roomId: room.id, playerId: result.playerId, lobby: getLobbyState(room) });
+      } catch (e) {
+        cb({ ok: false, error: e.message });
+      }
+    });
+
     // ─── Play Online / Quick Match with Random Players ──────────────────
     socket.on('quickMatch', ({ playerName, config, userId }, cb) => {
       try {
@@ -457,18 +499,19 @@ function registerGameSocket(io) {
 
     // ─── In-game events ──────────────────────────────────────────────────
 
-    socket.on('playCard', ({ cardId, chosenColor }, cb) => {
+    socket.on('playCard', ({ cardId, chosenColor, asPlayerId }, cb) => {
       try {
         const roomId   = socket.data.roomId;
-        const playerId = socket.data.playerId;
         const room     = getRoom(roomId);
         if (!room || !room.gameState) return cb({ ok: false, error: 'GAME_NOT_STARTED' });
+        const playerId = room.isOffline ? (asPlayerId || room.gameState.currentPlayerId) : socket.data.playerId;
 
         const result = processPlayCard(
           playerId, cardId, chosenColor, room.gameState,
           (event, data) => {
             if (event === 'gameOver') io.to(roomId).emit('gameOver', data);
             if (event === 'caughtResolved') io.to(roomId).emit('caughtResolved', data);
+            if (event === 'playerDrewPenalty') io.to(roomId).emit('actionAlert', data);
           }
         );
 
@@ -501,18 +544,18 @@ function registerGameSocket(io) {
       }
     });
 
-    socket.on('drawCard', (_, cb) => {
+    socket.on('drawCard', (data, cb) => {
       try {
         const roomId   = socket.data.roomId;
-        const playerId = socket.data.playerId;
         const room     = getRoom(roomId);
-        if (!room || !room.gameState) return cb({ ok: false, error: 'GAME_NOT_STARTED' });
+        if (!room || !room.gameState) return (cb || (() => {}))({ ok: false, error: 'GAME_NOT_STARTED' });
+        const playerId = room.isOffline ? (data?.asPlayerId || room.gameState.currentPlayerId) : socket.data.playerId;
 
-        const result = processDrawCard(playerId, room.gameState, (event, data) => {
-          if (event === 'caughtResolved') io.to(roomId).emit('caughtResolved', data);
+        const result = processDrawCard(playerId, room.gameState, (event, evtData) => {
+          if (event === 'caughtResolved') io.to(roomId).emit('caughtResolved', evtData);
         });
 
-        if (!result.success) return cb({ ok: false, error: result.error });
+        if (!result.success) return (cb || (() => {}))({ ok: false, error: result.error });
 
         broadcastGameState(io, room);
 
@@ -521,37 +564,37 @@ function registerGameSocket(io) {
         }
 
         scheduleBotTurn(io, room);
-        cb({ ok: true, moveId: result.moveId });
+        if (cb) cb({ ok: true, moveId: result.moveId });
       } catch (e) {
-        cb({ ok: false, error: e.message });
+        if (cb) cb({ ok: false, error: e.message });
       }
     });
 
-    socket.on('pressUno', (_, cb) => {
+    socket.on('pressUno', (data, cb) => {
       try {
         const roomId   = socket.data.roomId;
-        const playerId = socket.data.playerId;
         const room     = getRoom(roomId);
-        if (!room || !room.gameState) return cb({ ok: false, error: 'GAME_NOT_STARTED' });
+        if (!room || !room.gameState) return (cb || (() => {}))({ ok: false, error: 'GAME_NOT_STARTED' });
+        const playerId = room.isOffline ? (data?.asPlayerId || room.gameState.currentPlayerId) : socket.data.playerId;
 
         const result = processPressUno(playerId, room.gameState);
-        if (!result.success) return cb({ ok: false, error: result.error });
+        if (!result.success) return (cb || (() => {}))({ ok: false, error: result.error });
 
         // Broadcast that UNO was pressed (no hand info)
         io.to(roomId).emit('unoPressedBy', { playerId });
         triggerBotReactions(io, room, 'UNO_CALLED', playerId);
-        cb({ ok: true });
+        if (cb) cb({ ok: true });
       } catch (e) {
-        cb({ ok: false, error: e.message });
+        if (cb) cb({ ok: false, error: e.message });
       }
     });
 
-    socket.on('pressCaught', ({ targetPlayerId, moveId }, cb) => {
+    socket.on('pressCaught', ({ targetPlayerId, moveId, asCatcherId }, cb) => {
       try {
         const roomId   = socket.data.roomId;
-        const catcherId = socket.data.playerId;
         const room     = getRoom(roomId);
-        if (!room || !room.gameState) return cb({ ok: false, error: 'GAME_NOT_STARTED' });
+        if (!room || !room.gameState) return (cb || (() => {}))({ ok: false, error: 'GAME_NOT_STARTED' });
+        const catcherId = room.isOffline ? (asCatcherId || socket.data.playerId) : socket.data.playerId;
 
         const result = processCaught(
           catcherId, targetPlayerId, moveId, room.gameState,
@@ -561,11 +604,11 @@ function registerGameSocket(io) {
           }
         );
 
-        if (!result.success) return cb({ ok: false, error: result.error });
+        if (!result.success) return (cb || (() => {}))({ ok: false, error: result.error });
 
-        cb({ ok: true });
+        if (cb) cb({ ok: true });
       } catch (e) {
-        cb({ ok: false, error: e.message });
+        if (cb) cb({ ok: false, error: e.message });
       }
     });
 

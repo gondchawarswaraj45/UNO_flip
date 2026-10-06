@@ -308,6 +308,37 @@ function findOrCreateQuickMatch(hostSocketId, hostName, config = {}, providedUse
   return { room, playerId };
 }
 
+/**
+ * Instantly launch an Offline Pass & Play Game on the same device.
+ */
+function createOfflineGame(hostSocketId, playerNames = ['Player 1', 'Player 2'], config = {}, providedUserId = null) {
+  const hostName = (playerNames && playerNames[0]) ? playerNames[0].trim() : 'Player 1';
+  const { room, playerId } = createRoom(hostSocketId, hostName, config, providedUserId);
+  room.isOffline = true;
+  room.hostSocketId = hostSocketId;
+
+  // Add the remaining local players as offline human seats
+  const names = Array.isArray(playerNames) && playerNames.length >= 2 ? playerNames : ['Player 1', 'Player 2'];
+  for (let i = 1; i < names.length; i++) {
+    const pName = (names[i] && names[i].trim()) || `Player ${i + 1}`;
+    const pId = uuidv4();
+    room.players.push({
+      id: pId,
+      socketId: hostSocketId, // shared device connection
+      name: pName,
+      isBot: false,
+      isOfflineSeat: true,
+      difficulty: null,
+      score: 0,
+      connected: true,
+    });
+  }
+
+  const started = startGame(room.id, playerId);
+  if (started.error) return { error: started.error };
+  return { room: started.room, playerId };
+}
+
 module.exports = {
   createRoom,
   joinRoom,
@@ -316,6 +347,7 @@ module.exports = {
   updateConfig,
   startGame,
   createSoloGame,
+  createOfflineGame,
   findOrCreateQuickMatch,
   playerDisconnected,
   getRoom,

@@ -8,7 +8,7 @@ import useGameStore from '../../store/gameStore';
 import { FRAME_STYLES } from '../ui/ProfileModal';
 
 export default function OpponentArea({ player, position }) {
-  const { gameState, myPlayerId, activeReactions } = useGameStore();
+  const { gameState, myPlayerId, activeReactions, botThinking, actionAlert } = useGameStore();
   if (!player || player.id === myPlayerId) return null;
 
   const isActive   = gameState?.currentPlayerId === player.id;
@@ -16,6 +16,8 @@ export default function OpponentArea({ player, position }) {
   const hasUno     = player.unoPressedCorrectly;
   const activeSide = gameState?.activeSide || 'LIGHT';
   const isDark     = activeSide === 'DARK';
+  const isThinking = !!botThinking?.[player.id];
+  const hasPenalty = actionAlert?.targetId === player.id && actionAlert?.type === 'PENALTY_DRAW' && actionAlert?.drawCount > 0;
 
   const maxVisible = Math.min(cardCount, 5);
 
@@ -38,6 +40,62 @@ export default function OpponentArea({ player, position }) {
         transform: isActive ? 'scale(1.05)' : 'scale(1)',
       }}
     >
+      {/* ── Bot Thinking Suspense Indicator ── */}
+      {isThinking && !reaction && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -34,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+            border: '1px solid rgba(148, 163, 184, 0.4)',
+            color: '#38bdf8',
+            padding: '3px 10px',
+            borderRadius: 14,
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            whiteSpace: 'nowrap',
+            zIndex: 60,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            animation: 'fadeIn 0.2s ease',
+          }}
+        >
+          <span>💭 Thinking</span>
+          <span className="dot-pulse">...</span>
+        </div>
+      )}
+
+      {/* ── Penalty Draw Floating Badge (+1, +4, +5) ── */}
+      {hasPenalty && (
+        <div
+          style={{
+            position: 'absolute',
+            top: -42,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(135deg, #dc2626, #991b1b)',
+            border: '1.5px solid #fecaca',
+            color: '#ffffff',
+            padding: '4px 10px',
+            borderRadius: 14,
+            fontSize: '0.75rem',
+            fontWeight: 900,
+            whiteSpace: 'nowrap',
+            zIndex: 65,
+            boxShadow: '0 0 18px rgba(220, 38, 38, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            animation: 'bubbleBounce 0.4s ease',
+          }}
+        >
+          <span>⚡ +{actionAlert.drawCount} Cards</span>
+        </div>
+      )}
       {/* ── Floating Reaction / Speech Bubble ── */}
       {reaction && (
         <div
