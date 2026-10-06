@@ -94,6 +94,7 @@ function createGame(config, players) {
     },
 
     winner: null,
+    finishers: [],               // Ordered list of finishers: [{ playerId, playerName, rank, isBot, cardCount, finishedAt }]
     turnCount: 0,
     totalFlips: 0,
     startedAt: Date.now(),
@@ -113,20 +114,35 @@ function createGame(config, players) {
 // ─── Turn Navigation ──────────────────────────────────────────────────────────
 
 /**
- * Advance to the next player's index according to direction.
- * Does NOT mutate state — returns the new index.
+ * Find the next active player's index, strictly skipping any players
+ * who have already cleared all their cards (0 cards remaining).
  */
-function nextIndex(state, steps = 1) {
+function nextActiveIndex(state, steps = 1) {
   const n = state.players.length;
-  return ((state.currentPlayerIndex + state.direction * steps) % n + n) % n;
+  const activeCount = state.players.filter(p => (state.hands[p.id]?.length || 0) > 0).length;
+  if (activeCount <= 1) return state.currentPlayerIndex;
+
+  let curr = state.currentPlayerIndex;
+  let remainingSteps = steps;
+  let safetyLoop = 0;
+
+  while (remainingSteps > 0 && safetyLoop < n * 4) {
+    safetyLoop++;
+    curr = ((curr + state.direction) % n + n) % n;
+    const pId = state.players[curr].id;
+    if (state.hands[pId] && state.hands[pId].length > 0) {
+      remainingSteps--;
+    }
+  }
+  return curr;
 }
 
 /**
- * Advance the current player to the next in line.
+ * Advance the turn to the next active player with cards remaining.
  * Mutates state.currentPlayerIndex and state.currentPlayerId.
  */
 function advanceTurn(state, steps = 1) {
-  state.currentPlayerIndex = nextIndex(state, steps);
+  state.currentPlayerIndex = nextActiveIndex(state, steps);
   state.currentPlayerId    = state.players[state.currentPlayerIndex].id;
   state.turnCount += 1;
 }
@@ -216,8 +232,9 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
   // Handle direction reversal
   if (effects.reverse) {
     state.direction *= -1;
-    // In a 2-player game, Reverse acts like Skip
-    if (state.players.length === 2) {
+    // When only 2 active players remain with cards, Reverse acts like Skip
+    const activeCount = state.players.filter(p => (state.hands[p.id]?.length || 0) > 0).length;
+    if (activeCount === 2) {
       effects.skipNext = true;
     }
   }
@@ -226,22 +243,25 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
   let skippedId = null;
   let skippedPlayer = null;
 
-  // Advance turn
+  // Advance turn to next active players
   if (effects.skipEveryone) {
-    // Skip everyone: current player stays, cycle skips all others once
-    // effectively the same player goes again (or next after full skip)
-    advanceTurn(state, state.players.length); // full cycle = skip all
+    // If player still has cards, they play again. If they emptied their hand, advance to next active.
+    if (hand.length > 0) {
+      // Current player continues
+    } else {
+      advanceTurn(state, 1);
+    }
   } else if (effects.skipNext) {
-    // Apply draws to skipped player, then skip them
-    const skippedIndex = nextIndex(state);
+    // Apply draws to the next active player, then skip them
+    const skippedIndex = nextActiveIndex(state, 1);
     skippedId    = state.players[skippedIndex].id;
     skippedPlayer = state.players[skippedIndex];
     if (effects.drawCount > 0) {
       drawCards(skippedId, effects.drawCount, state);
     }
-    advanceTurn(state, 2); // skip one
+    advanceTurn(state, 2); // skip the target active player
   } else {
-    advanceTurn(state);
+    advanceTurn(state, 1);
   }
 
   // Record action notification for tabletop UI
@@ -300,13 +320,54 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
     };
   }
 
-  // Check if the player won
-  if (isWinner(playerId, state)) {
-    state.status = 'OVER';
-    state.winner = playerId;
-    if (state.caughtWindowTimer) clearTimeout(state.caughtWindowTimer);
-    emitEvent('gameOver', { winner: playerId });
-    return { success: true, moveId };
+  // Check if player cleared all cards (finished)
+  if (hand.length === 0) {
+    const rank = state.finishers.length + 1;
+    const finisherRecord = {
+      playerId,
+      playerName: playedBy ? playedBy.name : 'Player',
+      rank,
+      isBot: !!playedBy?.isBot,
+      cardCount: 0,
+      finishedAt: Date.now(),
+    };
+    state.finishers.push(finisherRecord);
+
+    const remainingActive = state.players.filter(p => (state.hands[p.id]?.length || 0) > 0);
+
+    // Rule: Match only concludes when at most 1 player remains!
+    if (remainingActive.length <= 1) {
+      if (remainingActive.length === 1) {
+        const lastPlayer = remainingActive[0];
+        state.finishers.push({
+          playerId: lastPlayer.id,
+          playerName: lastPlayer.name,
+          rank: state.finishers.length + 1,
+          isBot: !!lastPlayer.isBot,
+          cardCount: (state.hands[lastPlayer.id] || []).length,
+          finishedAt: Date.now(),
+        });
+      }
+
+      state.status = 'OVER';
+      state.winner = state.finishers[0].playerId;
+      if (state.caughtWindowTimer) clearTimeout(state.caughtWindowTimer);
+      emitEvent('gameOver', {
+        winner: state.winner,
+        finishers: state.finishers,
+      });
+      return { success: true, moveId };
+    } else {
+      // Match continues for the remaining players!
+      emitEvent('playerFinished', {
+        playerId,
+        playerName: playedBy ? playedBy.name : 'Player',
+        rank,
+        remainingCount: remainingActive.length,
+      });
+      emitEvent('stateBroadcast', null);
+      return { success: true, moveId };
+    }
   }
 
   emitEvent('stateBroadcast', null);
@@ -565,12 +626,24 @@ function getPublicState(state) {
     gameId: state.gameId,
     status: state.status,
     config: state.config,
-    players: state.players.map(p => ({
-      id:        p.id,
-      name:      p.name,
-      isBot:     p.isBot,
-      cardCount: (state.hands[p.id] || []).length,
-      unoPressedCorrectly: !!state.unoPressedBy[p.id],
+    players: state.players.map(p => {
+      const finisher = (state.finishers || []).find(f => f.playerId === p.id);
+      return {
+        id:        p.id,
+        name:      p.name,
+        isBot:     p.isBot,
+        cardCount: (state.hands[p.id] || []).length,
+        unoPressedCorrectly: !!state.unoPressedBy[p.id],
+        isFinished: !!finisher,
+        rank: finisher ? finisher.rank : null,
+      };
+    }),
+    finishers: (state.finishers || []).map(f => ({
+      playerId: f.playerId,
+      playerName: f.playerName,
+      rank: f.rank,
+      cardCount: f.cardCount || 0,
+      isBot: !!f.isBot,
     })),
     discardPile: [state.discardPile[state.discardPile.length - 1]], // only top card
     deckCount:   state.deck.length,

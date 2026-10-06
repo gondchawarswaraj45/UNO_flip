@@ -45,14 +45,42 @@ function registerGameSocket(io) {
     const winnerPlayer = room.players.find(p => p.id === winnerId);
     const winnerName = winnerPlayer?.name || 'Player';
 
-    const standings = [...room.players]
-      .map(p => ({
-        id: p.id,
-        name: p.name,
-        isBot: p.isBot,
-        cardCount: (state.hands[p.id] || []).length,
-      }))
-      .sort((a, b) => a.cardCount - b.cardCount);
+    // Determine standings based on true multi-player finish order
+    let standings = [];
+    if (state.finishers && state.finishers.length > 0) {
+      standings = state.finishers.map(f => {
+        const playerObj = room.players.find(p => p.id === f.playerId);
+        return {
+          id: f.playerId,
+          name: f.playerName || playerObj?.name || 'Player',
+          isBot: !!(f.isBot ?? playerObj?.isBot),
+          cardCount: f.cardCount || 0,
+          rank: f.rank,
+        };
+      });
+      // Append any players that did not finish (in case of disconnect or error)
+      for (const p of room.players) {
+        if (!standings.some(s => s.id === p.id)) {
+          standings.push({
+            id: p.id,
+            name: p.name,
+            isBot: p.isBot,
+            cardCount: (state.hands[p.id] || []).length,
+            rank: standings.length + 1,
+          });
+        }
+      }
+    } else {
+      standings = [...room.players]
+        .map((p, idx) => ({
+          id: p.id,
+          name: p.name,
+          isBot: p.isBot,
+          cardCount: (state.hands[p.id] || []).length,
+          rank: idx + 1,
+        }))
+        .sort((a, b) => a.cardCount - b.cardCount);
+    }
 
     const durationSeconds = Math.round((Date.now() - (state.startedAt || Date.now())) / 1000);
 
@@ -153,6 +181,8 @@ function registerGameSocket(io) {
                 io.to(r.id).emit('gameOver', data);
               } else if (event === 'playerDrewPenalty') {
                 io.to(r.id).emit('actionAlert', data);
+              } else if (event === 'playerFinished') {
+                io.to(r.id).emit('playerFinished', data);
               }
             }
           );
@@ -525,6 +555,7 @@ function registerGameSocket(io) {
             if (event === 'gameOver') io.to(roomId).emit('gameOver', data);
             if (event === 'caughtResolved') io.to(roomId).emit('caughtResolved', data);
             if (event === 'playerDrewPenalty') io.to(roomId).emit('actionAlert', data);
+            if (event === 'playerFinished') io.to(roomId).emit('playerFinished', data);
           }
         );
 

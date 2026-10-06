@@ -241,57 +241,79 @@ export default function OpponentArea({ player, position }) {
         )}
       </div>
 
-      {/* ── Face-Down Fanned Mini Cards ── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginTop: -2,
-        }}
-      >
-        {Array.from({ length: maxVisible }).map((_, idx) => (
-          <div
-            key={idx}
-            style={{
-              width: 26,
-              height: 38,
-              borderRadius: 6,
-              background: isDark
-                ? 'linear-gradient(135deg, #181024 0%, #2e124d 100%)'
-                : 'linear-gradient(135deg, #0e1726 0%, #1e293b 100%)',
-              border: `1px solid ${isDark ? 'rgba(168,85,247,0.4)' : 'rgba(229,185,76,0.4)'}`,
-              marginLeft: idx > 0 ? -16 : 0,
-              boxShadow: '0 3px 8px rgba(0,0,0,0.5)',
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '0.5rem',
-              color: isDark ? '#c084fc' : '#facc15',
-              zIndex: idx,
-            }}
-          >
-            {isDark ? '◈' : '✦'}
-          </div>
-        ))}
-
-        {/* Overflow Card Count Chip */}
+      {/* ── Finished Rank Badge OR Face-Down Fanned Mini Cards ── */}
+      {player.isFinished || player.rank ? (
         <div
           style={{
-            background: 'rgba(229, 185, 76, 0.15)',
-            border: '1px solid rgba(229, 185, 76, 0.4)',
-            color: 'var(--text-gold)',
-            fontSize: '0.65rem',
-            fontWeight: 800,
+            background: 'linear-gradient(135deg, rgba(229,185,76,0.25), rgba(202,138,4,0.35))',
+            border: '1.5px solid #facc15',
+            color: '#fef08a',
             borderRadius: 99,
-            padding: '1px 6px',
-            marginLeft: 4,
+            padding: '2px 10px',
+            fontSize: '0.68rem',
+            fontWeight: 900,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            boxShadow: '0 0 14px rgba(234, 179, 8, 0.4)',
+            marginTop: 2,
           }}
         >
-          {cardCount}
+          <span>{player.rank === 1 ? '🥇 1st' : player.rank === 2 ? '🥈 2nd' : player.rank === 3 ? '🥉 3rd' : `#${player.rank}`}</span>
+          <span style={{ fontSize: '0.6rem', color: '#ffffff', opacity: 0.85 }}>(Cleared)</span>
         </div>
-      </div>
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: -2,
+          }}
+        >
+          {Array.from({ length: maxVisible }).map((_, idx) => (
+            <div
+              key={idx}
+              style={{
+                width: 26,
+                height: 38,
+                borderRadius: 6,
+                background: isDark
+                  ? 'linear-gradient(135deg, #181024 0%, #2e124d 100%)'
+                  : 'linear-gradient(135deg, #0e1726 0%, #1e293b 100%)',
+                border: `1px solid ${isDark ? 'rgba(168,85,247,0.4)' : 'rgba(229,185,76,0.4)'}`,
+                marginLeft: idx > 0 ? -16 : 0,
+                boxShadow: '0 3px 8px rgba(0,0,0,0.5)',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.5rem',
+                color: isDark ? '#c084fc' : '#facc15',
+                zIndex: idx,
+              }}
+            >
+              {isDark ? '◈' : '✦'}
+            </div>
+          ))}
+
+          {/* Overflow Card Count Chip */}
+          <div
+            style={{
+              background: 'rgba(229, 185, 76, 0.15)',
+              border: '1px solid rgba(229, 185, 76, 0.4)',
+              color: 'var(--text-gold)',
+              fontSize: '0.65rem',
+              fontWeight: 800,
+              borderRadius: 99,
+              padding: '1px 6px',
+              marginLeft: 4,
+            }}
+          >
+            {cardCount}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

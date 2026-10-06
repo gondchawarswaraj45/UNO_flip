@@ -640,29 +640,50 @@ export default function GameScreen() {
               {myInfo?.name || profile.username} (You)
             </span>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-gold)', fontWeight: 700 }}>
-              {myHand.length} cards remaining
+              {myInfo?.isFinished || myHand.length === 0
+                ? `🎉 Cleared Hand! (${myInfo?.rank === 1 ? '🥇 1st' : myInfo?.rank === 2 ? '🥈 2nd' : myInfo?.rank === 3 ? '🥉 3rd' : `#${myInfo?.rank || 1}`} Place) • Spectating`
+                : `${myHand.length} cards remaining`}
             </span>
           </div>
         </div>
 
         {/* Center / Right: Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* UNO Button */}
-          <UnoButton onPress={handleUnoPress} />
-
-          {/* Caught Challenge Button */}
-          <CaughtButton onCaught={handleCaught} />
-
-          {/* Quick Draw Card Button */}
-          {isMyTurn && isPlaying && (
-            <button
-              className="btn btn-ghost"
-              onClick={handleDraw}
-              disabled={drawLoading}
-              style={{ padding: '9px 16px', fontSize: '0.85rem' }}
+          {myInfo?.isFinished || myHand.length === 0 ? (
+            <div
+              style={{
+                fontSize: '0.82rem',
+                fontWeight: 900,
+                color: '#fef08a',
+                background: 'linear-gradient(135deg, rgba(229,185,76,0.25), rgba(202,138,4,0.35))',
+                border: '1.5px solid #facc15',
+                borderRadius: 99,
+                padding: '6px 16px',
+                boxShadow: '0 0 16px rgba(234, 179, 8, 0.35)',
+              }}
             >
-              {drawLoading ? 'Drawing…' : '📤 Draw'}
-            </button>
+              🏁 Finished! Watching remaining battle…
+            </div>
+          ) : (
+            <>
+              {/* UNO Button */}
+              <UnoButton onPress={handleUnoPress} />
+
+              {/* Caught Challenge Button */}
+              <CaughtButton onCaught={handleCaught} />
+
+              {/* Quick Draw Card Button */}
+              {isMyTurn && isPlaying && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={handleDraw}
+                  disabled={drawLoading}
+                  style={{ padding: '9px 16px', fontSize: '0.85rem' }}
+                >
+                  {drawLoading ? 'Drawing…' : '📤 Draw'}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

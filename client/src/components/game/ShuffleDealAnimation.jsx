@@ -113,7 +113,7 @@ export default function ShuffleDealAnimation({ activeSide = 'LIGHT', onComplete 
                     textShadow: '0 2px 6px rgba(0,0,0,0.6)',
                   }}
                 >
-                  UNO
+                  FLIP
                 </span>
               </div>
             </div>
@@ -159,7 +159,7 @@ export default function ShuffleDealAnimation({ activeSide = 'LIGHT', onComplete 
                     textShadow: '0 2px 6px rgba(0,0,0,0.6)',
                   }}
                 >
-                  {isDark ? 'FLIP' : 'UNO'}
+                  FLIP
                 </span>
               </div>
             </div>

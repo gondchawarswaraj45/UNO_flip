@@ -166,6 +166,24 @@ export function useSocket() {
       useGameStore.getState().setPlayerReaction(reaction);
     });
 
+    // ─── Player Cleared Cards / Placement Update ─────────────────────────────
+    socket.on('playerFinished', ({ playerId, playerName, rank, remainingCount }) => {
+      const myId = useGameStore.getState().myPlayerId;
+      const ordinal = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`;
+      if (playerId === myId) {
+        sound.victoryFanfare();
+        toast.success(`🎉 You cleared all cards and claimed ${ordinal} place! Spectating until final player remains...`, {
+          duration: 5000,
+          icon: '🏆',
+        });
+      } else {
+        toast(`🏁 ${playerName} cleared cards and secured ${ordinal} place! Match continues for remaining players...`, {
+          duration: 4000,
+          icon: '🎖️',
+        });
+      }
+    });
+
     // ─── Game over ─────────────────────────────────────────────────────────────
 
     socket.on('gameOver', (result) => {

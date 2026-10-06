@@ -28,7 +28,15 @@ export default function ResultScreen() {
 
   const winner = gameResult?.winner;
   const winnerPlayer = gameState?.players?.find(p => p.id === winner);
-  const isIWon = winner === myPlayerId;
+
+  // Derive true standings from gameResult or gameState
+  const standings = (gameResult?.standings && gameResult.standings.length > 0)
+    ? gameResult.standings
+    : (gameState?.players ? [...gameState.players].sort((a,b) => (a.cardCount||0) - (b.cardCount||0)) : []);
+
+  const myStanding = standings.find(s => s.id === myPlayerId);
+  const myRank = myStanding?.rank || (standings.findIndex(s => s.id === myPlayerId) + 1);
+  const isIWon = myRank === 1;
 
   const currentFrameObj = FRAME_STYLES.find(f => f.id === profile.frame) || FRAME_STYLES[0];
   const level = Math.max(1, Math.floor((profile.xp || 0) / 150) + 1);
@@ -116,19 +124,33 @@ export default function ResultScreen() {
               fontSize: 'clamp(2.2rem, 5.5vw, 3.8rem)',
               background: isIWon
                 ? 'linear-gradient(135deg, #ffffff 0%, #fef08a 40%, #eab308 100%)'
-                : 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 40%, #94a3b8 100%)',
+                : myRank === 2
+                  ? 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 40%, #94a3b8 100%)'
+                  : myRank === 3
+                    ? 'linear-gradient(135deg, #ffffff 0%, #fed7aa 40%, #f97316 100%)'
+                    : 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 40%, #94a3b8 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               letterSpacing: '-0.02em',
               lineHeight: 1.1,
             }}
           >
-            {isIWon ? 'Grand Victory!' : `${winnerPlayer?.name ?? 'Match'} Concluded`}
+            {isIWon
+              ? 'Grand Victory! 🥇'
+              : myRank === 2
+                ? 'Runner-Up! 🥈'
+                : myRank === 3
+                  ? 'Podium Finish! 🥉'
+                  : `${winnerPlayer?.name ?? 'Match'} Concluded`}
           </h1>
           <p style={{ marginTop: 4, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             {isIWon
-              ? 'Tactical perfection! You cleared your entire hand first.'
-              : `${winnerPlayer?.name ?? 'A player'} claimed 1st place in this round.`}
+              ? 'Tactical perfection! You cleared all your cards first.'
+              : myRank === 2
+                ? 'Outstanding game! You secured 2nd place.'
+                : myRank === 3
+                  ? 'Strong finish! You claimed 3rd place.'
+                  : `${winnerPlayer?.name ?? '1st Place'} claimed victory this match.`}
           </p>
         </div>
 
@@ -214,7 +236,7 @@ export default function ResultScreen() {
         </div>
 
         {/* Final Standings Table */}
-        {gameState && (
+        {standings.length > 0 && (
           <div className="glass-strong" style={{ borderRadius: 'var(--radius-xl)', padding: '16px 20px', width: '100%' }}>
             <h3
               style={{
@@ -229,37 +251,59 @@ export default function ResultScreen() {
               Final Standings
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {[...gameState.players]
-                .sort((a, b) => (a.cardCount || 0) - (b.cardCount || 0))
-                .map((p, i) => {
-                  const isPlayerWinner = p.id === winner;
-                  return (
-                    <div
-                      key={p.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        borderRadius: 'var(--radius-md)',
-                        background: isPlayerWinner ? 'rgba(229,185,76,0.12)' : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${isPlayerWinner ? 'rgba(229,185,76,0.35)' : 'var(--border-subtle)'}`,
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: '1rem', fontWeight: 800, width: 22 }}>
-                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-                        </span>
-                        <span style={{ fontWeight: 700, fontSize: '0.88rem', color: isPlayerWinner ? 'var(--text-gold)' : 'var(--text-primary)' }}>
-                          {p.name} {p.isBot ? '🤖' : ''} {p.id === myPlayerId ? '(You)' : ''}
-                        </span>
-                      </div>
-                      <span style={{ color: isPlayerWinner ? 'var(--text-gold)' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 700 }}>
-                        {p.cardCount === 0 ? '✓ Cleared Hand' : `${p.cardCount} cards`}
+              {standings.map((p, i) => {
+                const isPlayerWinner = p.id === winner || p.rank === 1;
+                const isMe = p.id === myPlayerId;
+                const displayRank = p.rank || i + 1;
+                return (
+                  <div
+                    key={p.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderRadius: 'var(--radius-md)',
+                      background: isPlayerWinner
+                        ? 'rgba(229,185,76,0.15)'
+                        : isMe
+                          ? 'rgba(59,130,246,0.12)'
+                          : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${
+                        isPlayerWinner
+                          ? 'rgba(229,185,76,0.45)'
+                          : isMe
+                            ? 'rgba(59,130,246,0.4)'
+                            : 'var(--border-subtle)'
+                      }`,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: '1.05rem', fontWeight: 800, width: 24, textAlign: 'center' }}>
+                        {displayRank === 1 ? '🥇' : displayRank === 2 ? '🥈' : displayRank === 3 ? '🥉' : `#${displayRank}`}
+                      </span>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: '0.88rem',
+                          color: isPlayerWinner ? 'var(--text-gold)' : isMe ? '#93c5fd' : 'var(--text-primary)',
+                        }}
+                      >
+                        {p.name} {p.isBot ? '🤖' : ''} {isMe ? '(You)' : ''}
                       </span>
                     </div>
-                  );
-                })}
+                    <span
+                      style={{
+                        color: isPlayerWinner ? 'var(--text-gold)' : 'var(--text-muted)',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {p.cardCount === 0 ? '✓ Cleared Hand' : `${p.cardCount} cards left`}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
