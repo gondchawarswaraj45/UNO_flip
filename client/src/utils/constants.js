@@ -28,6 +28,7 @@ export const CARD_TYPE = {
   WILD: 'WILD',
   WILD_DRAW_FOUR: 'WILD_DRAW_FOUR',
   WILD_DRAW_TWO: 'WILD_DRAW_TWO',
+  WILD_DRAW_COLOR: 'WILD_DRAW_COLOR',
   FLIP: 'FLIP',
   SKIP_EVERYONE: 'SKIP_EVERYONE',
 };
@@ -40,17 +41,20 @@ export const AI_DIFFICULTY = {
 
 export const COLOR_HEX = {
   // Light / Classic (Rich, tactile gaming card tones)
-  RED: '#D92525',
-  BLUE: '#1657C7',
-  GREEN: '#15803D',
-  YELLOW: '#EAB308',
+  RED: '#E51D24',
+  BLUE: '#0063B2',
+  GREEN: '#1E9A34',
+  YELLOW: '#FFC700',
   LIGHT_PURPLE: '#8B5CF6',
-  // Dark (Moody, high-contrast dark side tones)
-  CRIMSON: '#831843',
-  DEEP_BLUE: '#0F3B7A',
+  // Dark (Official High-Voltage Neon Palette)
+  PINK: '#E11D48',
+  CRIMSON: '#E11D48',
+  TEAL: '#00A3C4',
+  DEEP_BLUE: '#00A3C4',
+  ORANGE: '#F97316',
+  PURPLE: '#9333EA',
+  DEEP_PURPLE: '#9333EA',
   BROWN: '#78350F',
-  ORANGE: '#C2410C',
-  DEEP_PURPLE: '#581C87',
   // Wild
   WILD: '#181C26',
 };
@@ -61,11 +65,14 @@ export const COLOR_LABEL = {
   GREEN: 'Green',
   YELLOW: 'Yellow',
   LIGHT_PURPLE: 'Light Purple',
-  CRIMSON: 'Crimson',
-  DEEP_BLUE: 'Deep Blue',
-  BROWN: 'Brown',
+  PINK: 'Pink',
+  CRIMSON: 'Pink',
+  TEAL: 'Teal',
+  DEEP_BLUE: 'Teal',
   ORANGE: 'Orange',
-  DEEP_PURPLE: 'Deep Purple',
+  PURPLE: 'Purple',
+  DEEP_PURPLE: 'Purple',
+  BROWN: 'Brown',
   WILD: 'Wild',
 };
 
@@ -78,6 +85,7 @@ export const CARD_SYMBOL = {
   WILD: '★',
   WILD_DRAW_FOUR: '+4',
   WILD_DRAW_TWO: '+2',
+  WILD_DRAW_COLOR: '🎨+',
   FLIP: '↕',
   SKIP_EVERYONE: '⊘⊘',
 };
@@ -90,8 +98,8 @@ export const LIGHT_COLORS_BY_MODE = {
   FIVE: ['RED', 'BLUE', 'GREEN', 'YELLOW', 'LIGHT_PURPLE'],
 };
 
-/** Dark colors available per colorMode */
+/** Dark colors available per colorMode (Official: Pink, Teal, Orange, Purple) */
 export const DARK_COLORS_BY_MODE = {
-  FOUR: ['CRIMSON', 'DEEP_BLUE', 'BROWN', 'ORANGE'],
-  FIVE: ['CRIMSON', 'DEEP_BLUE', 'BROWN', 'ORANGE', 'DEEP_PURPLE'],
+  FOUR: ['PINK', 'TEAL', 'ORANGE', 'PURPLE'],
+  FIVE: ['PINK', 'TEAL', 'ORANGE', 'PURPLE', 'BROWN'],
 };

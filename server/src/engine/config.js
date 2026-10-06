@@ -36,26 +36,33 @@ const LIGHT_COLORS = Object.freeze({
 
 /** Dark side colors (Two-Side mode only) */
 const DARK_COLORS = Object.freeze({
-  CRIMSON: 'CRIMSON',
-  DEEP_BLUE: 'DEEP_BLUE',
-  BROWN: 'BROWN',
+  PINK: 'PINK',
+  TEAL: 'TEAL',
   ORANGE: 'ORANGE',
-  DEEP_PURPLE: 'DEEP_PURPLE',    // 5-color only
+  PURPLE: 'PURPLE',
+  BROWN: 'BROWN',                 // 5-color mode only
+  // Aliases for compatibility
+  CRIMSON: 'PINK',
+  DEEP_BLUE: 'TEAL',
+  DEEP_PURPLE: 'PURPLE',
 });
 
 const COLOR_HEX = Object.freeze({
   // Light / Classic (Rich, tactile gaming card tones)
-  RED: '#D92525',
-  BLUE: '#1657C7',
-  GREEN: '#15803D',
-  YELLOW: '#EAB308',
+  RED: '#E51D24',
+  BLUE: '#0063B2',
+  GREEN: '#1E9A34',
+  YELLOW: '#FFC700',
   LIGHT_PURPLE: '#8B5CF6',
-  // Dark (Moody, high-contrast dark side tones)
-  CRIMSON: '#831843',
-  DEEP_BLUE: '#0F3B7A',
+  // Dark (Official High-Voltage Neon Palette)
+  PINK: '#E11D48',
+  CRIMSON: '#E11D48',
+  TEAL: '#00A3C4',
+  DEEP_BLUE: '#00A3C4',
+  ORANGE: '#F97316',
+  PURPLE: '#9333EA',
+  DEEP_PURPLE: '#9333EA',
   BROWN: '#78350F',
-  ORANGE: '#C2410C',
-  DEEP_PURPLE: '#581C87',
   // Wild — obsidian onyx card face
   WILD: '#181C26',
 });
@@ -113,8 +120,8 @@ function getColors(side, colorMode) {
     return base;
   }
   if (side === ACTIVE_SIDE.DARK) {
-    const base = [DARK_COLORS.CRIMSON, DARK_COLORS.DEEP_BLUE, DARK_COLORS.BROWN, DARK_COLORS.ORANGE];
-    if (colorMode === COLOR_MODE.FIVE) base.push(DARK_COLORS.DEEP_PURPLE);
+    const base = [DARK_COLORS.PINK, DARK_COLORS.TEAL, DARK_COLORS.ORANGE, DARK_COLORS.PURPLE];
+    if (colorMode === COLOR_MODE.FIVE) base.push(DARK_COLORS.BROWN);
     return base;
   }
   return [];

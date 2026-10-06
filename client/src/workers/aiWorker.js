@@ -103,7 +103,7 @@ function pickBestColor(hand, activeSide) {
       counts[face.color] = (counts[face.color] || 0) + 1;
     }
   });
-  let maxColor = 'BLUE';
+  let maxColor = activeSide === 'DARK' ? 'TEAL' : 'BLUE';
   let maxCount = -1;
   for (const [col, count] of Object.entries(counts)) {
     if (count > maxCount) {

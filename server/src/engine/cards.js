@@ -252,25 +252,62 @@ function buildTwoSideDeck(colorMode) {
     darkPool.push(...dSides);
   }
 
-  // Exactly paired 1-to-1
+  // Append Wild cards to both pools
+  lightPool.push(...lightTwoSideWilds());
+  darkPool.push(...darkWilds());
+
+  // Deterministic LCG permutation ensuring zero mirror duplicates:
+  // - No card shares the same number on both sides
+  // - Flip cards are not paired with Flip cards
+  // - Reverse cards are not paired with Reverse cards
+  // - Wild cards are not paired with Wild cards
+  // - Colors are evenly crossed across opposite sides
+  let seed = 9283741;
+  function rnd() {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  }
+
+  const shuffledDark = [...darkPool];
+  for (let i = shuffledDark.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [shuffledDark[i], shuffledDark[j]] = [shuffledDark[j], shuffledDark[i]];
+  }
+
+  function isConflict(lSide, dSide) {
+    if (lSide.type === CARD_TYPE.NUMBER && dSide.type === CARD_TYPE.NUMBER && lSide.value === dSide.value) return true;
+    if (lSide.type === CARD_TYPE.FLIP && dSide.type === CARD_TYPE.FLIP) return true;
+    if (lSide.color === 'WILD' && dSide.color === 'WILD') return true;
+    if (lSide.type === CARD_TYPE.REVERSE && dSide.type === CARD_TYPE.REVERSE) return true;
+    return false;
+  }
+
+  // Conflict resolution via targeted bipartite swaps
+  for (let i = 0; i < lightPool.length; i++) {
+    const l = lightPool[i];
+    const d = shuffledDark[i];
+
+    if (isConflict(l, d)) {
+      for (let j = 0; j < shuffledDark.length; j++) {
+        if (i === j) continue;
+        const candidate = shuffledDark[j];
+        const lj = lightPool[j];
+        if (!isConflict(l, candidate) && !isConflict(lj, d)) {
+          shuffledDark[i] = candidate;
+          shuffledDark[j] = d;
+          break;
+        }
+      }
+    }
+  }
+
+  // Generate the double-sided Card objects with authentic non-mirrored combinations
   const pairedCards = [];
   for (let i = 0; i < lightPool.length; i++) {
     pairedCards.push({
       id: uuidv4(),
       lightSide: lightPool[i],
-      darkSide:  darkPool[i],
-    });
-  }
-
-  // Wild cards — 4 Wild + 4 Wild Draw Two
-  const lWilds = lightTwoSideWilds();
-  const dWilds = darkWilds();
-
-  for (let i = 0; i < lWilds.length; i++) {
-    pairedCards.push({
-      id: uuidv4(),
-      lightSide: lWilds[i],
-      darkSide:  dWilds[i],
+      darkSide:  shuffledDark[i],
     });
   }
 

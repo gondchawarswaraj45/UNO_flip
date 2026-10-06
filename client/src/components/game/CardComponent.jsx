@@ -32,10 +32,10 @@ const CARD_COLORS = {
   PINK:         '#E11D48',
   DEEP_BLUE:    '#00A3C4',
   TEAL:         '#00A3C4',
-  BROWN:        '#F97316',
   ORANGE:       '#F97316',
-  DEEP_PURPLE:  '#8B24D9',
   PURPLE:       '#8B24D9',
+  DEEP_PURPLE:  '#8B24D9',
+  BROWN:        '#78350F',
 
   // Wild Cards Face
   WILD:         '#11141C',
