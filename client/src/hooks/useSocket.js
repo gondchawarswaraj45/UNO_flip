@@ -108,29 +108,57 @@ export function useSocket() {
       useGameStore.getState().setBotThinking(botId, thinking);
     });
 
-    // ─── Caught / UNO events ───────────────────────────────────────────────────
+    // ─── Caught / UNO events (Audio & Screen Animations for All Players) ──────
 
     socket.on('caughtResolved', (data) => {
       setLastCaughtEvent(data);
+      sound.caughtAlarm(); // Play emergency siren audio on ALL players' devices!
+      sound.vibrate([90, 50, 90]);
+
+      const gs = useGameStore.getState().gameState;
+      const catcher = gs?.players.find(p => p.id === data.catcherId);
+      const target = gs?.players.find(p => p.id === data.targetPlayerId);
+      const catcherName = data.catcherName || catcher?.name || 'Someone';
+      const targetName = data.targetName || target?.name || 'Player';
+
+      useGameStore.getState().triggerCaughtSplash({
+        ...data,
+        catcherName,
+        targetName,
+      });
+
       const myId = useGameStore.getState().myPlayerId;
       if (data.targetPlayerId === myId) {
-        toast.error(`You were CAUGHT! +${data.penaltyCards} cards 😬`);
+        toast.error(`🚨 YOU WERE CAUGHT! Failed to call UNO — drew +${data.penaltyCards} cards!`, { duration: 4000 });
       } else if (data.catcherId === myId) {
-        toast.success(`You caught them! They draw +${data.penaltyCards} 🎯`);
+        toast.success(`🎯 YOU CAUGHT ${targetName}! They drew +${data.penaltyCards} cards!`, { duration: 4000 });
       } else {
-        const gs = useGameStore.getState().gameState;
-        const target = gs?.players.find(p => p.id === data.targetPlayerId);
-        const catcher = gs?.players.find(p => p.id === data.catcherId);
-        toast(`${catcher?.name ?? 'Someone'} caught ${target?.name ?? 'a player'}! +${data.penaltyCards} cards`, { icon: '🚨' });
+        toast(`🚨 ${catcherName} caught ${targetName}! Penalty: +${data.penaltyCards} cards`, { icon: '⚠️', duration: 4000 });
       }
       setCaughtWindowUi({ active: false, secondsLeft: 0, moveId: null, targetPlayerId: null });
     });
 
-    socket.on('unoPressedBy', ({ playerId }) => {
-      setLastUnoEvent(playerId);
+    socket.on('unoPressedBy', (data) => {
+      setLastUnoEvent(data.playerId);
+      sound.unoShout(); // Play triumphant fanfare audio on ALL players' devices!
+      sound.vibrate([70, 40, 70]);
+
       const gs = useGameStore.getState().gameState;
-      const player = gs?.players.find(p => p.id === playerId);
-      toast(`${player?.name ?? 'Someone'} said UNO! 🃏`, { icon: '🔔' });
+      const player = gs?.players.find(p => p.id === data.playerId);
+      const playerName = data.playerName || player?.name || 'Player';
+
+      useGameStore.getState().triggerUnoSplash({
+        playerId: data.playerId,
+        playerName,
+        timestamp: data.timestamp || Date.now(),
+      });
+
+      const myId = useGameStore.getState().myPlayerId;
+      if (data.playerId === myId) {
+        toast.success(`🃏 YOU SHOUTED UNO! 1 card remaining!`, { duration: 3500 });
+      } else {
+        toast(`🔔 ${playerName} shouted UNO! Only 1 card left!`, { icon: '🃏', duration: 3500 });
+      }
     });
 
     // ─── Real-Time Reactions & Quick Chat ──────────────────────────────────────

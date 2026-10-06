@@ -164,7 +164,11 @@ function registerGameSocket(io) {
             // Bot UNO press with broadcast event and reaction bubble
             if (botShouldPressUno(currentPlayer.id, currentPlayer.difficulty, r.gameState)) {
               processPressUno(currentPlayer.id, r.gameState);
-              io.to(r.id).emit('unoPressedBy', { playerId: currentPlayer.id });
+              io.to(r.id).emit('unoPressedBy', {
+                playerId: currentPlayer.id,
+                playerName: currentPlayer.name,
+                timestamp: Date.now(),
+              });
               io.to(r.id).emit('playerReaction', {
                 id: 'rx_' + Math.random().toString(36).substring(2, 8),
                 playerId: currentPlayer.id,
@@ -257,7 +261,16 @@ function registerGameSocket(io) {
         if (r.gameState.caughtWindow.moveId !== moveId || r.gameState.caughtWindow.resolved) return;
 
         const res = processCaught(bot.id, targetPlayerId, moveId, r.gameState, (event, data) => {
-          if (event === 'caughtResolved') io.to(r.id).emit('caughtResolved', data);
+          if (event === 'caughtResolved') {
+            const catcher = r.players.find(p => p.id === bot.id);
+            const target = r.players.find(p => p.id === targetPlayerId);
+            io.to(r.id).emit('caughtResolved', {
+              ...data,
+              catcherName: catcher ? catcher.name : bot.name,
+              targetName: target ? target.name : 'Target',
+              timestamp: Date.now(),
+            });
+          }
           if (event === 'stateBroadcast') broadcastGameState(io, r);
         });
 
@@ -580,8 +593,13 @@ function registerGameSocket(io) {
         const result = processPressUno(playerId, room.gameState);
         if (!result.success) return (cb || (() => {}))({ ok: false, error: result.error });
 
-        // Broadcast that UNO was pressed (no hand info)
-        io.to(roomId).emit('unoPressedBy', { playerId });
+        // Broadcast that UNO was pressed with player name and timestamp so all players hear and see it
+        const caller = room.players.find(p => p.id === playerId);
+        io.to(roomId).emit('unoPressedBy', {
+          playerId,
+          playerName: caller ? caller.name : 'Player',
+          timestamp: Date.now(),
+        });
         triggerBotReactions(io, room, 'UNO_CALLED', playerId);
         if (cb) cb({ ok: true });
       } catch (e) {
@@ -599,7 +617,16 @@ function registerGameSocket(io) {
         const result = processCaught(
           catcherId, targetPlayerId, moveId, room.gameState,
           (event, data) => {
-            if (event === 'caughtResolved') io.to(roomId).emit('caughtResolved', data);
+            if (event === 'caughtResolved') {
+              const catcher = room.players.find(p => p.id === data.catcherId);
+              const target = room.players.find(p => p.id === data.targetPlayerId);
+              io.to(roomId).emit('caughtResolved', {
+                ...data,
+                catcherName: catcher ? catcher.name : 'Player',
+                targetName: target ? target.name : 'Target',
+                timestamp: Date.now(),
+              });
+            }
             if (event === 'stateBroadcast') broadcastGameState(io, room);
           }
         );

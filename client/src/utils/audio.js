@@ -141,52 +141,76 @@ class SoundEngine {
     osc.stop(now + 0.46);
   }
 
-  /** Resonant chime when UNO button is pressed */
+  /** Resonant triumphant fanfare chime when UNO button is pressed */
   unoShout() {
     if (!this.enabled) return;
     this.init();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+    // Stage 1: Explosive major triad chord (C5, E5, G5, C6)
+    const freqs = [523.25, 659.25, 783.99, 1046.5];
+    freqs.forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+      osc.type = idx === 3 ? 'square' : 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.05, now + idx * 0.04 + 0.15);
 
-      gain.gain.setValueAtTime(0.2, now + idx * 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5 + idx * 0.05);
+      gain.gain.setValueAtTime(0.3, now + idx * 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7 + idx * 0.04);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
-      osc.start(now + idx * 0.05);
-      osc.stop(now + 0.6);
+      osc.start(now + idx * 0.04);
+      osc.stop(now + 0.75 + idx * 0.04);
     });
+
+    // Stage 2: Shimmer resonance
+    const shim = this.ctx.createOscillator();
+    const shimGain = this.ctx.createGain();
+    shim.type = 'sine';
+    shim.frequency.setValueAtTime(1046.5, now + 0.15);
+    shim.frequency.exponentialRampToValueAtTime(1318.5, now + 0.5);
+    shimGain.gain.setValueAtTime(0.2, now + 0.15);
+    shimGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+    shim.connect(shimGain);
+    shimGain.connect(this.ctx.destination);
+    shim.start(now + 0.15);
+    shim.stop(now + 0.85);
   }
 
-  /** Dramatic warning bell / buzzer when Caught is called */
+  /** Dramatic emergency siren & buzzer when Caught is called */
   caughtAlarm() {
     if (!this.enabled) return;
     this.init();
     if (!this.ctx) return;
 
     const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    // Multi-pulse emergency siren siren: High -> Low -> High -> Low
+    const pulses = [
+      { start: 0, freq1: 960, freq2: 580, dur: 0.18 },
+      { start: 0.2, freq1: 1040, freq2: 520, dur: 0.25 },
+      { start: 0.46, freq1: 880, freq2: 440, dur: 0.3 },
+    ];
 
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(880, now);
-    osc.frequency.setValueAtTime(440, now + 0.1);
+    pulses.forEach(p => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(p.freq1, now + p.start);
+      osc.frequency.exponentialRampToValueAtTime(p.freq2, now + p.start + p.dur);
 
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      gain.gain.setValueAtTime(0.35, now + p.start);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + p.start + p.dur);
 
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
 
-    osc.start(now);
-    osc.stop(now + 0.36);
+      osc.start(now + p.start);
+      osc.stop(now + p.start + p.dur + 0.01);
+    });
   }
 
   /** Soft alert when it's your turn */

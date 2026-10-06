@@ -266,6 +266,23 @@ const useGameStore = create((set, get) => ({
   isOfflineMode: false,
   setIsOfflineMode: (v) => set({ isOfflineMode: v }),
 
+  // ─── Screen-Wide Splash Announcements for UNO and Caught ─────────────────────
+  unoSplash: null, // { playerId, playerName, timestamp }
+  triggerUnoSplash: (data) => {
+    set({ unoSplash: data });
+    setTimeout(() => {
+      set((s) => (s.unoSplash?.timestamp === data.timestamp ? { unoSplash: null } : s));
+    }, 2400);
+  },
+
+  caughtSplash: null, // { catcherId, catcherName, targetPlayerId, targetName, penaltyCards, timestamp }
+  triggerCaughtSplash: (data) => {
+    set({ caughtSplash: data });
+    setTimeout(() => {
+      set((s) => (s.caughtSplash?.timestamp === data.timestamp ? { caughtSplash: null } : s));
+    }, 2800);
+  },
+
   reset: () =>
     set({
       gameState: null,
@@ -276,6 +293,8 @@ const useGameStore = create((set, get) => ({
       caughtWindowUi: { active: false, secondsLeft: 0, moveId: null, targetPlayerId: null },
       lastCaughtEvent: null,
       lastUnoEvent: null,
+      unoSplash: null,
+      caughtSplash: null,
       gameResult: null,
       lobbyState: null,
       roomId: null,

@@ -882,3 +882,60 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   0% { opacity: 0.3; }
   100% { opacity: 1; }
 }
+
+/* ─── Table Event Splash Overlays (UNO & CAUGHT) ──────────────── */
+@keyframes unoBadgePop {
+  0% {
+    transform: scale(0.2) rotate(-14deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.18) rotate(4deg);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.96) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes caughtStampSlam {
+  0% {
+    transform: scale(2.8) rotate(-18deg);
+    opacity: 0;
+  }
+  45% {
+    transform: scale(0.92) rotate(-3deg);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.06) rotate(-5deg);
+  }
+  100% {
+    transform: scale(1) rotate(-4deg);
+    opacity: 1;
+  }
+}
+
+@keyframes sirenPerimeter {
+  0%, 100% {
+    box-shadow: inset 0 0 60px rgba(239, 68, 68, 0.75);
+  }
+  50% {
+    box-shadow: inset 0 0 60px rgba(59, 130, 246, 0.75);
+  }
+}
+
+@keyframes shockwaveRing {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}

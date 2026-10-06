@@ -24,6 +24,7 @@ import ProfileModal, { FRAME_STYLES } from '../ui/ProfileModal';
 import LeaderboardModal from '../ui/LeaderboardModal';
 import RulesModal from '../ui/RulesModal';
 import ShuffleDealAnimation from '../game/ShuffleDealAnimation';
+import TableEventOverlays from '../game/TableEventOverlays';
 import { CARD_TYPE, COLOR_HEX } from '../../utils/constants';
 import sound from '../../utils/audio';
 
@@ -681,6 +682,9 @@ export default function GameScreen() {
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
       <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       <RulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
+
+      {/* Screen-wide Cinematic Sound & Animation Overlays for UNO & Caught */}
+      <TableEventOverlays />
     </div>
   );
 }
