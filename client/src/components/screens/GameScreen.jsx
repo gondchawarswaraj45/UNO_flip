@@ -242,7 +242,13 @@ export default function GameScreen() {
     const asPlayerId = isOffline ? gameState.currentPlayerId : myPlayerId;
     socket.emit('drawCard', { asPlayerId }, (res) => {
       setDrawLoading(false);
-      if (!res.ok) setActionError(res.error || 'Draw not permitted');
+      if (!res.ok) {
+        if (res.error === 'ALREADY_DRAWN_THIS_TURN') {
+          setActionError('You already drew a card this turn! Drop a matching card or press Pass Turn.');
+        } else {
+          setActionError(res.error || 'Draw not permitted');
+        }
+      }
     });
   }
 
@@ -572,6 +578,27 @@ export default function GameScreen() {
               </div>
             )}
 
+            {/* Prominent Center Felt Pass Button (Instantly visible after drawing) */}
+            {isMyTurn && isPlaying && gameState.hasDrawnThisTurn && (
+              <button
+                id="center-pass-btn"
+                className="pass-btn active"
+                onClick={handlePass}
+                disabled={passLoading}
+                style={{
+                  padding: '9px 24px',
+                  fontSize: '0.88rem',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  boxShadow: '0 0 24px rgba(16, 185, 129, 0.75)',
+                  animation: 'pulsePass 1.2s ease-in-out infinite',
+                }}
+                title="Pass your turn to the next player"
+              >
+                {passLoading ? 'Passing…' : '⏭ Pass Turn to Next Player'}
+              </button>
+            )}
+
             {/* Action Error Notification */}
             {actionError && (
               <div
@@ -726,31 +753,36 @@ export default function GameScreen() {
               {/* Caught Challenge Button */}
               <CaughtButton onCaught={handleCaught} />
 
-              {/* Action: Draw & Pass Buttons (Per Official UNO Flip Rulebook) */}
-              {isMyTurn && isPlaying && (
-                <>
-                  <button
-                    className={`draw-action-btn ${gameState.hasDrawnThisTurn ? 'drawn' : ''}`}
-                    id="draw-btn"
-                    onClick={handleDraw}
-                    disabled={drawLoading}
-                    style={{ padding: '10px 18px', fontSize: '0.9rem' }}
-                    title={
-                      gameState.hasDrawnThisTurn
-                        ? 'You have already drawn a card this turn! Drop a card or pass.'
-                        : 'Draw 1 card from the bundle'
-                    }
-                  >
-                    {drawLoading ? 'Drawing…' : gameState.hasDrawnThisTurn ? '✓ Drawn' : '📤 Draw'}
-                  </button>
+              {/* Quick Draw Card Button */}
+              <button
+                className={`draw-action-btn ${gameState.hasDrawnThisTurn ? 'drawn' : ''}`}
+                id="draw-btn"
+                onClick={handleDraw}
+                disabled={drawLoading || !isMyTurn || !isPlaying}
+                style={{
+                  padding: '10px 18px',
+                  fontSize: '0.9rem',
+                  opacity: !isMyTurn || !isPlaying ? 0.4 : gameState.hasDrawnThisTurn ? 0.65 : 1,
+                  cursor: !isMyTurn || !isPlaying ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                title={
+                  !isMyTurn
+                    ? 'Wait for your turn'
+                    : gameState.hasDrawnThisTurn
+                    ? 'You have already drawn a card this turn! Drop a card or pass.'
+                    : 'Draw 1 card from the bundle'
+                }
+              >
+                {drawLoading ? 'Drawing…' : gameState.hasDrawnThisTurn ? '✓ Drawn' : '📤 Draw'}
+              </button>
 
-                  <PassButton
-                    onPass={handlePass}
-                    onCannotPass={(err) => setActionError(err)}
-                    loading={passLoading}
-                  />
-                </>
-              )}
+              {/* Pass Turn Button (Always visible in action bar) */}
+              <PassButton
+                onPass={handlePass}
+                onCannotPass={(err) => setActionError(err)}
+                loading={passLoading}
+              />
             </>
           )}
         </div>

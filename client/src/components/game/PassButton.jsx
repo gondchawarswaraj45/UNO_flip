@@ -22,9 +22,12 @@ export default function PassButton({ onPass, onCannotPass, loading }) {
 
   const canPass = isMyTurn && isPlaying && hasDrawn && !loading;
 
-  function handleClick() {
+  function handleClick(e) {
+    e?.stopPropagation?.();
     if (!canPass) {
-      if (isMyTurn && isPlaying && !hasDrawn) {
+      if (!isMyTurn) {
+        onCannotPass?.('Wait for your turn to pass');
+      } else if (!hasDrawn) {
         onCannotPass?.('Official Rule: You must draw a card from the bundle before passing!');
       }
       return;
@@ -33,28 +36,23 @@ export default function PassButton({ onPass, onCannotPass, loading }) {
   }
 
   return (
-    <div
-      style={{ display: 'inline-block' }}
-      onClick={!canPass && isMyTurn && !hasDrawn ? handleClick : undefined}
+    <button
+      type="button"
+      className={`pass-btn ${canPass ? 'active' : ''}`}
+      id="pass-btn"
+      onClick={handleClick}
+      style={{
+        cursor: canPass ? 'pointer' : isMyTurn ? 'pointer' : 'not-allowed',
+      }}
+      title={
+        !isMyTurn
+          ? 'Wait for your turn'
+          : !hasDrawn
+          ? 'You must draw a card from the bundle before you can pass!'
+          : 'Pass your turn to the next player'
+      }
     >
-      <button
-        className={`pass-btn ${canPass ? 'active' : ''}`}
-        id="pass-btn"
-        onClick={handleClick}
-        disabled={!canPass}
-        style={{
-          pointerEvents: !canPass && isMyTurn && !hasDrawn ? 'none' : 'auto',
-        }}
-        title={
-          !isMyTurn
-            ? 'Wait for your turn'
-            : !hasDrawn
-            ? 'You must draw a card from the deck before you can pass!'
-            : 'Pass your turn to the next player'
-        }
-      >
-        {loading ? 'Passing…' : '⏭ Pass'}
-      </button>
-    </div>
+      {loading ? 'Passing…' : '⏭ Pass'}
+    </button>
   );
 }
