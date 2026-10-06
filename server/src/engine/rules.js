@@ -56,6 +56,14 @@ function getDrawCardPenalty(face) {
  * @returns {{ valid: boolean, reason: string|null }}
  */
 function validatePlay(playerId, cardId, gameState, chosenColor) {
+  if (chosenColor && typeof chosenColor === 'string') {
+    const uc = chosenColor.toUpperCase();
+    if (uc === 'CRIMSON') chosenColor = 'PINK';
+    else if (uc === 'DEEP_BLUE') chosenColor = 'TEAL';
+    else if (uc === 'DEEP_PURPLE') chosenColor = 'PURPLE';
+    else chosenColor = uc;
+  }
+
   // 1. Is it this player's turn?
   if (gameState.currentPlayerId !== playerId) {
     return { valid: false, reason: 'NOT_YOUR_TURN' };

@@ -276,9 +276,11 @@ function buildTwoSideDeck(colorMode) {
 
   function isConflict(lSide, dSide) {
     if (lSide.type === CARD_TYPE.NUMBER && dSide.type === CARD_TYPE.NUMBER && lSide.value === dSide.value) return true;
-    if (lSide.type === CARD_TYPE.FLIP && dSide.type === CARD_TYPE.FLIP) return true;
+    if (lSide.type === CARD_TYPE.FLIP && (dSide.type === CARD_TYPE.FLIP || dSide.color === 'WILD')) return true;
+    if (dSide.type === CARD_TYPE.FLIP && (lSide.type === CARD_TYPE.FLIP || lSide.color === 'WILD')) return true;
     if (lSide.color === 'WILD' && dSide.color === 'WILD') return true;
     if (lSide.type === CARD_TYPE.REVERSE && dSide.type === CARD_TYPE.REVERSE) return true;
+    if (lSide.type === CARD_TYPE.SKIP && dSide.type === CARD_TYPE.SKIP_EVERYONE) return true;
     return false;
   }
 

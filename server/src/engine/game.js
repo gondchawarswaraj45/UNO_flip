@@ -208,6 +208,14 @@ function reshuffleDiscard(state) {
  * @returns {{ success: boolean, error?: string, moveId?: string }}
  */
 function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
+  if (chosenColor && typeof chosenColor === 'string') {
+    const uc = chosenColor.toUpperCase();
+    if (uc === 'CRIMSON') chosenColor = 'PINK';
+    else if (uc === 'DEEP_BLUE') chosenColor = 'TEAL';
+    else if (uc === 'DEEP_PURPLE') chosenColor = 'PURPLE';
+    else chosenColor = uc;
+  }
+
   const validation = validatePlay(playerId, cardId, state, chosenColor);
   if (!validation.valid) {
     return { success: false, error: validation.reason };
