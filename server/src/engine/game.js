@@ -440,6 +440,7 @@ function processDrawCard(playerId, state, emitEvent) {
   // Under Progressive Draw Stack: Player takes the ENTIRE accumulated penalty!
   if (state.pendingDrawStack && state.pendingDrawStack.active) {
     const penaltyTotal = state.pendingDrawStack.totalCards;
+    const initiatorId = state.pendingDrawStack.initiatorId;
     const drawn = drawCards(playerId, penaltyTotal, state);
 
     // Reset draw stack
@@ -467,11 +468,12 @@ function processDrawCard(playerId, state, emitEvent) {
     };
 
     const drawingPlayer = state.players.find(p => p.id === playerId);
+    const initiatorPlayer = state.players.find(p => p.id === initiatorId);
     state.lastActionNotification = {
       id: uuidv4(),
       type: 'PENALTY_DRAW',
-      playedById: playerId,
-      playedByName: drawingPlayer ? drawingPlayer.name : 'Player',
+      playedById: initiatorId || playerId,
+      playedByName: initiatorPlayer ? initiatorPlayer.name : (drawingPlayer ? drawingPlayer.name : 'Player'),
       targetId: playerId,
       targetName: drawingPlayer ? drawingPlayer.name : 'Player',
       cardType: 'DRAW',

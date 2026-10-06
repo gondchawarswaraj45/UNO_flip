@@ -135,6 +135,14 @@ function registerGameSocket(io) {
         }
       }
     }
+
+    // Safety net: whenever game state is broadcast, if current player is a bot, ensure bot turn is scheduled!
+    if (room.gameState && room.gameState.status === 'PLAYING') {
+      const cur = room.players.find((p) => p.id === room.gameState.currentPlayerId);
+      if (cur && cur.isBot) {
+        scheduleBotTurn(io, room);
+      }
+    }
   }
 
   // ─── Bot Turn & Simulation System ──────────────────────────────────────────
@@ -147,7 +155,24 @@ function registerGameSocket(io) {
     if (!state || state.status !== 'PLAYING') return;
 
     const currentPlayer = room.players.find(p => p.id === state.currentPlayerId);
-    if (!currentPlayer || !currentPlayer.isBot) return;
+    if (!currentPlayer || !currentPlayer.isBot) {
+      if (room._botTimer) {
+        clearTimeout(room._botTimer);
+        room._botTimer = null;
+        room._botTimerPlayerId = null;
+      }
+      return;
+    }
+
+    // Avoid double-scheduling if already active for this exact player's turn
+    if (room._botTimer && room._botTimerPlayerId === currentPlayer.id) {
+      return;
+    }
+
+    if (room._botTimer) {
+      clearTimeout(room._botTimer);
+      room._botTimer = null;
+    }
 
     let delay = botThinkDelay(currentPlayer.difficulty);
     // Add extra suspense after penalty cards or deck flip so players can digest the move
@@ -158,7 +183,10 @@ function registerGameSocket(io) {
     // Broadcast thinking indicator so opponents show animated "Thinking..." bubble
     io.to(room.id).emit('botThinking', { botId: currentPlayer.id, thinking: true });
 
-    setTimeout(() => {
+    room._botTimerPlayerId = currentPlayer.id;
+    room._botTimer = setTimeout(() => {
+      room._botTimer = null;
+      room._botTimerPlayerId = null;
       try {
         io.to(room.id).emit('botThinking', { botId: currentPlayer.id, thinking: false });
 
@@ -671,8 +699,13 @@ function registerGameSocket(io) {
         if (!room || !room.gameState) return (cb || (() => {}))({ ok: false, error: 'GAME_NOT_STARTED' });
         const playerId = room.isOffline ? (data?.asPlayerId || room.gameState.currentPlayerId) : socket.data.playerId;
 
+        const wasUnderStack = !!(room.gameState.pendingDrawStack && room.gameState.pendingDrawStack.active);
+
         const result = processDrawCard(playerId, room.gameState, (event, evtData) => {
           if (event === 'caughtResolved') io.to(roomId).emit('caughtResolved', evtData);
+          if (event === 'playerDrewPenalty') io.to(roomId).emit('actionAlert', evtData);
+          if (event === 'gameOver') io.to(roomId).emit('gameOver', evtData);
+          if (event === 'playerFinished') io.to(roomId).emit('playerFinished', evtData);
         });
 
         if (!result.success) return (cb || (() => {}))({ ok: false, error: result.error });
@@ -683,7 +716,14 @@ function registerGameSocket(io) {
           scheduleBotCaughtChallenge(io, room);
         }
 
-        // Turn does NOT advance to next player on draw — current player now has option to play or pass!
+        if (room.gameState.status === 'OVER') {
+          handleGameOver(io, room);
+        } else if (wasUnderStack || result.penaltyTaken) {
+          // Penalty stack drawn: turn advanced automatically to next player!
+          scheduleBotTurn(io, room);
+        }
+
+        // Turn does NOT advance to next player on regular draw — current player now has option to play or pass!
         if (cb) cb({ ok: true, moveId: result.moveId });
       } catch (e) {
         if (cb) cb({ ok: false, error: e.message });
