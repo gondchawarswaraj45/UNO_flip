@@ -7,14 +7,17 @@
 
 import React from 'react';
 import useGameStore from '../../store/gameStore';
+import MemeOverlay from './MemeOverlay';
 
 export default function TableEventOverlays() {
-  const { unoSplash, caughtSplash } = useGameStore();
+  const { unoSplash, caughtSplash, activeMeme } = useGameStore();
 
-  if (!unoSplash && !caughtSplash) return null;
+  if (!unoSplash && !caughtSplash && !activeMeme) return null;
 
   return (
-    <div
+    <>
+      <MemeOverlay />
+      <div
       style={{
         position: 'fixed',
         inset: 0,
@@ -233,5 +236,6 @@ export default function TableEventOverlays() {
         </>
       )}
     </div>
-  );
+  </>
+);
 }

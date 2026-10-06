@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#241242" />
+      <stop offset="50%" stop-color="#0a0e1a" />
+      <stop offset="100%" stop-color="#050811" />
+    </linearGradient>
+    <linearGradient id="gold512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+    <linearGradient id="cardFront512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+    <linearGradient id="cardBack512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#4c1d95" />
+    </linearGradient>
+    <filter id="glow512" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- App Rounded Background Icon -->
+  <rect width="512" height="512" rx="112" fill="url(#bg512)" stroke="rgba(229, 185, 76, 0.5)" stroke-width="6" />
+
+  <!-- Outer Orbit Rings -->
+  <circle cx="256" cy="256" r="204" fill="none" stroke="rgba(234, 179, 8, 0.15)" stroke-width="4" stroke-dasharray="16 12" />
+  <circle cx="256" cy="256" r="226" fill="none" stroke="rgba(168, 85, 247, 0.15)" stroke-width="2" />
+
+  <!-- Back Card (Dark Purple Flip Side) -->
+  <g transform="translate(160, 140) rotate(-16)">
+    <rect width="148" height="224" rx="26" fill="url(#cardBack512)" stroke="#c084fc" stroke-width="6" />
+    <circle cx="74" cy="112" r="44" fill="rgba(0,0,0,0.3)" />
+    <text x="74" y="125" font-family="Outfit, sans-serif" font-weight="900" font-size="44" fill="#f3e8ff" text-anchor="middle">◈</text>
+  </g>
+
+  <!-- Front Card (Light Red Flip Side) -->
+  <g transform="translate(204, 130) rotate(14)" filter="url(#glow512)">
+    <rect width="148" height="224" rx="26" fill="url(#cardFront512)" stroke="#fca5a5" stroke-width="6" />
+    <circle cx="74" cy="112" r="48" fill="rgba(255,255,255,0.2)" />
+    <text x="74" y="130" font-family="Outfit, sans-serif" font-weight="900" font-size="52" fill="#ffffff" text-anchor="middle">✦</text>
+  </g>
+
+  <!-- Bottom Metallic Badge Banner -->
+  <rect x="76" y="380" width="360" height="72" rx="36" fill="#0b0f19" stroke="url(#gold512)" stroke-width="4" />
+  <text x="256" y="428" font-family="Outfit, sans-serif" font-weight="900" font-size="36" fill="url(#gold512)" letter-spacing="3" text-anchor="middle">UNO FLIP</text>
+</svg>

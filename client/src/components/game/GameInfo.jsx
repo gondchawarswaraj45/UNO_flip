@@ -3,12 +3,39 @@
  * No strategic hints, no recommendations.
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import useGameStore from '../../store/gameStore';
 import { COLOR_HEX, COLOR_LABEL } from '../../utils/constants';
+import useAiWorker from '../../hooks/useAiWorker';
 
 export default function GameInfo() {
   const { gameState } = useGameStore();
+  const { calculateOdds } = useAiWorker();
+  const [currentTurnOdds, setCurrentTurnOdds] = useState(null);
+
+  useEffect(() => {
+    if (!gameState || !gameState.players) return;
+    const handsMap = {};
+    gameState.players.forEach((p) => {
+      handsMap[p.id] = p.cardCount || 7;
+    });
+
+    let active = true;
+    calculateOdds({
+      hands: handsMap,
+      deckCount: gameState.deckCount || 0,
+      activeSide: gameState.activeSide,
+    }).then((res) => {
+      if (active && res && gameState.currentPlayerId) {
+        setCurrentTurnOdds(res[gameState.currentPlayerId] || null);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [gameState?.currentPlayerId, gameState?.discardPile?.length, gameState?.activeSide]);
+
   if (!gameState) return null;
 
   const { activeSide, currentColor, direction, turnCount, config } = gameState;
@@ -79,6 +106,28 @@ export default function GameInfo() {
       }}>
         Turn {turnCount}
       </div>
+
+      {/* Multithreaded AI Worker Analysis */}
+      {currentTurnOdds !== null && (
+        <div
+          style={{
+            padding: '4px 12px',
+            borderRadius: '99px',
+            background: 'rgba(56, 189, 248, 0.1)',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            fontSize: '0.76rem',
+            fontWeight: 800,
+            color: '#38bdf8',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+          title="Live win probability analyzed on a background Web Worker thread without main UI blocking"
+        >
+          <span>⚡ Win Odds: {currentTurnOdds}%</span>
+          <span style={{ fontSize: '0.62rem', background: 'rgba(56, 189, 248, 0.22)', padding: '1px 5px', borderRadius: 4, letterSpacing: '0.04em' }}>WORKER</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { io } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 import useGameStore from '../store/gameStore';
 import { SERVER_URL } from '../utils/constants';
+import sound from '../utils/audio';
+import { getMemeForEvent } from '../utils/memeLibrary';
 
 export function useSocket() {
   const socketRef  = useRef(null);
@@ -82,12 +84,34 @@ export function useSocket() {
       }
     });
 
-    // ─── Tabletop Action Alerts (Penalty Draws, Flips, Skips) ──────────────────
+    // ─── Tabletop Action Alerts (Penalty Draws, Flips, Skips, Memes) ──────────
     socket.on('actionAlert', (action) => {
       if (!action) return;
       useGameStore.getState().setActionAlert(action);
 
       const myId = useGameStore.getState().myPlayerId;
+      const { triggerMemeSplash, memesEnabled } = useGameStore.getState();
+
+      // Trigger contextual memes across all screens
+      if (memesEnabled && triggerMemeSplash) {
+        if (action.cardType === 'WILD_DRAW_FOUR' || action.drawCount === 4) {
+          const meme = getMemeForEvent('PLUS_FOUR');
+          if (meme) triggerMemeSplash(meme, action.playedByName, action.targetName, 4);
+        } else if (action.cardType === 'DRAW_FIVE' || action.drawCount === 5) {
+          const meme = getMemeForEvent('PLUS_FIVE');
+          if (meme) triggerMemeSplash(meme, action.playedByName, action.targetName, 5);
+        } else if (action.type === 'DRAW_STACK' && action.drawCount > 2) {
+          const meme = getMemeForEvent('COUNTER_STACK');
+          if (meme) triggerMemeSplash(meme, action.playedByName, action.targetName, action.drawCount);
+        } else if (action.type === 'PENALTY_DRAW' && action.drawCount >= 4) {
+          const meme = getMemeForEvent('PENALTY_BIG');
+          if (meme) triggerMemeSplash(meme, action.playedByName, action.targetName, action.drawCount);
+        } else if (action.type === 'SKIP_EVERYONE') {
+          const meme = getMemeForEvent('SKIP_ALL');
+          if (meme) triggerMemeSplash(meme, action.playedByName, action.targetName);
+        }
+      }
+
       if (action.type === 'PENALTY_DRAW' && action.drawCount > 0) {
         sound.dealCard();
         if (action.targetId === myId) {

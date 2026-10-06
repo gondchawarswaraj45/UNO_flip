@@ -1032,3 +1032,12 @@ p  { color: var(--text-secondary); line-height: 1.6; }
     transform: scale(1.04);
   }
 }
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

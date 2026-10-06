@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1035" />
+      <stop offset="50%" stop-color="#0a0e1a" />
+      <stop offset="100%" stop-color="#050811" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#facc15" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+    <linearGradient id="cardFront" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+    <linearGradient id="cardBack" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#4c1d95" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- App Rounded Background Icon -->
+  <rect width="192" height="192" rx="42" fill="url(#bg)" stroke="rgba(229, 185, 76, 0.4)" stroke-width="3" />
+
+  <!-- Outer Pulse Ring -->
+  <circle cx="96" cy="96" r="76" fill="none" stroke="rgba(234, 179, 8, 0.15)" stroke-width="2" stroke-dasharray="8 6" />
+
+  <!-- Back Card (Dark Purple Flip Side) -->
+  <g transform="translate(62, 54) rotate(-16)">
+    <rect width="56" height="84" rx="10" fill="url(#cardBack)" stroke="#c084fc" stroke-width="2.5" />
+    <circle cx="28" cy="42" r="16" fill="rgba(0,0,0,0.3)" />
+    <text x="28" y="47" font-family="Outfit, sans-serif" font-weight="900" font-size="16" fill="#f3e8ff" text-anchor="middle">◈</text>
+  </g>
+
+  <!-- Front Card (Light Red Flip Side) -->
+  <g transform="translate(76, 50) rotate(14)" filter="url(#glow)">
+    <rect width="56" height="84" rx="10" fill="url(#cardFront)" stroke="#fca5a5" stroke-width="2.5" />
+    <circle cx="28" cy="42" r="18" fill="rgba(255,255,255,0.2)" />
+    <text x="28" y="49" font-family="Outfit, sans-serif" font-weight="900" font-size="20" fill="#ffffff" text-anchor="middle">✦</text>
+  </g>
+
+  <!-- Title Badge Banner -->
+  <rect x="28" y="142" width="136" height="28" rx="14" fill="#0b0f19" stroke="url(#gold)" stroke-width="2" />
+  <text x="96" y="161" font-family="Outfit, sans-serif" font-weight="900" font-size="14" fill="url(#gold)" letter-spacing="1.5" text-anchor="middle">UNO FLIP</text>
+</svg>

@@ -283,6 +283,20 @@ const useGameStore = create((set, get) => ({
     }, 2800);
   },
 
+  // ─── Real-Time Memes, GIFs & Funny Event Overlays ─────────────────────────────
+  activeMeme: null, // { meme, actorName, targetName, count, timestamp }
+  memesEnabled: true,
+  toggleMemes: () => set((s) => ({ memesEnabled: !s.memesEnabled })),
+  triggerMemeSplash: (data) => {
+    const { memesEnabled } = get();
+    if (!memesEnabled) return;
+    const timestamp = Date.now();
+    set({ activeMeme: { ...data, timestamp } });
+    setTimeout(() => {
+      set((s) => (s.activeMeme?.timestamp === timestamp ? { activeMeme: null } : s));
+    }, 2800);
+  },
+
   reset: () =>
     set({
       gameState: null,

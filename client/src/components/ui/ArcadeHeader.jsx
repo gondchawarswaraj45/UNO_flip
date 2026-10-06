@@ -15,6 +15,7 @@ import useGameStore from '../../store/gameStore';
 import sound from '../../utils/audio';
 import { toast } from 'react-hot-toast';
 import { FRAME_STYLES } from './ProfileModal';
+import { usePwaInstall } from '../../hooks/usePwaInstall';
 
 export default function ArcadeHeader({ showRoomCode = false, showChat = false }) {
   const {
@@ -24,12 +25,16 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
     lobbyState,
     soundEnabled,
     toggleSound,
+    memesEnabled,
+    toggleMemes,
     setShowLeaderboard,
     setShowProfileModal,
     setShowRulesModal,
     showQuickChat,
     setShowQuickChat,
   } = useGameStore();
+
+  const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
 
   const currentFrameObj = FRAME_STYLES.find(f => f.id === profile.frame) || FRAME_STYLES[0];
   const level = Math.max(1, Math.floor((profile.xp || 0) / 150) + 1);
@@ -195,8 +200,56 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
         </div>
       )}
 
-      {/* ── Right: Utilities (Leaderboard, Chat, Sound) ── */}
+      {/* ── Right: Utilities (Install, Memes, Leaderboard, Chat, Sound) ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* PWA Install Button (renders when browser emits beforeinstallprompt) */}
+        {isInstallable && (
+          <button
+            className="btn btn-gold btn-sm"
+            onClick={() => {
+              sound.buttonClick();
+              promptInstall();
+            }}
+            title="Install UNO Flip App on your device for instant offline play!"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-lg)',
+              fontWeight: 800,
+              fontSize: '0.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              boxShadow: '0 0 16px rgba(229, 185, 76, 0.45)',
+            }}
+          >
+            <span>📲</span>
+            <span style={{ fontSize: '0.8rem' }} className="sm-inline">Install App</span>
+          </button>
+        )}
+
+        {/* Memes & Funny Sounds Toggle */}
+        <button
+          className={`btn ${memesEnabled ? 'btn-ghost' : 'btn-ghost'} btn-sm`}
+          onClick={() => {
+            sound.buttonClick();
+            toggleMemes();
+            const willBe = !memesEnabled;
+            toast(willBe ? '🎭 Memes & Funny Sounds ON!' : '🔇 Memes & Funny Sounds OFF', {
+              icon: willBe ? '🎭' : '🔇',
+              duration: 2500,
+            });
+          }}
+          title={memesEnabled ? 'Memes & Funny Sounds: ON (Tap to mute)' : 'Memes & Funny Sounds: OFF (Tap to activate)'}
+          style={{
+            padding: '6px 10px',
+            borderRadius: 'var(--radius-lg)',
+            border: memesEnabled ? '1px solid rgba(244, 63, 94, 0.4)' : '1px solid var(--border-subtle)',
+            background: memesEnabled ? 'rgba(244, 63, 94, 0.12)' : 'transparent',
+          }}
+        >
+          <span style={{ fontSize: '1rem' }}>{memesEnabled ? '🎭' : '😶'}</span>
+        </button>
+
         {showChat && (
           <button
             className={`btn ${showQuickChat ? 'btn-gold' : 'btn-ghost'} btn-sm`}

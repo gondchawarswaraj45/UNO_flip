@@ -340,6 +340,240 @@ class SoundEngine {
     });
   }
 
+  // ─── Hilarious Meme Sound Effects ──────────────────────────────────────────
+
+  /** The infamous Vine Boom — Deep resonant sub-bass 808 shockwave */
+  memeVineBoom() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(85, now);
+    osc.frequency.exponentialRampToValueAtTime(32, now + 0.35);
+
+    gain.gain.setValueAtTime(0.7, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.6);
+
+    // Secondary sub-click transient
+    const click = this.ctx.createOscillator();
+    const clickGain = this.ctx.createGain();
+    click.type = 'triangle';
+    click.frequency.setValueAtTime(140, now);
+    click.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+    clickGain.gain.setValueAtTime(0.5, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    click.connect(clickGain);
+    clickGain.connect(this.ctx.destination);
+    click.start(now);
+    click.stop(now + 0.07);
+  }
+
+  /** Emotional Damage dramatic discord sting */
+  memeEmotionalDamage() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    [415.3, 440, 622.25].forEach((freq) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.linearRampToValueAtTime(freq * 0.92, now + 0.4);
+
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.46);
+    });
+  }
+
+  /** Classic Sad Trombone (Wah-wah-wah-waaaah) failure slide */
+  memeSadTrombone() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const notes = [
+      { f: 293.66, t: 0.00, d: 0.22 }, // D4
+      { f: 277.18, t: 0.25, d: 0.22 }, // C#4
+      { f: 261.63, t: 0.50, d: 0.22 }, // C4
+      { f: 246.94, t: 0.75, d: 0.60, slide: 185 }, // B3 slide down
+    ];
+
+    notes.forEach((n) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(n.f, now + n.t);
+      if (n.slide) {
+        osc.frequency.exponentialRampToValueAtTime(n.slide, now + n.t + n.d);
+      }
+
+      gain.gain.setValueAtTime(0.22, now + n.t);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + n.t + n.d);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + n.t);
+      osc.stop(now + n.t + n.d + 0.02);
+    });
+  }
+
+  /** Reggae MLG Triple Airhorn Blast */
+  memeAirhorn() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const blasts = [0.0, 0.12, 0.24];
+    blasts.forEach((offset) => {
+      [466.16, 698.46, 932.33].forEach((freq) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now + offset);
+
+        gain.gain.setValueAtTime(0.18, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.1);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now + offset);
+        osc.stop(now + offset + 0.11);
+      });
+    });
+  }
+
+  /** Dramatic Dun Dun Dun! (3 suspense brass stabs) */
+  memeDunDunDun() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const stabs = [
+      { f: 196.00, t: 0.0,  d: 0.18 }, // G3
+      { f: 207.65, t: 0.22, d: 0.18 }, // G#3
+      { f: 220.00, t: 0.44, d: 0.55 }, // A3 dramatic hold
+    ];
+
+    stabs.forEach((s) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(s.f, now + s.t);
+
+      gain.gain.setValueAtTime(0.3, now + s.t);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + s.t + s.d);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + s.t);
+      osc.stop(now + s.t + s.d + 0.02);
+    });
+  }
+
+  /** Comedic Bruh downward vocal sweep */
+  memeBruh() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(95, now + 0.28);
+
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.33);
+  }
+
+  /** Punchy comedic Roblox OOF pitch drop */
+  memeRobloxOof() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(520, now);
+    osc.frequency.exponentialRampToValueAtTime(240, now + 0.1);
+
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.13);
+  }
+
+  /** GigaChad power brass cadence */
+  memeGigaChad() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const notes = [
+      { f: 174.61, t: 0.00, d: 0.14 },
+      { f: 207.65, t: 0.14, d: 0.14 },
+      { f: 261.63, t: 0.28, d: 0.14 },
+      { f: 311.13, t: 0.42, d: 0.45 },
+    ];
+
+    notes.forEach((n) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(n.f, now + n.t);
+
+      gain.gain.setValueAtTime(0.2, now + n.t);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + n.t + n.d);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + n.t);
+      osc.stop(now + n.t + n.d + 0.02);
+    });
+  }
+
   /** Tactile vibration on mobile devices (no-op on desktop) */
   vibrate(pattern = 25) {
     try {
