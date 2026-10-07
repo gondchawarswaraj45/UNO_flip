@@ -132,16 +132,31 @@ Optionally enable the **5th Color** deck variant:
 - **PWA Ready**: Web app manifest, standalone display mode, maskable icons, and a multithreaded service worker (`sw.js`) enabling offline play.
 - **All-Screen Geometry**: Responsive CSS scaling ensures fluid gameplay on mobile phones, tablets, foldables, and widescreen monitors with zero button overlap.
 
-### 5. Persistent Database Layer (Supabase PostgreSQL)
-- **High Efficiency**: High-frequency ephemeral card actions remain in memory for lightning speed.
-- **Relational Integrity**:
+### 5. Persistent Storage Engine & Database Layer
+- **High Efficiency Architecture**: High-frequency ephemeral card actions remain in memory for sub-millisecond real-time speed.
+- **Persistent Disk-Backed Database (`server/data/uno_db.json`)**:
+  - Implements an ACID-resilient, atomic file-backed storage engine ([`storageEngine.js`](server/src/db/storageEngine.js)).
+  - In-memory `Map` indexing for $O(1)$ queries, debounced background disk flush, and atomic temp-file swap (`.tmp` → `.json`) to eliminate data corruption.
+  - Automatically loads and persists accounts, match histories, player career stats, and leaderboard rankings across server restarts.
+- **Supabase PostgreSQL Integration**:
   - `user_profiles`: Persistent identity, XP, level, coins, frames, and badges.
   - `matches`: Match logs, winner, turn count, total flips, and standings.
   - `player_stats`: Win rate %, cards played, UNO calls, caught challenges, and highest win streaks.
   - Global real-time leaderboard view.
-- **Zero-Config Fallback**: If Supabase credentials are not provided, the server automatically operates in local persistent memory fallback mode with zero downtime or crashes.
+- **Dual-Mode Zero-Config Operation**: Automatically synchronizes with local storage engine fallback when Supabase credentials are not specified, guaranteeing 100% uptime with zero setup overhead.
 
-### 6. Tactile Audio Synthesizer (`audio.js`)
+### 6. Asynchronous Multithreaded Auth & Security (`authCrypto.js`)
+- **Worker Thread Key Derivation**: Password hashing utilizes **PBKDF2 with SHA-512 (100,000 iterations)**. Because hashing is executed asynchronously on Node.js's background `libuv` worker thread pool, CPU-intensive security checks never block the real-time event loop or WebSocket game frames.
+- **Timing-Safe Verification**: Passwords are authenticated with `crypto.timingSafeEqual` constant-time buffer comparison to eliminate side-channel timing attacks.
+- **Unique Player ID Engine**: Generates clean, collision-free codes (e.g., `UNO-9K2L`) using cryptographic random bytes.
+- **Client Multithreading**: Background calculation tasks such as AI heuristic simulation and GPU particle physics are computed on dedicated client Web Workers (`aiWorker.js`, `particleWorker.js`) off the main browser rendering thread.
+
+### 7. Reactive Zustand State Management (`gameStore.js`)
+- **Centralized Client Store**: Manages reactive UI state for active tables, hand arrangements, match modals, sounds, theme toggles, and user sessions.
+- **Sanitized Session Persistence**: Safely caches player profile, unique ID badge, and session tokens in `localStorage` with password and salt fields stripped.
+- **Guest & Registered Hybrid Flow**: Seamlessly transitions between anonymous guest play and authenticated player profiles.
+
+### 8. Tactile Audio Synthesizer (`audio.js`)
 - **100% Zero-Dependency Web Audio API**: No external MP3 or audio asset loading.
 - Generates procedural sound waves for:
   - Crisp card taps and table placements
@@ -150,6 +165,27 @@ Optionally enable the **5th Color** deck variant:
   - 3D frequency sweep flip wooshes
   - Resonant major-triad UNO brass shouts
   - Victory fanfares and caught buzzers
+
+---
+
+## 🔐 Account System & Authentication
+
+UNO Flip features a fully custom, privacy-focused account architecture:
+
+### Features
+- **Unique Player ID**: Every account is assigned a Unique Player ID (e.g., `UNO-7821`) or custom tag chosen at registration.
+- **Display Name & Password**: Secure credentials with salt-based PBKDF2 hashing.
+- **Login with ID or Username**: Fast login via Unique ID or Display Name + Password.
+- **Instant Guest Play**: One-click **Play as Guest** for zero-friction instant matches without creating an account.
+- **Navigation Controls**: One-click **Back to Game** returning directly to the main arena from the login screen.
+
+### REST Authentication API
+| Method | Endpoint | Description | Payload |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/signup` | Registers player with Unique ID, Name, Password & Avatar | `{ id, username, password, avatar }` |
+| `POST` | `/api/auth/login` | Authenticates player with ID/Username and Password | `{ idOrUsername, password }` |
+| `GET` | `/api/auth/generate-id` | Returns a guaranteed-available random Unique ID suggestion | *None* |
+| `GET` | `/api/auth/user/:id` | Fetches public player profile & stats | *None* |
 
 ---
 
@@ -202,7 +238,7 @@ To enable persistent global leaderboards and player accounts across server resta
    ```
 3. Execute the SQL script in [`supabase/schema.sql`](supabase/schema.sql) in your Supabase SQL Editor.
 
-*(Note: The server automatically detects missing credentials and gracefully falls back to persistent in-memory repository mode).*
+*(Note: The server automatically falls back to local atomic persistent storage (`uno_db.json`) if Supabase is not configured).*
 
 ---
 
@@ -225,11 +261,17 @@ UNO_Flip/
 ├── supabase/
 │   └── schema.sql             # Production PostgreSQL / Supabase schema
 ├── server/
+│   ├── data/
+│   │   └── uno_db.json        # Atomic persistent database file
 │   ├── src/
-│   │   ├── db/                # Supabase client & persistent repository layer
+│   │   ├── db/                # Persistent database storage & Supabase sync
+│   │   │   ├── storageEngine.js # ACID-safe atomic storage engine
 │   │   │   ├── supabaseClient.js
 │   │   │   ├── repository.js
 │   │   │   └── schema.sql
+│   │   ├── services/
+│   │   │   ├── authCrypto.js  # Multithreaded PBKDF2 crypto & unique ID generator
+│   │   │   └── groqService.js # Groq AI match referee integration
 │   │   ├── engine/            # Authoritative game state machine & rules
 │   │   │   ├── config.js      # Game constants & mode settings
 │   │   │   ├── shuffle.js     # Cryptographic Fisher-Yates shuffle
@@ -241,17 +283,19 @@ UNO_Flip/
 │   │   │   └── roomManager.js
 │   │   ├── sockets/           # Socket.IO event controllers
 │   │   │   └── gameSocket.js
-│   │   └── index.js           # Express server & REST API
+│   │   └── index.js           # Express server, auth endpoints & REST API
 │   ├── package.json
 │   └── .env.example
 ├── client/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── screens/       # LandingScreen, LobbyScreen, GameScreen, ResultScreen
+│   │   │   ├── screens/       # LandingScreen, LobbyScreen, GameScreen, LoginScreen, ResultScreen
 │   │   │   ├── game/          # CardComponent, PlayerHand, OpponentArea, UnoButton, etc.
 │   │   │   └── ui/            # ArcadeHeader, RulesModal, LeaderboardModal, ProfileModal
 │   │   ├── hooks/             # useSocket.js, usePwaInstall.js
-│   │   ├── store/             # Zustand gameStore with profile persistence
+│   │   ├── services/          # authService.js (Unique ID/password REST client)
+│   │   ├── store/             # Zustand gameStore with state & session persistence
+│   │   ├── workers/           # aiWorker.js, particleWorker.js (off-main-thread compute)
 │   │   ├── utils/             # Web Audio API synthesizer (audio.js) & constants
 │   │   └── index.css          # Velvet midnight felt styling & animations
 │   ├── index.html
