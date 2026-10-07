@@ -353,6 +353,18 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   transform: scale(0.96);
 }
 
+.uno-btn.pulse-ready {
+  animation: pulseGoldRing 1.2s infinite alternate;
+  box-shadow: 0 0 30px rgba(225, 29, 72, 0.85), 0 0 16px rgba(234, 179, 8, 0.9);
+}
+
+.uno-btn.called {
+  background: linear-gradient(135deg, #10b981 0%, #059669 60%, #047857 100%) !important;
+  border-color: #6ee7b7 !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.6) !important;
+  cursor: default !important;
+}
+
 /* ─── CAUGHT Button ──────────────────────────────────────────── */
 .caught-btn {
   background: linear-gradient(135deg, #d97706 0%, #b45309 60%, #78350f 100%);

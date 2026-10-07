@@ -40,8 +40,8 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
   const level = Math.max(1, Math.floor((profile.xp || 0) / 150) + 1);
 
   const activeRoomCode = roomId || lobbyState?.roomId || gameState?.roomId;
-  const gameMode = gameState?.gameMode || lobbyState?.config?.mode || 'CLASSIC';
-  const colorMode = gameState?.colorMode || lobbyState?.config?.colorMode || 'FOUR';
+  const gameMode = gameState?.config?.mode || gameState?.gameMode || lobbyState?.config?.mode || 'CLASSIC';
+  const colorMode = gameState?.config?.colorMode || gameState?.colorMode || lobbyState?.config?.colorMode || 'FOUR';
 
   function handleCopyRoom() {
     if (!activeRoomCode) return;

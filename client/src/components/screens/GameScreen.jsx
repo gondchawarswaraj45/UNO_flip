@@ -577,7 +577,7 @@ export default function GameScreen() {
             )}
 
             {/* Real-time Penalty Draw Alert Banner (+1, +4, +5) */}
-            {gameState.lastActionNotification?.type === 'PENALTY_DRAW' && gameState.lastActionNotification.drawCount > 0 && (
+            {gameState.lastActionNotification?.type === 'PENALTY_DRAW' && gameState.lastActionNotification.drawCount > 0 && !gameState.pendingDrawStack?.active && (
               <div
                 style={{
                   display: 'flex',
@@ -596,7 +596,7 @@ export default function GameScreen() {
               >
                 <span>⚡</span>
                 <span>
-                  {gameState.lastActionNotification.playedByName} played +{gameState.lastActionNotification.drawCount}! {gameState.lastActionNotification.targetName} takes {gameState.lastActionNotification.drawCount} cards & is skipped!
+                  {gameState.lastActionNotification.targetName} took +{gameState.lastActionNotification.drawCount} penalty cards & turn ended! (Attack Resolved)
                 </span>
               </div>
             )}
@@ -609,19 +609,25 @@ export default function GameScreen() {
                   alignItems: 'center',
                   gap: 8,
                   background: isMyTurn
-                    ? gameState.hasDrawnThisTurn
+                    ? gameState.pendingDrawStack?.active
+                      ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.45), rgba(153, 27, 27, 0.65))'
+                      : gameState.hasDrawnThisTurn
                       ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(234, 179, 8, 0.22))'
                       : 'rgba(229, 185, 76, 0.2)'
                     : 'rgba(16, 24, 38, 0.8)',
                   border: `1.5px solid ${
                     isMyTurn
-                      ? gameState.hasDrawnThisTurn
+                      ? gameState.pendingDrawStack?.active
+                        ? '#ef4444'
+                        : gameState.hasDrawnThisTurn
                         ? 'rgba(16, 185, 129, 0.7)'
                         : 'rgba(229, 185, 76, 0.6)'
                       : 'var(--border-subtle)'
                   }`,
                   boxShadow: isMyTurn
-                    ? gameState.hasDrawnThisTurn
+                    ? gameState.pendingDrawStack?.active
+                      ? '0 0 28px rgba(239, 68, 68, 0.75)'
+                      : gameState.hasDrawnThisTurn
                       ? '0 0 22px rgba(16, 185, 129, 0.45)'
                       : '0 0 20px rgba(229, 185, 76, 0.35)'
                     : 'none',
@@ -636,7 +642,9 @@ export default function GameScreen() {
                     height: 8,
                     borderRadius: '50%',
                     background: isMyTurn
-                      ? gameState.hasDrawnThisTurn
+                      ? gameState.pendingDrawStack?.active
+                        ? '#ef4444'
+                        : gameState.hasDrawnThisTurn
                         ? '#10b981'
                         : 'var(--gold-primary)'
                       : 'var(--text-muted)',
@@ -646,16 +654,20 @@ export default function GameScreen() {
                   style={{
                     fontSize: '0.82rem',
                     fontWeight: 800,
-                    color: isMyTurn ? 'var(--text-gold)' : 'var(--text-secondary)',
+                    color: isMyTurn ? (gameState.pendingDrawStack?.active ? '#fee2e2' : 'var(--text-gold)') : 'var(--text-secondary)',
                     letterSpacing: '0.02em',
                   }}
                 >
                   {isOffline
                     ? `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? 'Player'}'S TURN ${
-                        gameState.hasDrawnThisTurn ? '— DROP CARD OR PASS' : '(PASS & PLAY)'
+                        gameState.pendingDrawStack?.active
+                          ? `— UNDER ATTACK (+${gameState.pendingDrawStack.totalCards})`
+                          : gameState.hasDrawnThisTurn ? '— DROP CARD OR PASS' : '(PASS & PLAY)'
                       }`
                     : isMyTurn
-                    ? gameState.hasDrawnThisTurn
+                    ? gameState.pendingDrawStack?.active
+                      ? `⚡ UNDER ATTACK (+${gameState.pendingDrawStack.totalCards}) — COUNTER WITH +${gameState.pendingDrawStack.currentLevel} OR TAKE PENALTY`
+                      : gameState.hasDrawnThisTurn
                       ? '💡 CARD DRAWN! DROP A CARD OR PRESS PASS'
                       : 'YOUR TURN — TAP A CARD OR DRAW'
                     : `${players.find((p) => p.id === gameState.currentPlayerId)?.name ?? '…'}'s Turn`}
@@ -663,8 +675,8 @@ export default function GameScreen() {
               </div>
             )}
 
-            {/* Prominent Center Felt Pass Button (Instantly visible after drawing) */}
-            {isMyTurn && isPlaying && gameState.hasDrawnThisTurn && (
+            {/* Prominent Center Felt Pass Button (Instantly visible after drawing, never during an attack) */}
+            {isMyTurn && isPlaying && gameState.hasDrawnThisTurn && !gameState.pendingDrawStack?.active && (
               <button
                 id="center-pass-btn"
                 className="pass-btn active"

@@ -775,6 +775,7 @@ function registerGameSocket(io) {
           timestamp: Date.now(),
         });
         triggerBotReactions(io, room, 'UNO_CALLED', playerId);
+        broadcastGameState(io, room);
         if (cb) cb({ ok: true });
       } catch (e) {
         if (cb) cb({ ok: false, error: e.message });

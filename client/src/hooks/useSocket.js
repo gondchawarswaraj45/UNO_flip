@@ -125,6 +125,12 @@ export function useSocket() {
       } else if (action.type === 'SKIP_EVERYONE') {
         toast(`🌀 ${action.playedByName} played Skip Everyone!`, { icon: '⚡' });
       }
+
+      // Auto-clear actionAlert after display duration so badges don't stick indefinitely
+      if (window._actionAlertTimer) clearTimeout(window._actionAlertTimer);
+      window._actionAlertTimer = setTimeout(() => {
+        useGameStore.getState().setActionAlert(null);
+      }, 3500);
     });
 
     // ─── Bot Thinking Indicator ───────────────────────────────────────────────
