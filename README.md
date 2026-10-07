@@ -101,20 +101,38 @@ Cards are dual-sided with independent faces on each side:
 
 ### The 5th Color Mode
 Optionally enable the **5th Color** deck variant:
-- **Light Side**: Red, Blue, Green, Yellow + *Orchid Violet*
-- **Dark Side**: Pink, Teal, Orange, Purple + *Deep Amber / Brown*
+- **Light Side**: Red, Blue, Green, Yellow + *Light Purple (#8B5CF6)*
+- **Dark Side**: Pink, Teal, Orange, Purple + *Earth Brown (#78350F)*
+
+### Official Match Winning Rule
+- **Number Card Victory**: A player **cannot win on an action or power card** (`SKIP`, `REVERSE`, `FLIP`, `+1`, `+2`, `+5`, `WILD`, etc.). The winning final card **must be a number card (1–9)**.
+- **Strict UNO Button Rule**: The UNO button is enabled **only when** it is the player's turn, they hold exactly 2 cards, and at least one card is legally playable.
 
 ---
 
 ## 🏛 Architecture & Engineering Philosophy
 
-### 1. Authoritative Game Server
+### 1. Authentic Physical 112-Card Dual-Sided Deck
+- **Single Physical Card Entities**: Each card is modeled as one physical double-sided object `{ id, lightSide, darkSide }`.
+- **Official Mattel Pairings**: Exactly 112 physical cards with official verified pairings (e.g., Light Blue 6 ↔ Dark Purple Reverse, Light Yellow 3 ↔ Dark Teal 3, Light Green Flip ↔ Dark Wild Draw Color).
+- **Flawless Tabletop Flipping**: Inverting the table flips hands, discard piles, and the draw bundle simultaneously without desyncing.
+
+### 2. Groq AI Live Match Referee & Monitor
+- **Real-Time Intelligence**: Powered by Groq's high-speed inference engine (`qwen/qwen3.8-27b`).
+- **Official Rule Adjudication**: Trained on the complete official Mattel UNO Flip ruleset.
+- **Live Match Announcements**: Broadcasts punchy referee commentary on game events (flips, counter stacks, UNO calls, caught penalties, and match finishes) directly to the in-game HUD.
+
+### 3. Authoritative Game Server
 - **Zero Information Leakage**: The client never receives opponent cards. Opponents receive only card counts, player IDs, and public table actions.
 - **Atomic State Transitions**: Moves, card plays, draws, passes, and challenge windows are evaluated sequentially on the server.
 - **True Randomness**: Fisher-Yates deck shuffle powered by Node.js `crypto.getRandomValues()` with rejection sampling.
-- **Atomic Caught Window**: Server-enforced 3-second challenge countdown timer. If a player reaches 1 card and doesn't call UNO, opponents can challenge them for a severe **+7 card penalty**.
+- **Authoritative Caught Window**: Server-enforced challenge countdown timer for missed UNO shouts.
 
-### 2. Persistent Database Layer (Supabase PostgreSQL)
+### 4. Progressive Web Application (PWA) & All-Screen Fit
+- **PWA Ready**: Web app manifest, standalone display mode, maskable icons, and a multithreaded service worker (`sw.js`) enabling offline play.
+- **All-Screen Geometry**: Responsive CSS scaling ensures fluid gameplay on mobile phones, tablets, foldables, and widescreen monitors with zero button overlap.
+
+### 5. Persistent Database Layer (Supabase PostgreSQL)
 - **High Efficiency**: High-frequency ephemeral card actions remain in memory for lightning speed.
 - **Relational Integrity**:
   - `user_profiles`: Persistent identity, XP, level, coins, frames, and badges.
@@ -123,7 +141,7 @@ Optionally enable the **5th Color** deck variant:
   - Global real-time leaderboard view.
 - **Zero-Config Fallback**: If Supabase credentials are not provided, the server automatically operates in local persistent memory fallback mode with zero downtime or crashes.
 
-### 3. Tactile Audio Synthesizer (`audio.js`)
+### 6. Tactile Audio Synthesizer (`audio.js`)
 - **100% Zero-Dependency Web Audio API**: No external MP3 or audio asset loading.
 - Generates procedural sound waves for:
   - Crisp card taps and table placements

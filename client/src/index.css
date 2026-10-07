@@ -1053,3 +1053,115 @@ p  { color: var(--text-secondary); line-height: 1.6; }
     transform: rotate(360deg);
   }
 }
+
+/* ============================================================
+   RESPONSIVE DESIGN & FIT-ALL-SCREENS MEDIA QUERIES (PWA)
+   ============================================================ */
+
+@media (max-width: 768px) {
+  :root {
+    --card-w: 60px;
+    --card-h: 90px;
+    --card-w-sm: 44px;
+    --card-h-sm: 66px;
+    --card-w-lg: 74px;
+    --card-h-lg: 110px;
+  }
+
+  .casino-felt {
+    max-width: 95vw !important;
+    max-height: 48vh !important;
+    padding: 8px !important;
+  }
+
+  .uno-btn {
+    font-size: 1.15rem;
+    padding: 8px 18px;
+    border-radius: var(--radius-md);
+  }
+
+  .caught-btn {
+    font-size: 0.82rem;
+    padding: 8px 14px;
+  }
+
+  .pass-btn {
+    font-size: 0.82rem;
+    padding: 8px 14px;
+  }
+
+  .draw-action-btn {
+    font-size: 0.82rem !important;
+    padding: 8px 14px !important;
+  }
+
+  .arcade-header {
+    padding: 6px 12px;
+  }
+
+  .color-card-pick {
+    height: 90px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --card-w: 52px;
+    --card-h: 78px;
+    --card-w-sm: 38px;
+    --card-h-sm: 58px;
+    --card-w-lg: 66px;
+    --card-h-lg: 98px;
+  }
+
+  .casino-felt {
+    max-width: 96vw !important;
+    max-height: 44vh !important;
+  }
+
+  .uno-btn {
+    font-size: 1rem;
+    padding: 7px 14px;
+  }
+
+  .caught-btn {
+    font-size: 0.76rem;
+    padding: 7px 10px;
+  }
+
+  .pass-btn {
+    font-size: 0.76rem;
+    padding: 7px 10px;
+  }
+
+  .draw-action-btn {
+    font-size: 0.76rem !important;
+    padding: 7px 10px !important;
+  }
+
+  .bottom-station-name {
+    display: none;
+  }
+
+  .modal-box {
+    padding: 20px 16px;
+    border-radius: var(--radius-xl);
+  }
+}
+
+/* Landscape / short-height screen optimization (e.g. phones in landscape) */
+@media (max-height: 600px) {
+  :root {
+    --card-w: 48px;
+    --card-h: 72px;
+  }
+
+  .casino-felt {
+    max-height: 52vh !important;
+  }
+
+  .arcade-header {
+    padding: 4px 10px;
+  }
+}
+

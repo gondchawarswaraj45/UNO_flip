@@ -15,12 +15,20 @@ import {
 import sound from '../../utils/audio';
 
 export default function ColorPicker({ onSelect, onCancel }) {
-  const { gameState } = useGameStore();
+  const { gameState, myHand, pendingWildCardId } = useGameStore();
   const activeSide = gameState?.activeSide || ACTIVE_SIDE.LIGHT;
   const colorMode = gameState?.config?.colorMode || 'FOUR';
 
+  // If the pending card is a FLIP card with Wild on the opposite side, target the opposite side colors!
+  const card = (myHand || []).find((c) => c.id === pendingWildCardId);
+  const curFace = card ? (activeSide === ACTIVE_SIDE.DARK ? card.darkSide : card.lightSide) : null;
+  const isFlip = curFace?.type === 'FLIP';
+  const targetSide = isFlip
+    ? (activeSide === ACTIVE_SIDE.DARK ? ACTIVE_SIDE.LIGHT : ACTIVE_SIDE.DARK)
+    : activeSide;
+
   const colors =
-    activeSide === ACTIVE_SIDE.DARK
+    targetSide === ACTIVE_SIDE.DARK
       ? DARK_COLORS_BY_MODE[colorMode]
       : LIGHT_COLORS_BY_MODE[colorMode];
 
@@ -58,9 +66,13 @@ export default function ColorPicker({ onSelect, onCancel }) {
           Choose Active Color
         </h2>
         <p style={{ marginBottom: 24, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          {activeSide === ACTIVE_SIDE.DARK
-            ? 'Select a Dark Side color for the next player to follow'
-            : 'Select the color for the table to follow'}
+          {isFlip
+            ? (targetSide === ACTIVE_SIDE.DARK
+                ? '🔄 Flip reveals a Wild card on the Dark Side! Choose Dark color to continue:'
+                : '🔄 Flip reveals a Wild card on the Light Side! Choose Light color to continue:')
+            : (targetSide === ACTIVE_SIDE.DARK
+                ? 'Select a Dark Side color for the table to follow'
+                : 'Select the color for the table to follow')}
         </p>
 
         {/* Big tactile color cards */}

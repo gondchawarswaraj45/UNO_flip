@@ -26,6 +26,7 @@ const {
 
 const { botDecide, botShouldPressUno, botThinkDelay } = require('../engine/ai');
 const repository = require('../db/repository');
+const { generateRefereeCommentary } = require('../services/groqService');
 
 /**
  * Register all Socket.IO event handlers on the given io instance.
@@ -33,6 +34,22 @@ const repository = require('../db/repository');
  * @param {import('socket.io').Server} io
  */
 function registerGameSocket(io) {
+
+  function emitReferee(roomId, eventType, context = {}) {
+    generateRefereeCommentary(eventType, context)
+      .then((commentary) => {
+        if (commentary) {
+          io.to(roomId).emit('refereeCommentary', {
+            text: commentary,
+            eventType,
+            timestamp: Date.now(),
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('[Groq Referee Error]:', err?.message);
+      });
+  }
 
   // ─── Match End & Persistence Handler ──────────────────────────────────────
 
@@ -109,6 +126,8 @@ function registerGameSocket(io) {
       totalFlips: state.totalFlips || 0,
       matchId: saved?.id || null,
     });
+
+    emitReferee(room.id, 'WIN', { actorName: winnerName });
   }
 
   // ─── Utility: broadcast public state + private hands ──────────────────────
@@ -176,7 +195,7 @@ function registerGameSocket(io) {
 
     let delay = botThinkDelay(currentPlayer.difficulty);
     // Add extra suspense after penalty cards or deck flip so players can digest the move
-    if (state.lastActionNotification && (state.lastActionNotification.drawCount > 0 || state.lastActionNotification.type === 'FLIP' || state.lastActionNotification.type === 'SKIP_EVERYONE')) {
+    if (state.lastActionNotification && (state.lastActionNotification.drawCount > 0 || state.lastActionNotification.type === 'FLIP' || state.lastActionNotification.type === 'SKIP_EVERYONE' || state.lastActionNotification.type === 'WILD_DRAW_COLOR')) {
       delay += 850;
     }
 
@@ -237,11 +256,16 @@ function registerGameSocket(io) {
               });
             }
 
-            // Contextual bot reactions on special card plays
+            // Contextual bot reactions & AI Referee commentary on special card plays
             const top = r.gameState.discardPile[r.gameState.discardPile.length - 1];
             const face = r.gameState.activeSide === 'DARK' ? top?.darkSide : top?.lightSide;
             if (face?.type === 'FLIP') {
               triggerBotReactions(io, r, 'FLIP', currentPlayer.id);
+              emitReferee(r.id, 'FLIP', { actorName: currentPlayer.name });
+            } else if (face?.type === 'SKIP_EVERYONE') {
+              emitReferee(r.id, 'SKIP_EVERYONE', { actorName: currentPlayer.name });
+            } else if (face?.type === 'WILD_DRAW_COLOR') {
+              emitReferee(r.id, 'WILD_DRAW_COLOR', { actorName: currentPlayer.name, color: decision.chosenColor });
             } else if (face?.type === 'DRAW_FIVE' || face?.type === 'WILD_DRAW_FOUR' || face?.type === 'WILD_DRAW_TWO') {
               triggerBotReactions(io, r, 'DRAW_HEAVY', currentPlayer.id);
             }
@@ -667,11 +691,19 @@ function registerGameSocket(io) {
 
         broadcastGameState(io, room);
 
-        // Check if top card triggers contextual bot reactions
+        // Check if top card triggers contextual bot reactions & referee announcement
         const top = room.gameState.discardPile[room.gameState.discardPile.length - 1];
         const face = room.gameState.activeSide === 'DARK' ? top?.darkSide : top?.lightSide;
+        const actingPlayer = room.players.find(p => p.id === playerId);
+        const actingName = actingPlayer ? actingPlayer.name : 'Player';
+
         if (face?.type === 'FLIP') {
           triggerBotReactions(io, room, 'FLIP', playerId);
+          emitReferee(roomId, 'FLIP', { actorName: actingName });
+        } else if (face?.type === 'SKIP_EVERYONE') {
+          emitReferee(roomId, 'SKIP_EVERYONE', { actorName: actingName });
+        } else if (face?.type === 'WILD_DRAW_COLOR') {
+          emitReferee(roomId, 'WILD_DRAW_COLOR', { actorName: actingName, color: chosenColor });
         } else if (face?.type === 'DRAW_FIVE' || face?.type === 'WILD_DRAW_FOUR' || face?.type === 'WILD_DRAW_TWO') {
           triggerBotReactions(io, room, 'DRAW_HEAVY', playerId);
         }
@@ -775,6 +807,7 @@ function registerGameSocket(io) {
           timestamp: Date.now(),
         });
         triggerBotReactions(io, room, 'UNO_CALLED', playerId);
+        emitReferee(roomId, 'UNO', { actorName: caller ? caller.name : 'Player' });
         broadcastGameState(io, room);
         if (cb) cb({ ok: true });
       } catch (e) {
@@ -800,6 +833,11 @@ function registerGameSocket(io) {
                 catcherName: catcher ? catcher.name : 'Player',
                 targetName: target ? target.name : 'Target',
                 timestamp: Date.now(),
+              });
+              emitReferee(roomId, 'CAUGHT', {
+                actorName: catcher ? catcher.name : 'Player',
+                targetName: target ? target.name : 'Target',
+                count: data.penaltyCards || 2,
               });
             }
             if (event === 'stateBroadcast') broadcastGameState(io, room);

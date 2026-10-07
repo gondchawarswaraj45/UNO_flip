@@ -195,7 +195,7 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
             }}
             className="md-inline-flex"
           >
-            {gameMode === 'FLIP' ? 'Two-Side FLIP' : 'Classic'} • {colorMode === 'FIVE' ? '5 Colors' : '4 Colors'}
+            {(gameMode === 'TWO_SIDE' || gameMode === 'FLIP') ? 'Two-Side FLIP' : 'Classic'} • {colorMode === 'FIVE' ? '5 Colors' : '4 Colors'}
           </div>
         </div>
       )}

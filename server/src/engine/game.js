@@ -58,7 +58,7 @@ function createGame(config, players) {
     firstCard = deck.pop();
     const face = getActiveFace(firstCard, ACTIVE_SIDE.LIGHT);
     if (face.type === CARD_TYPE.WILD || face.type === CARD_TYPE.WILD_DRAW_FOUR ||
-        face.type === CARD_TYPE.WILD_DRAW_TWO || face.type === CARD_TYPE.FLIP) {
+        face.type === CARD_TYPE.WILD_DRAW_TWO || face.type === CARD_TYPE.WILD_DRAW_COLOR || face.type === CARD_TYPE.FLIP) {
       deck.unshift(firstCard); // push back to bottom
       firstCard = null;
     }
@@ -241,9 +241,12 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
     state.activeSide = state.activeSide === ACTIVE_SIDE.LIGHT
       ? ACTIVE_SIDE.DARK
       : ACTIVE_SIDE.LIGHT;
-    // After flipping, the color becomes the dark side color of the played card
     const newFace = getActiveFace(card, state.activeSide);
-    state.currentColor = newFace.color === 'WILD' ? chosenColor : newFace.color;
+    if (newFace.color === 'WILD' || newFace.type === CARD_TYPE.WILD_DRAW_COLOR) {
+      state.currentColor = chosenColor || (state.activeSide === ACTIVE_SIDE.DARK ? 'PINK' : 'RED');
+    } else {
+      state.currentColor = chosenColor || newFace.color;
+    }
   }
 
   // Track cards played metric
@@ -307,6 +310,46 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
       timestamp: Date.now(),
     };
     emitEvent('playerDrewPenalty', state.lastActionNotification);
+  } else if (effects.wildDrawColor) {
+    const targetIndex = nextActiveIndex(state, 1);
+    const targetPlayer = state.players[targetIndex];
+    const targetId = targetPlayer ? targetPlayer.id : null;
+    let drawnCount = 0;
+    let matchingCardFound = false;
+    let safetyCounter = 120;
+
+    while (!matchingCardFound && safetyCounter > 0) {
+      safetyCounter--;
+      if (state.deck.length === 0) {
+        reshuffleDiscard(state);
+        if (state.deck.length === 0) break;
+      }
+      const drawnCard = state.deck.pop();
+      state.hands[targetId].push(drawnCard);
+      drawnCount++;
+      const drawnFace = getActiveFace(drawnCard, state.activeSide);
+      if (drawnFace && (drawnFace.color === chosenColor || drawnFace.color === 'WILD')) {
+        matchingCardFound = true;
+      }
+    }
+
+    // Target player loses their turn
+    advanceTurn(state, 2);
+
+    state.lastActionNotification = {
+      id: uuidv4(),
+      type: 'WILD_DRAW_COLOR',
+      playedById: playerId,
+      playedByName: playedBy ? playedBy.name : 'Player',
+      targetId,
+      targetName: targetPlayer ? targetPlayer.name : 'Player',
+      cardType: face.type,
+      cardValue: face.value,
+      cardColor: chosenColor,
+      drawCount: drawnCount,
+      timestamp: Date.now(),
+    };
+    emitEvent('playerDrewPenalty', state.lastActionNotification);
   } else if (effects.skipEveryone) {
     // If player still has cards, they play again. If they emptied their hand, advance to next active.
     if (hand.length > 0) {
@@ -325,7 +368,7 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
   }
 
   // Record action notification for non-stacking plays
-  if (drawPenalty === 0) {
+  if (drawPenalty === 0 && !effects.wildDrawColor) {
     state.lastActionNotification = {
       id: uuidv4(),
       type: effects.skipEveryone ? 'SKIP_EVERYONE' : (effects.skipNext ? 'SKIP' : (effects.flip ? 'FLIP' : 'PLAY')),

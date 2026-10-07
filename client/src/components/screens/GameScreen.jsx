@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import useGameStore from '../../store/gameStore';
-import CardComponent from '../game/CardComponent';
+import UnoFlipCard from '../game/UnoFlipCard';
 import PlayerHand from '../game/PlayerHand';
 import OpponentArea from '../game/OpponentArea';
 import UnoButton from '../game/UnoButton';
@@ -122,6 +122,7 @@ export default function GameScreen() {
     showRulesModal,
     setShowRulesModal,
     activeReactions,
+    refereeCommentary,
   } = useGameStore();
 
   const [actionError, setActionError] = useState('');
@@ -192,13 +193,27 @@ export default function GameScreen() {
 
   function attemptPlay(card) {
     const face = activeSide === 'DARK' ? card.darkSide : card.lightSide;
+    const oppositeFace = activeSide === 'DARK' ? card.lightSide : card.darkSide;
+
+    // Check official rule: last card MUST be a number card
+    if (myHand?.length === 1 && face?.type !== CARD_TYPE.NUMBER) {
+      setActionError('🚫 Official Rule: You cannot win on a power card! Your last card must be a number card.');
+      toast.error('🚫 You cannot win on a power card! Final card must be a number.');
+      setSelectedCardId(null);
+      return;
+    }
+
     const isWild =
       face?.color === 'WILD' ||
       face?.type === CARD_TYPE.WILD ||
       face?.type === CARD_TYPE.WILD_DRAW_FOUR ||
-      face?.type === CARD_TYPE.WILD_DRAW_TWO;
+      face?.type === CARD_TYPE.WILD_DRAW_TWO ||
+      face?.type === CARD_TYPE.WILD_DRAW_COLOR;
 
-    if (isWild) {
+    // If Flip card has Wild/Wild Draw Color on its back side, choose color to continue
+    const isFlipWithWildBack = face?.type === CARD_TYPE.FLIP && (oppositeFace?.color === 'WILD' || oppositeFace?.type === CARD_TYPE.WILD_DRAW_COLOR || oppositeFace?.type === CARD_TYPE.WILD);
+
+    if (isWild || isFlipWithWildBack) {
       openColorPicker(card.id);
       return;
     }
@@ -218,7 +233,10 @@ export default function GameScreen() {
     const asPlayerId = isOffline ? gameState.currentPlayerId : myPlayerId;
     socket.emit('playCard', { cardId, chosenColor, asPlayerId }, (res) => {
       if (!res.ok) {
-        if (res.error === 'MUST_COUNTER_WITH_DRAW_CARD') {
+        if (res.error === 'LAST_CARD_MUST_BE_NUMBER') {
+          setActionError('🚫 Official Rule: You cannot win on a power card! Your final card must be a number card.');
+          toast.error('🚫 You cannot win on a power card! Final card must be a number.');
+        } else if (res.error === 'MUST_COUNTER_WITH_DRAW_CARD') {
           const lvl = gameState.pendingDrawStack?.currentLevel || 1;
           const total = gameState.pendingDrawStack?.totalCards || 1;
           setActionError(`⚡ Active Attack (+${total})! You must counter with a +${lvl} or higher Draw card, or take the penalty.`);
@@ -336,6 +354,41 @@ export default function GameScreen() {
 
       {/* Top Arcade HUD (Profile Pill, Room Code, Chat Trigger, Sound) */}
       <ArcadeHeader showRoomCode={true} showChat={true} />
+
+      {/* Groq AI Authoritative Live Referee Commentary Pill */}
+      {refereeCommentary?.text && (
+        <div
+          className="anim-fade-in-up"
+          style={{
+            position: 'absolute',
+            top: 58,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 65,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 18px',
+            borderRadius: 9999,
+            background: 'rgba(10, 15, 26, 0.94)',
+            backdropFilter: 'blur(12px)',
+            border: '1.5px solid rgba(250, 204, 21, 0.85)',
+            boxShadow: '0 8px 30px rgba(0,0,0,0.85), 0 0 20px rgba(250, 204, 21, 0.35)',
+            color: '#FFFFFF',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            maxWidth: '92vw',
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ fontSize: '0.85rem', color: '#facc15', display: 'flex', alignItems: 'center', gap: 4 }}>
+            ⚡ <strong>REFEREE:</strong>
+          </span>
+          <span style={{ color: '#F1F5F9', fontStyle: 'italic', letterSpacing: '0.01em' }}>
+            "{refereeCommentary.text}"
+          </span>
+        </div>
+      )}
 
       {/* Floating Quick Reaction Tray */}
       <QuickReactionTray />
@@ -472,7 +525,7 @@ export default function GameScreen() {
               {/* Discard Pile */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
                 {topCard ? (
-                  <CardComponent
+                  <UnoFlipCard
                     card={topCard}
                     activeSide={activeSide}
                     isDiscard={true}

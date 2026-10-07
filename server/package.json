@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "test": "node test/deckValidation.test.js && node test/test_gameplay_rules.js",
     "migrate": "node scripts/migrate.js"
   },
   "keywords": [],

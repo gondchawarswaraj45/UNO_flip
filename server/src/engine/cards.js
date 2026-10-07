@@ -42,6 +42,7 @@ const {
   CARD_TYPE,
   getColors,
 } = require('./config');
+const { createOfficialUnoFlipDeck, validateDeck } = require('./deckDefinition');
 
 // ─── Side builders ────────────────────────────────────────────────────────────
 
@@ -187,7 +188,7 @@ function darkFlipsForColor(color) {
 function darkWilds() {
   const wilds = [];
   for (let i = 0; i < 4; i++) wilds.push(makeSide('WILD', CARD_TYPE.WILD, null));
-  for (let i = 0; i < 4; i++) wilds.push(makeSide('WILD', CARD_TYPE.WILD_DRAW_TWO, null));
+  for (let i = 0; i < 4; i++) wilds.push(makeSide('WILD', CARD_TYPE.WILD_DRAW_COLOR, null));
   return wilds;
 }
 
@@ -230,13 +231,20 @@ function buildClassicDeck(colorMode) {
  * @returns {Card[]}
  */
 function buildTwoSideDeck(colorMode) {
+  // Official physical 112-card double-sided UNO Flip deck for 4-color mode
+  if (colorMode === COLOR_MODE.FOUR || !colorMode) {
+    const deck = createOfficialUnoFlipDeck();
+    validateDeck(deck);
+    return deck;
+  }
+
+  // Extended 5-color mode pairing (if requested)
   const lightColors = getColors(ACTIVE_SIDE.LIGHT, colorMode);
   const darkColors  = getColors(ACTIVE_SIDE.DARK,  colorMode);
 
   const lightPool = [];
   const darkPool  = [];
 
-  // Colored cards per color — both produce exactly 26 cards per color!
   for (let ci = 0; ci < lightColors.length; ci++) {
     const lColor = lightColors[ci];
     const dColor = darkColors[ci];
@@ -244,7 +252,6 @@ function buildTwoSideDeck(colorMode) {
     const lSides = lightSidesForTwoSide(lColor);
     const dSides = darkSidesForColor(dColor);
 
-    // Append Flip cards — exactly 2 per color
     lSides.push(...lightFlipsForColor(lColor));
     dSides.push(...darkFlipsForColor(dColor));
 
@@ -252,16 +259,9 @@ function buildTwoSideDeck(colorMode) {
     darkPool.push(...dSides);
   }
 
-  // Append Wild cards to both pools
   lightPool.push(...lightTwoSideWilds());
   darkPool.push(...darkWilds());
 
-  // Deterministic LCG permutation ensuring zero mirror duplicates:
-  // - No card shares the same number on both sides
-  // - Flip cards are not paired with Flip cards
-  // - Reverse cards are not paired with Reverse cards
-  // - Wild cards are not paired with Wild cards
-  // - Colors are evenly crossed across opposite sides
   let seed = 9283741;
   function rnd() {
     seed = (seed * 1664525 + 1013904223) % 4294967296;
@@ -284,7 +284,6 @@ function buildTwoSideDeck(colorMode) {
     return false;
   }
 
-  // Conflict resolution via targeted bipartite swaps
   for (let i = 0; i < lightPool.length; i++) {
     const l = lightPool[i];
     const d = shuffledDark[i];
@@ -303,7 +302,6 @@ function buildTwoSideDeck(colorMode) {
     }
   }
 
-  // Generate the double-sided Card objects with authentic non-mirrored combinations
   const pairedCards = [];
   for (let i = 0; i < lightPool.length; i++) {
     pairedCards.push({

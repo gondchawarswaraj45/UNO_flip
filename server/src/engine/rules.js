@@ -82,6 +82,11 @@ function validatePlay(playerId, cardId, gameState, chosenColor) {
     return { valid: false, reason: 'INVALID_CARD_SIDE' };
   }
 
+  // 3b. Final Card Rule: You CANNOT win on an action/power card! The last card must be a number card.
+  if (hand.length === 1 && face.type !== CARD_TYPE.NUMBER) {
+    return { valid: false, reason: 'LAST_CARD_MUST_BE_NUMBER' };
+  }
+
   // ─── Progressive Draw Stacking Rule ───────────────────────────────────────
   // If a draw attack (+1, +2, +4, +5) is pending on this player:
   // - Player can only counter with an EQUAL or HIGHER draw card (+1, +2, +4, etc.)
@@ -109,10 +114,12 @@ function validatePlay(playerId, cardId, gameState, chosenColor) {
   }
 
   // 4. Wild cards — always playable (with color choice validation)
-  if (face.type === CARD_TYPE.WILD || face.type === CARD_TYPE.WILD_DRAW_FOUR || face.type === CARD_TYPE.WILD_DRAW_TWO) {
-    // Wild Draw Four: technically only legal when the player has no cards
-    // matching the current color. We enforce this loosely — the strict rule
-    // can be toggled via config later. For now, allow it always.
+  if (
+    face.type === CARD_TYPE.WILD ||
+    face.type === CARD_TYPE.WILD_DRAW_FOUR ||
+    face.type === CARD_TYPE.WILD_DRAW_TWO ||
+    face.type === CARD_TYPE.WILD_DRAW_COLOR
+  ) {
     if (!chosenColor) {
       return { valid: false, reason: 'WILD_REQUIRES_COLOR_CHOICE' };
     }
@@ -137,10 +144,25 @@ function validatePlay(playerId, cardId, gameState, chosenColor) {
     }
     // FLIP must still match color or another FLIP on top
     const currentColor = gameState.currentColor || top.color;
-    if (face.color === currentColor || top.type === CARD_TYPE.FLIP) {
-      return { valid: true, reason: null };
+    if (face.color !== currentColor && top.type !== CARD_TYPE.FLIP) {
+      return { valid: false, reason: 'CARD_NOT_COMPATIBLE' };
     }
-    return { valid: false, reason: 'CARD_NOT_COMPATIBLE' };
+    // If the opposite face (which will appear on top of discard pile) is a Wild card,
+    // player must select a color for the new side!
+    const oppositeFace = gameState.activeSide === ACTIVE_SIDE.DARK ? card.lightSide : card.darkSide;
+    const isBackWild = oppositeFace && (oppositeFace.color === 'WILD' || oppositeFace.type === CARD_TYPE.WILD_DRAW_COLOR || oppositeFace.type === CARD_TYPE.WILD);
+    if (isBackWild) {
+      if (!chosenColor) {
+        return { valid: false, reason: 'WILD_REQUIRES_COLOR_CHOICE' };
+      }
+      const nextSide = gameState.activeSide === ACTIVE_SIDE.LIGHT ? ACTIVE_SIDE.DARK : ACTIVE_SIDE.LIGHT;
+      const { getColors } = require('./config');
+      const legalOppositeColors = getColors(nextSide, gameState.config.colorMode);
+      if (!legalOppositeColors.includes(chosenColor)) {
+        return { valid: false, reason: 'INVALID_CHOSEN_COLOR' };
+      }
+    }
+    return { valid: true, reason: null };
   }
 
   // 7. Standard compatibility: match color OR match type/value
@@ -248,6 +270,12 @@ function resolveCardEffects(face, chosenColor, gameState) {
       break;
     case CARD_TYPE.WILD_DRAW_TWO:
       effects.drawCount = 2;
+      effects.skipNext = true;
+      effects.newColor = chosenColor;
+      break;
+    case CARD_TYPE.WILD_DRAW_COLOR:
+      effects.wildDrawColor = true;
+      effects.drawUntilColor = chosenColor;
       effects.skipNext = true;
       effects.newColor = chosenColor;
       break;

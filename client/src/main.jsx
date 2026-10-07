@@ -10,7 +10,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 )
 
 // Register PWA Service Worker for offline capability & caching
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((err) => {
       console.warn('Service worker registration failed:', err);

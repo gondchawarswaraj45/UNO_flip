@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import CardComponent from './CardComponent';
+import UnoFlipCard from './UnoFlipCard';
 import useGameStore from '../../store/gameStore';
 import sound from '../../utils/audio';
 
@@ -112,7 +112,7 @@ export default function PlayerHand({ onCardClick }) {
                   ✦ DRAWN
                 </div>
               )}
-              <CardComponent
+              <UnoFlipCard
                 card={card}
                 activeSide={activeSide}
                 selected={isSelected}
@@ -196,7 +196,7 @@ export default function PlayerHand({ onCardClick }) {
                 ✦ DRAWN
               </div>
             )}
-            <CardComponent
+            <UnoFlipCard
               card={card}
               activeSide={activeSide}
               selected={isSelected}

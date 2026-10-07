@@ -31,6 +31,7 @@ const { validatePlay, getLegalColors } = require('./rules');
  */
 function scoreCard(face) {
   switch (face.type) {
+    case CARD_TYPE.WILD_DRAW_COLOR: return 11;
     case CARD_TYPE.WILD_DRAW_FOUR:
     case CARD_TYPE.WILD_DRAW_TWO: return 10; // save for critical moments
     case CARD_TYPE.WILD:          return 8;
@@ -61,10 +62,13 @@ function findLegalPlays(botId, state) {
 
   for (const card of hand) {
     const face = getActiveFace(card, state.activeSide);
-    // Wild cards always need a color choice — pick the bot's most common color
-    const chosenColor = face.color === 'WILD'
-      ? pickBestColor(botId, state)
-      : null;
+    const oppositeFace = state.activeSide === ACTIVE_SIDE.DARK ? card.lightSide : card.darkSide;
+    const isBackWild = face.type === CARD_TYPE.FLIP && oppositeFace && (oppositeFace.color === 'WILD' || oppositeFace.type === CARD_TYPE.WILD_DRAW_COLOR);
+
+    let chosenColor = null;
+    if (face.color === 'WILD' || isBackWild) {
+      chosenColor = pickBestColor(botId, state);
+    }
     const result = validatePlay(botId, card.id, state, chosenColor);
     if (result.valid) {
       legal.push({ card, face, chosenColor });
@@ -146,6 +150,7 @@ function hardStrategy(botId, state) {
   // If an opponent is threatening, use WD4 or WD2 if available
   if (opponentThreat) {
     const powerful = legal.find(p =>
+      p.face.type === CARD_TYPE.WILD_DRAW_COLOR ||
       p.face.type === CARD_TYPE.WILD_DRAW_FOUR ||
       p.face.type === CARD_TYPE.WILD_DRAW_TWO  ||
       p.face.type === CARD_TYPE.DRAW_FIVE

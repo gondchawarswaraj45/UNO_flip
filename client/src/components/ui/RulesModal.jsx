@@ -142,15 +142,24 @@ export default function RulesModal({ isOpen, onClose }) {
             </div>
           )}
 
-          {/* TAB 3: UNO & CAUGHT */}
-          {tab === 'caught' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ background: 'var(--bg-card)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
                 <h4 style={{ color: 'var(--text-gold)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>📢</span> Declaring UNO
+                  <span>📢</span> Official UNO Button Rule
+                </h4>
+                <p style={{ fontSize: '0.85rem', marginBottom: 6 }}>
+                  The <strong>UNO button</strong> is strictly available only when <strong>it is your turn</strong>, you hold <strong>exactly 2 cards</strong>, and <strong>at least one card is legally playable</strong>.
+                </p>
+                <div style={{ fontSize: '0.8rem', color: '#fde047' }}>
+                  Press UNO before dropping your 2nd card down to 1 to protect yourself from penalties!
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(239, 68, 68, 0.12)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.35)' }}>
+                <h4 style={{ color: '#f87171', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>🚫</span> Winning Condition (Official Rule)
                 </h4>
                 <p style={{ fontSize: '0.85rem' }}>
-                  When you play your second-to-last card (leaving you with exactly <strong>1 card</strong> in hand), you <strong>MUST press the UNO button</strong> before your turn ends.
+                  You <strong>cannot win on a power or action card</strong> (Skip, Reverse, Flip, +1, +2, +5, Wild, etc.)! Your final winning card <strong>must be a Number card (1–9)</strong>.
                 </p>
               </div>
 
@@ -163,11 +172,9 @@ export default function RulesModal({ isOpen, onClose }) {
                 </p>
                 <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>
                   <div>⚡ <strong>If Caught:</strong> The delinquent player draws <strong>2 penalty cards</strong>!</div>
-                  <div style={{ marginTop: 4 }}>🛡️ <strong>Authoritative:</strong> False alarms or late challenges are rejected by the server with zero false penalties.</div>
+                  <div style={{ marginTop: 4 }}>🤖 <strong>Groq AI Referee:</strong> Authoritative adjudication verifies each move and announces events in real-time.</div>
                 </div>
               </div>
-            </div>
-          )}
 
           {/* TAB 4: SCORING & XP */}
           {tab === 'scoring' && (

@@ -79,6 +79,7 @@ const CARD_TYPE = Object.freeze({
   WILD: 'WILD',
   WILD_DRAW_FOUR: 'WILD_DRAW_FOUR',   // Light side wild
   WILD_DRAW_TWO: 'WILD_DRAW_TWO',    // Dark side wild (Two-Side only)
+  WILD_DRAW_COLOR: 'WILD_DRAW_COLOR', // Dark side wild (Two-Side only)
   FLIP: 'FLIP',                 // Two-Side only
   SKIP_EVERYONE: 'SKIP_EVERYONE',    // Dark side only (Two-Side only)
 });

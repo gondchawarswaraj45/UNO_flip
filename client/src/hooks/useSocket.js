@@ -109,10 +109,20 @@ export function useSocket() {
         } else if (action.type === 'SKIP_EVERYONE') {
           const meme = getMemeForEvent('SKIP_ALL');
           if (meme) triggerMemeSplash(meme, action.playedByName, action.targetName);
+        } else if (action.type === 'WILD_DRAW_COLOR') {
+          const meme = getMemeForEvent('PENALTY_BIG');
+          if (meme) triggerMemeSplash(meme, action.playedByName, action.targetName, action.drawCount);
         }
       }
 
-      if (action.type === 'PENALTY_DRAW' && action.drawCount > 0) {
+      if (action.type === 'WILD_DRAW_COLOR') {
+        sound.dealCard();
+        if (action.targetId === myId) {
+          toast.error(`🎨 Wild Draw Color! You drew ${action.drawCount} cards until getting ${action.cardColor} and lost your turn!`, { duration: 4000 });
+        } else {
+          toast(`🎨 ${action.playedByName} played Wild Draw Color! ${action.targetName} drew ${action.drawCount} cards until ${action.cardColor}!`, { icon: '🌈', duration: 4000 });
+        }
+      } else if (action.type === 'PENALTY_DRAW' && action.drawCount > 0) {
         sound.dealCard();
         if (action.targetId === myId) {
           toast.error(`⚡ Hit with +${action.drawCount}! You took ${action.drawCount} card${action.drawCount > 1 ? 's' : ''} and lost your turn!`, { duration: 3500 });
@@ -194,6 +204,13 @@ export function useSocket() {
     // ─── Real-Time Reactions & Quick Chat ──────────────────────────────────────
     socket.on('playerReaction', (reaction) => {
       useGameStore.getState().setPlayerReaction(reaction);
+    });
+
+    // ─── Groq AI Authoritative Referee Commentary ──────────────────────────────
+    socket.on('refereeCommentary', (data) => {
+      if (data && data.text) {
+        useGameStore.getState().setRefereeCommentary(data);
+      }
     });
 
     // ─── Player Cleared Cards / Placement Update ─────────────────────────────

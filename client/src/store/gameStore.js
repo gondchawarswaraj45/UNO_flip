@@ -266,6 +266,15 @@ const useGameStore = create((set, get) => ({
   isOfflineMode: false,
   setIsOfflineMode: (v) => set({ isOfflineMode: v }),
 
+  // ─── Groq AI Live Referee & Match Commentary ───────────────────────────────
+  refereeCommentary: null, // { text, eventType, timestamp }
+  setRefereeCommentary: (data) => {
+    set({ refereeCommentary: data });
+    setTimeout(() => {
+      set((s) => (s.refereeCommentary?.timestamp === data?.timestamp ? { refereeCommentary: null } : s));
+    }, 6000);
+  },
+
   // ─── Screen-Wide Splash Announcements for UNO and Caught ─────────────────────
   unoSplash: null, // { playerId, playerName, timestamp }
   triggerUnoSplash: (data) => {
