@@ -84,12 +84,156 @@ app.get('/api/matches/recent', async (req, res) => {
   }
 });
 
+const authCrypto = require('./services/authCrypto');
+const storage = require('./db/storageEngine');
+
+// ─── Authentication API (Unique ID + Password) ──────────────────────────────
+
+// Register / Sign Up
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    let { username, password, customId, avatar, frame } = req.body;
+
+    if (!username || typeof username !== 'string' || username.trim().length < 2) {
+      return res.status(400).json({ ok: false, error: 'Display name must be at least 2 characters long' });
+    }
+    if (!password || typeof password !== 'string' || password.length < 4) {
+      return res.status(400).json({ ok: false, error: 'Password must be at least 4 characters long' });
+    }
+
+    username = username.trim();
+
+    // Determine Unique Player ID
+    let userId = '';
+    if (customId && typeof customId === 'string' && customId.trim()) {
+      userId = customId.trim().toUpperCase();
+      if (!/^[A-Z0-9_-]{3,20}$/.test(userId)) {
+        return res.status(400).json({ ok: false, error: 'Unique ID must be 3-20 alphanumeric characters' });
+      }
+      if (storage.getUserById(userId)) {
+        return res.status(409).json({ ok: false, error: 'This Unique ID is already taken. Please choose another or generate one!' });
+      }
+    } else {
+      let attempts = 0;
+      do {
+        userId = authCrypto.generateUniquePlayerId();
+        attempts++;
+      } while (storage.getUserById(userId) && attempts < 10);
+    }
+
+    // Cryptographic hash with PBKDF2 (asynchronous, non-blocking)
+    const { hash, salt } = await authCrypto.hashPassword(password);
+    const now = new Date().toISOString();
+
+    const newUser = {
+      id: userId,
+      username,
+      passwordHash: hash,
+      salt,
+      avatar: avatar || '👑',
+      frame: frame || 'gold_royal',
+      title: 'Card Novice',
+      xp: 120,
+      coins: 500,
+      createdAt: now,
+      lastLoginAt: now,
+    };
+
+    storage.saveUser(newUser);
+
+    const token = authCrypto.generateSessionToken();
+
+    const publicProfile = {
+      id: newUser.id,
+      username: newUser.username,
+      avatar: newUser.avatar,
+      frame: newUser.frame,
+      title: newUser.title,
+      xp: newUser.xp,
+      coins: newUser.coins,
+      createdAt: newUser.createdAt,
+    };
+
+    console.log(`[Auth] Registered player: ${username} (${userId})`);
+    res.status(201).json({ ok: true, user: publicProfile, token });
+  } catch (err) {
+    console.error('[Auth] Signup error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to create account' });
+  }
+});
+
+// Login with Unique ID and Password
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { id, password } = req.body;
+    if (!id || !password) {
+      return res.status(400).json({ ok: false, error: 'Unique ID and password are required' });
+    }
+
+    const cleanId = id.trim().toUpperCase();
+    let user = storage.getUserById(cleanId);
+
+    // Also check case-insensitive match by username if not found by ID
+    if (!user) {
+      user = storage.getUserByUsername(id.trim());
+    }
+
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'User not found. Check your Unique ID or create a new account.' });
+    }
+
+    if (!user.passwordHash || !user.salt) {
+      return res.status(400).json({ ok: false, error: 'Account has no password set. Please sign up.' });
+    }
+
+    // Verify cryptographic hash
+    const isValid = await authCrypto.verifyPassword(password, user.passwordHash, user.salt);
+    if (!isValid) {
+      return res.status(401).json({ ok: false, error: 'Incorrect password. Please try again.' });
+    }
+
+    user.lastLoginAt = new Date().toISOString();
+    storage.saveUser(user);
+
+    const token = authCrypto.generateSessionToken();
+
+    const publicProfile = {
+      id: user.id,
+      username: user.username,
+      avatar: user.avatar || '👑',
+      frame: user.frame || 'gold_royal',
+      title: user.title || 'Card Novice',
+      xp: user.xp || 120,
+      coins: user.coins || 500,
+      createdAt: user.createdAt,
+    };
+
+    console.log(`[Auth] Player logged in: ${user.username} (${user.id})`);
+    res.json({ ok: true, user: publicProfile, token });
+  } catch (err) {
+    console.error('[Auth] Login error:', err);
+    res.status(500).json({ ok: false, error: 'Authentication failed' });
+  }
+});
+
+// Generate random available Unique ID
+app.get('/api/auth/generate-id', (_req, res) => {
+  let id = '';
+  let attempts = 0;
+  do {
+    id = authCrypto.generateUniquePlayerId();
+    attempts++;
+  } while (storage.getUserById(id) && attempts < 10);
+  res.json({ ok: true, id });
+});
+
 // Upsert user profile
 app.post('/api/users/profile', async (req, res) => {
   try {
-    const { userId, username, avatar, email } = req.body;
+    const { userId, username, avatar, frame } = req.body;
     if (!userId || !username) return res.status(400).json({ ok: false, error: 'MISSING_FIELDS' });
-    const user = await repository.upsertUser(userId, username, avatar, email);
+    const user = await repository.upsertUser(userId, username, avatar);
+    if (frame) storage.updateUser(userId, { frame });
     res.json({ ok: true, user });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

@@ -137,21 +137,38 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
           </div>
         </div>
 
-        {/* Username & Coins */}
+        {/* Username & Unique ID */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span
-            style={{
-              fontSize: '0.85rem',
-              fontWeight: 800,
-              color: 'var(--text-primary)',
-              maxWidth: 110,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {profile.username || 'Player'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span
+              style={{
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                maxWidth: 100,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {profile.username || 'Player'}
+            </span>
+            {authUser?.id && (
+              <span
+                style={{
+                  fontSize: '0.65rem',
+                  fontFamily: 'monospace',
+                  background: 'rgba(255,255,255,0.08)',
+                  padding: '1px 5px',
+                  borderRadius: 4,
+                  color: isGuest ? '#38bdf8' : '#fbbf24',
+                  fontWeight: 700,
+                }}
+              >
+                {authUser.id}
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', color: 'var(--text-gold)', fontWeight: 700 }}>
             <span>🪙 {profile.coins || 500}</span>
           </div>
@@ -311,13 +328,13 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
               sound.buttonClick();
               openLoginScreen();
             }}
-            title="Sign in with Google Mail to save your career progress"
+            title="Create an account or login to save your rank"
             style={{
               padding: '6px 12px',
               borderRadius: 'var(--radius-lg)',
-              color: '#38bdf8',
-              border: '1px solid rgba(56, 189, 248, 0.4)',
-              background: 'rgba(56, 189, 248, 0.12)',
+              color: '#fbbf24',
+              border: '1px solid rgba(251, 191, 36, 0.4)',
+              background: 'rgba(251, 191, 36, 0.12)',
               fontWeight: 700,
               fontSize: '0.8rem',
               display: 'flex',
@@ -326,7 +343,7 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
             }}
           >
             <span>🔑</span>
-            <span className="sm-inline">Google Sign In</span>
+            <span className="sm-inline">Sign In / Register</span>
           </button>
         )}
 
@@ -336,9 +353,9 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
             onClick={() => {
               sound.buttonClick();
               logout();
-              toast('Signed out from Google account', { icon: '👋' });
+              toast('Signed out from account', { icon: '👋' });
             }}
-            title={`Sign Out (${authUser.email || ''})`}
+            title={`Sign Out (ID: ${authUser.id || ''})`}
             style={{
               padding: '6px 10px',
               borderRadius: 'var(--radius-lg)',

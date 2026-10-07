@@ -8,6 +8,7 @@
 
 import { create } from 'zustand';
 import sound from '../utils/audio';
+import { loginPlayer, signupPlayer } from '../services/authService';
 
 // ─── Identity & Profile Persistence Helpers ─────────────────────────────────
 
@@ -58,16 +59,15 @@ const getStoredProfile = (userId) => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (!parsed.username && legacyName) parsed.username = legacyName;
-      if (authUser?.name && !parsed.username) parsed.username = authUser.name;
+      if (authUser?.username && !parsed.username) parsed.username = authUser.username;
       if (authUser?.avatar) parsed.avatar = authUser.avatar;
-      return { ...defaultProfile, ...parsed, userId, email: authUser?.email || '' };
+      return { ...defaultProfile, ...parsed, userId: authUser?.id || userId };
     }
     return {
       ...defaultProfile,
-      userId,
-      username: authUser?.name || legacyName || 'Player',
+      userId: authUser?.id || userId,
+      username: authUser?.username || legacyName || 'Player',
       avatar: authUser?.avatar || '👑',
-      email: authUser?.email || '',
     };
   } catch (_) {
     return { ...defaultProfile, userId, username: 'Player' };
@@ -87,31 +87,33 @@ const useGameStore = create((set, get) => ({
   setSocket: (socket) => set({ socket }),
   setConnected: (v) => set({ connected: v }),
 
-  // ─── Authentication & Guest State Management ──────────────────────────────
+  // ─── Authentication & User Accounts (Unique ID + Password) ─────────────────
   authUser: initialAuthUser,
-  isAuthenticated: Boolean(initialAuthUser && (initialAuthUser.email || initialAuthUser.isGuest)),
+  isAuthenticated: Boolean(initialAuthUser && (initialAuthUser.id || initialAuthUser.isGuest)),
   isGuest: Boolean(initialAuthUser?.isGuest),
 
-  loginWithGoogle: (userData) => {
-    const email = userData.email || '';
-    const userId = userData.userId || ('goog_' + (userData.sub || Math.random().toString(36).substring(2, 9)));
-    const name = userData.name || (email ? email.split('@')[0] : 'Player');
-    const avatar = userData.avatar || userData.picture || '👑';
+  loginWithAccount: async (id, password) => {
+    const res = await loginPlayer({ id, password });
+    if (!res || !res.user) throw new Error('Invalid server response');
 
+    const u = res.user;
     const authPayload = {
-      userId,
-      email,
-      name,
-      avatar,
-      provider: 'google',
+      id: u.id,
+      username: u.username,
+      avatar: u.avatar || '👑',
+      frame: u.frame || 'gold_royal',
+      title: u.title || 'Card Novice',
+      xp: u.xp || 120,
+      coins: u.coins || 500,
+      token: res.token,
       isGuest: false,
       loginAt: Date.now(),
     };
 
     try {
       localStorage.setItem('uno_auth_user', JSON.stringify(authPayload));
-      localStorage.setItem('uno_persistent_user_id', userId);
-      localStorage.setItem('uno_persistent_user_name', name);
+      localStorage.setItem('uno_persistent_user_id', u.id);
+      localStorage.setItem('uno_persistent_user_name', u.username);
     } catch (_) {}
 
     set((state) => ({
@@ -119,31 +121,82 @@ const useGameStore = create((set, get) => ({
       isAuthenticated: true,
       isGuest: false,
       screen: 'LANDING',
-      myUserId: userId,
-      myName: name,
+      myUserId: u.id,
+      myName: u.username,
       profile: {
         ...state.profile,
-        userId,
-        username: name,
-        avatar,
-        email,
+        userId: u.id,
+        username: u.username,
+        avatar: u.avatar || '👑',
+        frame: u.frame || 'gold_royal',
+        title: u.title || 'Card Novice',
+        xp: u.xp || 120,
+        coins: u.coins || 500,
       },
     }));
 
-    get().updateProfile({ username: name, avatar, email, userId });
+    return u;
+  },
+
+  signupWithAccount: async ({ username, password, customId, avatar, frame }) => {
+    const res = await signupPlayer({ username, password, customId, avatar, frame });
+    if (!res || !res.user) throw new Error('Invalid server response');
+
+    const u = res.user;
+    const authPayload = {
+      id: u.id,
+      username: u.username,
+      avatar: u.avatar || '👑',
+      frame: u.frame || 'gold_royal',
+      title: u.title || 'Card Novice',
+      xp: u.xp || 120,
+      coins: u.coins || 500,
+      token: res.token,
+      isGuest: false,
+      loginAt: Date.now(),
+    };
+
+    try {
+      localStorage.setItem('uno_auth_user', JSON.stringify(authPayload));
+      localStorage.setItem('uno_persistent_user_id', u.id);
+      localStorage.setItem('uno_persistent_user_name', u.username);
+    } catch (_) {}
+
+    set((state) => ({
+      authUser: authPayload,
+      isAuthenticated: true,
+      isGuest: false,
+      screen: 'LANDING',
+      myUserId: u.id,
+      myName: u.username,
+      profile: {
+        ...state.profile,
+        userId: u.id,
+        username: u.username,
+        avatar: u.avatar || '👑',
+        frame: u.frame || 'gold_royal',
+        title: u.title || 'Card Novice',
+        xp: u.xp || 120,
+        coins: u.coins || 500,
+      },
+    }));
+
+    return u;
   },
 
   loginAsGuest: (customName) => {
-    const guestId = 'guest_' + Math.random().toString(36).substring(2, 8);
-    const guestName = customName || 'Guest ' + Math.floor(1000 + Math.random() * 9000);
+    const guestId = 'GUEST-' + Math.floor(1000 + Math.random() * 9000);
+    const guestName = customName || 'Guest ' + Math.floor(100 + Math.random() * 900);
 
     const authPayload = {
-      userId: guestId,
-      email: null,
-      name: guestName,
+      id: guestId,
+      username: guestName,
       avatar: '👤',
+      frame: 'gold_royal',
+      title: 'Guest Recruit',
+      xp: 120,
+      coins: 500,
       isGuest: true,
-      provider: 'guest',
       loginAt: Date.now(),
     };
 
@@ -165,7 +218,6 @@ const useGameStore = create((set, get) => ({
         userId: guestId,
         username: guestName,
         avatar: '👤',
-        email: null,
       },
     }));
 

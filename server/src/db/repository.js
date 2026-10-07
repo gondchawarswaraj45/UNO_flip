@@ -17,16 +17,7 @@
 'use strict';
 
 const { supabase, isConfigured } = require('./supabaseClient');
-
-// In-memory fallback stores when Supabase is not connected
-const memoryStore = {
-  users: new Map(),
-  playerStats: new Map(),
-  rooms: new Map(),
-  roomMembers: [],
-  gameMatches: [],
-  matchPlayers: [],
-};
+const storage = require('./storageEngine');
 
 class GameRepository {
   /**
@@ -67,35 +58,28 @@ class GameRepository {
       }
     }
 
-    // In-memory fallback
+    // Persistent storage engine
+    const existing = storage.getUserById(userId);
     const user = {
       id: userId,
-      username: username || 'Player',
-      avatar: avatar || null,
-      email: email || memoryStore.users.get(userId)?.email || null,
-      created_at: memoryStore.users.get(userId)?.created_at || now,
+      username: username || existing?.username || 'Player',
+      avatar: avatar || existing?.avatar || null,
+      email: email || existing?.email || null,
+      created_at: existing?.created_at || now,
       last_seen_at: now,
     };
-    memoryStore.users.set(userId, user);
-
-    if (!memoryStore.playerStats.has(userId)) {
-      memoryStore.playerStats.set(userId, {
-        user_id: userId,
-        username: user.username,
-        matches_played: 0,
-        matches_won: 0,
-        cards_played: 0,
-        uno_calls: 0,
-        caught_success: 0,
-        caught_penalized: 0,
-        total_score: 0,
-        updated_at: now,
-      });
-    } else {
-      const stats = memoryStore.playerStats.get(userId);
-      stats.username = user.username;
-    }
+    storage.saveUser(user);
     return user;
+  }
+
+  async getUserById(userId) {
+    if (!userId) return null;
+    return storage.getUserById(userId);
+  }
+
+  async getUserByUsername(username) {
+    if (!username) return null;
+    return storage.getUserByUsername(username);
   }
 
   /**
@@ -291,7 +275,7 @@ class GameRepository {
       });
 
       if (!st.isBot) {
-        const stats = memoryStore.playerStats.get(st.id) || {
+        const stats = storage.getPlayerStats(st.id) || {
           user_id: st.id,
           username: st.name,
           matches_played: 0,
@@ -314,10 +298,11 @@ class GameRepository {
         stats.caught_penalized += (actions.caughtPenalized || 0);
         stats.total_score += (isWinner ? 100 : Math.max(0, 50 - (st.cardCount || 0) * 5));
         stats.updated_at = now;
-        memoryStore.playerStats.set(st.id, stats);
+        storage.updatePlayerStats(st.id, stats);
       }
     });
 
+    storage.recordMatch(storedMatch);
     console.log(`[Repository] Persisted match record: ${savedMatchId} for Room ${roomCode}. Winner: ${winnerName}`);
     return storedMatch;
   }
@@ -356,8 +341,8 @@ class GameRepository {
       }
     }
 
-    const stats = memoryStore.playerStats.get(userId);
-    const user = memoryStore.users.get(userId);
+    const stats = storage.getPlayerStats(userId);
+    const user = storage.getUserById(userId);
     if (!stats) return null;
 
     return {
@@ -405,25 +390,22 @@ class GameRepository {
       }
     }
 
-    // In-memory fallback
-    const list = Array.from(memoryStore.playerStats.values())
-      .map(st => {
-        const user = memoryStore.users.get(st.user_id);
-        return {
-          userId: st.user_id,
-          username: user?.username || st.username || 'Player',
-          avatar: user?.avatar || null,
-          matchesPlayed: st.matches_played,
-          matchesWon: st.matches_won,
-          winRatePct: st.matches_played > 0 ? ((st.matches_won / st.matches_played) * 100).toFixed(1) : '0.0',
-          cardsPlayed: st.cards_played,
-          unoCalls: st.uno_calls,
-          caughtSuccess: st.caught_success,
-          totalScore: st.total_score,
-        };
-      })
-      .sort((a, b) => b.matchesWon - a.matchesWon || b.totalScore - a.totalScore)
-      .slice(0, limit);
+    const list = storage.getLeaderboard(limit);
+    return list.map(st => {
+      const user = storage.getUserById(st.user_id);
+      return {
+        userId: st.user_id,
+        username: user?.username || st.username || 'Player',
+        avatar: user?.avatar || null,
+        matchesPlayed: st.matches_played,
+        matchesWon: st.matches_won,
+        winRatePct: st.matches_played > 0 ? ((st.matches_won / st.matches_played) * 100).toFixed(1) : '0.0',
+        cardsPlayed: st.cards_played,
+        unoCalls: st.uno_calls,
+        caughtSuccess: st.caught_success,
+        totalScore: st.total_score,
+      };
+    });
 
     return list;
   }

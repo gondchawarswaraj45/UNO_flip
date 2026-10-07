@@ -14,7 +14,6 @@ import React, { useState } from 'react';
 import useGameStore from '../../store/gameStore';
 import sound from '../../utils/audio';
 import { toast } from 'react-hot-toast';
-import { GoogleIcon } from '../screens/LoginScreen';
 
 export const AVATAR_OPTIONS = [
   { id: '👑', label: 'Monarch' },
@@ -242,47 +241,48 @@ export default function ProfileModal({ isOpen, onClose }) {
         {/* Tab 1: Customize Profile */}
         {activeTab === 'profile' && (
           <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-            {/* Connected Google Account Pill */}
-            {authUser?.email && (
+            {/* Account Info Card */}
+            {authUser && !isGuest && (
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(251, 191, 36, 0.08)',
+                  border: '1px solid rgba(251, 191, 36, 0.25)',
                   borderRadius: 'var(--radius-md)',
                   padding: '10px 14px',
                   marginBottom: 16,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <GoogleIcon size={18} />
+                  <span style={{ fontSize: '1.25rem' }}>🆔</span>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      Connected Google Account
+                    <span style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 700 }}>
+                      Player Account Verified
                     </span>
-                    <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#f1f5f9' }}>
-                      {authUser.email}
+                    <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#f1f5f9', fontFamily: 'monospace' }}>
+                      ID: {authUser.id}
                     </span>
                   </div>
                 </div>
                 <button
+                  type="button"
                   className="btn btn-ghost btn-sm"
                   onClick={() => {
                     sound.buttonClick();
                     onClose();
                     logout();
-                    toast('Signed out from Google account', { icon: '👋' });
+                    toast('Logged out from account', { icon: '👋' });
                   }}
                   style={{
                     color: '#f87171',
-                    fontSize: '0.72rem',
+                    fontSize: '0.74rem',
                     padding: '4px 8px',
                     border: '1px solid rgba(248, 113, 113, 0.3)',
                     background: 'rgba(248, 113, 113, 0.08)',
                   }}
-                  title="Switch or sign out of Google account"
+                  title="Switch or sign out of account"
                 >
                   Sign Out
                 </button>
@@ -307,10 +307,10 @@ export default function ProfileModal({ isOpen, onClose }) {
                   <span style={{ fontSize: '1.25rem' }}>👤</span>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700 }}>
-                      Playing in Guest Mode
+                      Playing in Guest Mode ({authUser?.id || 'Temporary'})
                     </span>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      Connect Google Mail to save career progress permanently
+                      Create an account to save your rank and stats permanently
                     </span>
                   </div>
                 </div>
@@ -333,7 +333,7 @@ export default function ProfileModal({ isOpen, onClose }) {
                     cursor: 'pointer',
                   }}
                 >
-                  Connect Google
+                  Sign In / Register
                 </button>
               </div>
             )}

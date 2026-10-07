@@ -32,3 +32,5 @@ lerna-debug.log*
 *.sw?
 Thumbs.db
 test-results/
+*.tmp
+server/data/*.tmp
