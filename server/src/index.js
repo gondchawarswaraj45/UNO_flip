@@ -91,9 +91,11 @@ app.post('/api/users/profile', async (req, res) => {
   }
 });
 
-// Serve the built Vite client in production
-if (process.env.NODE_ENV === 'production') {
-  const clientDist = path.resolve(__dirname, '../../client/dist');
+// Serve the built Vite client in production (or whenever client/dist exists)
+const fs = require('fs');
+const clientDist = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDist)) {
+  console.log(`[Server] Serving static client build from ${clientDist}`);
   app.use(express.static(clientDist));
   app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }

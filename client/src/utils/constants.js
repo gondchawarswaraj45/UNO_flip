@@ -90,7 +90,11 @@ export const CARD_SYMBOL = {
   SKIP_EVERYONE: '⊘⊘',
 };
 
-export const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+export const SERVER_URL =
+  import.meta.env.VITE_SERVER_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? window.location.origin
+    : 'http://localhost:3001');
 
 /** Light colors available per colorMode */
 export const LIGHT_COLORS_BY_MODE = {
