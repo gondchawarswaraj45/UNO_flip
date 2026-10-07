@@ -32,21 +32,24 @@ class GameRepository {
   /**
    * Upsert a user / player profile
    */
-  async upsertUser(userId, username, avatar = null) {
+  async upsertUser(userId, username, avatar = null, email = null) {
     if (!userId) return null;
     const now = new Date().toISOString();
 
     if (isConfigured && supabase) {
       try {
+        const payload = {
+          id: userId,
+          username: username || 'Player',
+          avatar: avatar || null,
+          avatar_url: avatar || null,
+          last_seen_at: now,
+        };
+        if (email) payload.email = email;
+
         const { data, error } = await supabase
           .from('users')
-          .upsert({
-            id: userId,
-            username: username || 'Player',
-            avatar: avatar || null,
-            avatar_url: avatar || null,
-            last_seen_at: now,
-          }, { onConflict: 'id' })
+          .upsert(payload, { onConflict: 'id' })
           .select()
           .single();
 
@@ -69,6 +72,7 @@ class GameRepository {
       id: userId,
       username: username || 'Player',
       avatar: avatar || null,
+      email: email || memoryStore.users.get(userId)?.email || null,
       created_at: memoryStore.users.get(userId)?.created_at || now,
       last_seen_at: now,
     };

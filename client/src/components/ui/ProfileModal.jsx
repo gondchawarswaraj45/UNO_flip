@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import useGameStore from '../../store/gameStore';
 import sound from '../../utils/audio';
 import { toast } from 'react-hot-toast';
+import { GoogleIcon } from '../screens/LoginScreen';
 
 export const AVATAR_OPTIONS = [
   { id: '👑', label: 'Monarch' },
@@ -39,7 +40,7 @@ export const FRAME_STYLES = [
 ];
 
 export default function ProfileModal({ isOpen, onClose }) {
-  const { profile, updateProfile, myUserId } = useGameStore();
+  const { profile, updateProfile, myUserId, authUser, logout } = useGameStore();
 
   const [name, setName] = useState(profile.username || 'Player');
   const [selectedAvatar, setSelectedAvatar] = useState(profile.avatar || '👑');
@@ -241,6 +242,53 @@ export default function ProfileModal({ isOpen, onClose }) {
         {/* Tab 1: Customize Profile */}
         {activeTab === 'profile' && (
           <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
+            {/* Connected Google Account Pill */}
+            {authUser?.email && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <GoogleIcon size={18} />
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      Connected Google Account
+                    </span>
+                    <span style={{ fontSize: '0.84rem', fontWeight: 600, color: '#f1f5f9' }}>
+                      {authUser.email}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    sound.buttonClick();
+                    onClose();
+                    logout();
+                    toast('Signed out from Google account', { icon: '👋' });
+                  }}
+                  style={{
+                    color: '#f87171',
+                    fontSize: '0.72rem',
+                    padding: '4px 8px',
+                    border: '1px solid rgba(248, 113, 113, 0.3)',
+                    background: 'rgba(248, 113, 113, 0.08)',
+                  }}
+                  title="Switch or sign out of Google account"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+
             {/* Username Input */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>

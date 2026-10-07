@@ -27,6 +27,8 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
     toggleSound,
     memesEnabled,
     toggleMemes,
+    authUser,
+    logout,
     setShowLeaderboard,
     setShowProfileModal,
     setShowRulesModal,
@@ -299,6 +301,28 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
         >
           {soundEnabled ? '🔊' : '🔇'}
         </button>
+
+        {authUser && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              sound.buttonClick();
+              logout();
+              toast('Signed out from Google account', { icon: '👋' });
+            }}
+            title={`Sign Out (${authUser.email || ''})`}
+            style={{
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-lg)',
+              color: '#f87171',
+              border: '1px solid rgba(248, 113, 113, 0.25)',
+              background: 'rgba(248, 113, 113, 0.08)',
+            }}
+          >
+            <span>🚪</span>
+            <span style={{ fontSize: '0.78rem', display: 'none' }} className="sm-inline">Logout</span>
+          </button>
+        )}
       </div>
     </div>
   );

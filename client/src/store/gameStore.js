@@ -41,16 +41,34 @@ const defaultProfile = {
   highestStreak: 0,
 };
 
+const getStoredAuthUser = () => {
+  try {
+    const raw = localStorage.getItem('uno_auth_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+};
+
 const getStoredProfile = (userId) => {
   try {
     const raw = localStorage.getItem('uno_player_profile');
     const legacyName = localStorage.getItem('uno_persistent_user_name') || '';
+    const authUser = getStoredAuthUser();
     if (raw) {
       const parsed = JSON.parse(raw);
       if (!parsed.username && legacyName) parsed.username = legacyName;
-      return { ...defaultProfile, ...parsed, userId };
+      if (authUser?.name && !parsed.username) parsed.username = authUser.name;
+      if (authUser?.avatar) parsed.avatar = authUser.avatar;
+      return { ...defaultProfile, ...parsed, userId, email: authUser?.email || '' };
     }
-    return { ...defaultProfile, userId, username: legacyName || 'Player' };
+    return {
+      ...defaultProfile,
+      userId,
+      username: authUser?.name || legacyName || 'Player',
+      avatar: authUser?.avatar || '👑',
+      email: authUser?.email || '',
+    };
   } catch (_) {
     return { ...defaultProfile, userId, username: 'Player' };
   }
@@ -58,7 +76,8 @@ const getStoredProfile = (userId) => {
 
 // ─── Store Definition ────────────────────────────────────────────────────────
 
-const initialUserId = getStoredUserId();
+const initialAuthUser = getStoredAuthUser();
+const initialUserId = initialAuthUser?.userId || getStoredUserId();
 const initialProfile = getStoredProfile(initialUserId);
 
 const useGameStore = create((set, get) => ({
@@ -67,6 +86,62 @@ const useGameStore = create((set, get) => ({
   connected: false,
   setSocket: (socket) => set({ socket }),
   setConnected: (v) => set({ connected: v }),
+
+  // ─── Authentication (Google Mail) ──────────────────────────────────────────
+  authUser: initialAuthUser,
+  isAuthenticated: Boolean(initialAuthUser && initialAuthUser.email),
+
+  loginWithGoogle: (userData) => {
+    const email = userData.email || '';
+    const userId = userData.userId || ('goog_' + (userData.sub || Math.random().toString(36).substring(2, 9)));
+    const name = userData.name || (email ? email.split('@')[0] : 'Player');
+    const avatar = userData.avatar || userData.picture || '👑';
+
+    const authPayload = {
+      userId,
+      email,
+      name,
+      avatar,
+      provider: 'google',
+      loginAt: Date.now(),
+    };
+
+    try {
+      localStorage.setItem('uno_auth_user', JSON.stringify(authPayload));
+      localStorage.setItem('uno_persistent_user_id', userId);
+      localStorage.setItem('uno_persistent_user_name', name);
+    } catch (_) {}
+
+    set((state) => ({
+      authUser: authPayload,
+      isAuthenticated: true,
+      myUserId: userId,
+      myName: name,
+      profile: {
+        ...state.profile,
+        userId,
+        username: name,
+        avatar,
+        email,
+      },
+    }));
+
+    get().updateProfile({ username: name, avatar, email, userId });
+  },
+
+  logout: () => {
+    try {
+      localStorage.removeItem('uno_auth_user');
+    } catch (_) {}
+    set({
+      authUser: null,
+      isAuthenticated: false,
+      screen: 'LANDING',
+      gameState: null,
+      lobbyState: null,
+      roomId: null,
+    });
+  },
 
   // ─── Identity & Permanent Profile ───────────────────────────────────────────
   myUserId: initialUserId,
@@ -111,6 +186,7 @@ const useGameStore = create((set, get) => ({
           userId: updated.userId || get().myUserId,
           username: updated.username,
           avatar: updated.avatar,
+          email: updated.email || get().authUser?.email || null,
         }),
       }).catch(() => {});
     } catch (_) {}

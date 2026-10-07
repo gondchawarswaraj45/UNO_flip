@@ -87,9 +87,9 @@ app.get('/api/matches/recent', async (req, res) => {
 // Upsert user profile
 app.post('/api/users/profile', async (req, res) => {
   try {
-    const { userId, username, avatar } = req.body;
+    const { userId, username, avatar, email } = req.body;
     if (!userId || !username) return res.status(400).json({ ok: false, error: 'MISSING_FIELDS' });
-    const user = await repository.upsertUser(userId, username, avatar);
+    const user = await repository.upsertUser(userId, username, avatar, email);
     res.json({ ok: true, user });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

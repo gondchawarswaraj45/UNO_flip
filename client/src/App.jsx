@@ -8,6 +8,7 @@ import { Toaster } from 'react-hot-toast';
 import { useSocket } from './hooks/useSocket';
 import useGameStore from './store/gameStore';
 
+import LoginScreen   from './components/screens/LoginScreen';
 import LandingScreen from './components/screens/LandingScreen';
 import LobbyScreen   from './components/screens/LobbyScreen';
 import GameScreen    from './components/screens/GameScreen';
@@ -18,6 +19,7 @@ export default function App() {
   useSocket();
 
   const screen = useGameStore(s => s.screen);
+  const isAuthenticated = useGameStore(s => s.isAuthenticated);
 
   return (
     <>
@@ -36,10 +38,13 @@ export default function App() {
         }}
       />
 
-      {screen === 'LANDING' && <LandingScreen />}
-      {screen === 'LOBBY'   && <LobbyScreen   />}
-      {screen === 'GAME'    && <GameScreen     />}
-      {screen === 'RESULT'  && <ResultScreen   />}
+      {/* First-time Google Mail Authentication Gate */}
+      {!isAuthenticated && <LoginScreen />}
+
+      {isAuthenticated && screen === 'LANDING' && <LandingScreen />}
+      {isAuthenticated && screen === 'LOBBY'   && <LobbyScreen   />}
+      {isAuthenticated && screen === 'GAME'    && <GameScreen     />}
+      {isAuthenticated && screen === 'RESULT'  && <ResultScreen   />}
     </>
   );
 }
