@@ -40,7 +40,7 @@ export const FRAME_STYLES = [
 ];
 
 export default function ProfileModal({ isOpen, onClose }) {
-  const { profile, updateProfile, myUserId, authUser, logout } = useGameStore();
+  const { profile, updateProfile, myUserId, authUser, logout, isGuest, openLoginScreen } = useGameStore();
 
   const [name, setName] = useState(profile.username || 'Player');
   const [selectedAvatar, setSelectedAvatar] = useState(profile.avatar || '👑');
@@ -285,6 +285,55 @@ export default function ProfileModal({ isOpen, onClose }) {
                   title="Switch or sign out of Google account"
                 >
                   Sign Out
+                </button>
+              </div>
+            )}
+
+            {/* Guest Mode Notice & Upgrade Pill */}
+            {isGuest && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: '1.25rem' }}>👤</span>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700 }}>
+                      Playing in Guest Mode
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Connect Google Mail to save career progress permanently
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    sound.buttonClick();
+                    onClose();
+                    openLoginScreen();
+                  }}
+                  style={{
+                    background: '#38bdf8',
+                    color: '#0f172a',
+                    fontWeight: 700,
+                    fontSize: '0.74rem',
+                    padding: '5px 10px',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Connect Google
                 </button>
               </div>
             )}

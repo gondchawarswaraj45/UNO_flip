@@ -87,9 +87,10 @@ const useGameStore = create((set, get) => ({
   setSocket: (socket) => set({ socket }),
   setConnected: (v) => set({ connected: v }),
 
-  // ─── Authentication (Google Mail) ──────────────────────────────────────────
+  // ─── Authentication & Guest State Management ──────────────────────────────
   authUser: initialAuthUser,
-  isAuthenticated: Boolean(initialAuthUser && initialAuthUser.email),
+  isAuthenticated: Boolean(initialAuthUser && (initialAuthUser.email || initialAuthUser.isGuest)),
+  isGuest: Boolean(initialAuthUser?.isGuest),
 
   loginWithGoogle: (userData) => {
     const email = userData.email || '';
@@ -103,6 +104,7 @@ const useGameStore = create((set, get) => ({
       name,
       avatar,
       provider: 'google',
+      isGuest: false,
       loginAt: Date.now(),
     };
 
@@ -115,6 +117,8 @@ const useGameStore = create((set, get) => ({
     set((state) => ({
       authUser: authPayload,
       isAuthenticated: true,
+      isGuest: false,
+      screen: 'LANDING',
       myUserId: userId,
       myName: name,
       profile: {
@@ -129,6 +133,56 @@ const useGameStore = create((set, get) => ({
     get().updateProfile({ username: name, avatar, email, userId });
   },
 
+  loginAsGuest: (customName) => {
+    const guestId = 'guest_' + Math.random().toString(36).substring(2, 8);
+    const guestName = customName || 'Guest ' + Math.floor(1000 + Math.random() * 9000);
+
+    const authPayload = {
+      userId: guestId,
+      email: null,
+      name: guestName,
+      avatar: '👤',
+      isGuest: true,
+      provider: 'guest',
+      loginAt: Date.now(),
+    };
+
+    try {
+      localStorage.setItem('uno_auth_user', JSON.stringify(authPayload));
+      localStorage.setItem('uno_persistent_user_id', guestId);
+      localStorage.setItem('uno_persistent_user_name', guestName);
+    } catch (_) {}
+
+    set((state) => ({
+      authUser: authPayload,
+      isAuthenticated: true,
+      isGuest: true,
+      screen: 'LANDING',
+      myUserId: guestId,
+      myName: guestName,
+      profile: {
+        ...state.profile,
+        userId: guestId,
+        username: guestName,
+        avatar: '👤',
+        email: null,
+      },
+    }));
+
+    get().updateProfile({ username: guestName, avatar: '👤', userId: guestId });
+  },
+
+  openLoginScreen: () => set({ screen: 'LOGIN' }),
+
+  closeLoginScreen: () => {
+    const { isAuthenticated } = get();
+    if (isAuthenticated) {
+      set({ screen: 'LANDING' });
+    } else {
+      get().loginAsGuest();
+    }
+  },
+
   logout: () => {
     try {
       localStorage.removeItem('uno_auth_user');
@@ -136,7 +190,8 @@ const useGameStore = create((set, get) => ({
     set({
       authUser: null,
       isAuthenticated: false,
-      screen: 'LANDING',
+      isGuest: false,
+      screen: 'LOGIN',
       gameState: null,
       lobbyState: null,
       roomId: null,

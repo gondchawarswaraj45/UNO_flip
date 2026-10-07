@@ -21,6 +21,8 @@ export default function App() {
   const screen = useGameStore(s => s.screen);
   const isAuthenticated = useGameStore(s => s.isAuthenticated);
 
+  const showLogin = screen === 'LOGIN' || !isAuthenticated;
+
   return (
     <>
       <Toaster
@@ -38,13 +40,13 @@ export default function App() {
         }}
       />
 
-      {/* First-time Google Mail Authentication Gate */}
-      {!isAuthenticated && <LoginScreen />}
+      {/* Google Mail Login & Guest Selection Portal */}
+      {showLogin && <LoginScreen />}
 
-      {isAuthenticated && screen === 'LANDING' && <LandingScreen />}
-      {isAuthenticated && screen === 'LOBBY'   && <LobbyScreen   />}
-      {isAuthenticated && screen === 'GAME'    && <GameScreen     />}
-      {isAuthenticated && screen === 'RESULT'  && <ResultScreen   />}
+      {!showLogin && screen === 'LANDING' && <LandingScreen />}
+      {!showLogin && screen === 'LOBBY'   && <LobbyScreen   />}
+      {!showLogin && screen === 'GAME'    && <GameScreen     />}
+      {!showLogin && screen === 'RESULT'  && <ResultScreen   />}
     </>
   );
 }

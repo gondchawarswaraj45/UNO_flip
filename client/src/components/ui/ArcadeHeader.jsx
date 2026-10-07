@@ -28,7 +28,9 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
     memesEnabled,
     toggleMemes,
     authUser,
+    isGuest,
     logout,
+    openLoginScreen,
     setShowLeaderboard,
     setShowProfileModal,
     setShowRulesModal,
@@ -302,7 +304,33 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
           {soundEnabled ? '🔊' : '🔇'}
         </button>
 
-        {authUser && (
+        {isGuest && (
+          <button
+            className="btn btn-sm"
+            onClick={() => {
+              sound.buttonClick();
+              openLoginScreen();
+            }}
+            title="Sign in with Google Mail to save your career progress"
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-lg)',
+              color: '#38bdf8',
+              border: '1px solid rgba(56, 189, 248, 0.4)',
+              background: 'rgba(56, 189, 248, 0.12)',
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <span>🔑</span>
+            <span className="sm-inline">Google Sign In</span>
+          </button>
+        )}
+
+        {authUser && !isGuest && (
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => {

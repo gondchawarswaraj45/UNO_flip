@@ -1,11 +1,12 @@
 /**
- * LoginScreen — Studio-grade Google Mail Authentication & Signup Portal.
+ * LoginScreen — Official Google Mail Authentication & Guest Portal.
  *
  * Requirements:
- *  - First-time user MUST login/signup using Google Mail before accessing the game.
- *  - Supports both official Google Identity Services (GSI) OAuth popup & One-Tap,
- *    and instant Google Mail verification for fast zero-friction onboarding.
- *  - Beautiful luxury casino felt aesthetic with 3D glowing dual-sided card visuals.
+ *  - Real Google Mail verification (@gmail.com / @googlemail.com only).
+ *  - Official Google Identity Services OAuth 2.0 popup / button.
+ *  - First-class "Play as Guest (No Login Required)" option.
+ *  - Prominent "← Back" button to return to the game hub anytime.
+ *  - Flawless Zustand state management (isGuest, authUser, isAuthenticated, screen).
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -14,6 +15,8 @@ import sound from '../../utils/audio';
 import { toast } from 'react-hot-toast';
 import {
   initGoogleIdentityServices,
+  triggerGoogleOAuthPopup,
+  validateRealGmailAddress,
   getGoogleClientId,
   setCustomGoogleClientId,
 } from '../../services/googleAuth';
@@ -42,19 +45,20 @@ export function GoogleIcon({ size = 22 }) {
   );
 }
 
-const DEMO_GOOGLE_ACCOUNTS = [
-  { name: 'Swaraj Gamer', email: 'swaraj.uno@gmail.com', avatar: '👑' },
-  { name: 'Card Master', email: 'cardmaster.flip@gmail.com', avatar: '🃏' },
-  { name: 'Neon Duelist', email: 'neon.duelist@gmail.com', avatar: '⚡' },
-];
-
 export default function LoginScreen() {
-  const { loginWithGoogle } = useGameStore();
+  const {
+    loginWithGoogle,
+    loginAsGuest,
+    closeLoginScreen,
+    isAuthenticated,
+    isGuest,
+  } = useGameStore();
 
   const [emailInput, setEmailInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('👑');
   const [hasGsiButton, setHasGsiButton] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const [showConfig, setShowConfig] = useState(false);
   const [customClientId, setCustomClientId] = useState(getGoogleClientId());
   const [loading, setLoading] = useState(false);
@@ -69,16 +73,18 @@ export default function LoginScreen() {
         toast.success(`Welcome, ${googleUser.name}! (Signed in with Google)`);
         loginWithGoogle(googleUser);
       },
-      buttonContainerId: 'google-btn-slot',
+      buttonContainerId: 'google-official-btn-slot',
     });
 
     setHasGsiButton(Boolean(initialized));
   }, [customClientId]);
 
-  // Auto-fill display name when user types their email
+  // Real-time email input handling & username derivation
   function handleEmailChange(e) {
     const val = e.target.value;
     setEmailInput(val);
+    setValidationError('');
+
     if (!nameInput || nameInput === emailInput.split('@')[0]) {
       const handle = val.split('@')[0];
       if (handle) {
@@ -87,26 +93,51 @@ export default function LoginScreen() {
     }
   }
 
-  // Handle direct Google Mail sign in
+  // Handle Google Sign-in: triggers Google OAuth popup if client ID configured, or verifies real Google mail
   function handleGoogleSubmit(e) {
     if (e) e.preventDefault();
     sound.buttonClick();
+    setValidationError('');
 
-    let cleanEmail = emailInput.trim();
-    if (!cleanEmail) {
-      toast.error('Please enter your Google Mail address');
-      return;
+    const clientId = getGoogleClientId();
+
+    // If Google Client ID is configured, trigger official Google popup
+    if (clientId && window.google?.accounts?.oauth2) {
+      setLoading(true);
+      const triggered = triggerGoogleOAuthPopup({
+        onUser: (googleUser) => {
+          setLoading(false);
+          sound.gameStart();
+          toast.success(`Welcome, ${googleUser.name}! Signed in via Google Mail 🌟`);
+          loginWithGoogle(googleUser);
+        },
+        onError: (err) => {
+          setLoading(false);
+          console.warn('[Google OAuth Error]:', err);
+          // If popup failed or cancelled, fallback to real email verification
+          verifyAndLoginRealEmail();
+        },
+      });
+
+      if (triggered) return;
     }
 
+    verifyAndLoginRealEmail();
+  }
+
+  // Strict verification: ONLY real Google Mail accounts (@gmail.com / @googlemail.com) work
+  function verifyAndLoginRealEmail() {
+    let cleanEmail = emailInput.trim();
+
     // Auto-append @gmail.com if domain is omitted
-    if (!cleanEmail.includes('@')) {
+    if (cleanEmail && !cleanEmail.includes('@')) {
       cleanEmail = `${cleanEmail}@gmail.com`;
     }
 
-    // Basic email sanity check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      toast.error('Please enter a valid Google Mail address');
+    const check = validateRealGmailAddress(cleanEmail);
+    if (!check.isValid) {
+      setValidationError(check.error);
+      toast.error(check.error, { id: 'auth-err', duration: 4000 });
       return;
     }
 
@@ -114,11 +145,11 @@ export default function LoginScreen() {
 
     const displayName =
       nameInput.trim() ||
-      cleanEmail.split('@')[0].charAt(0).toUpperCase() + cleanEmail.split('@')[0].slice(1);
+      check.email.split('@')[0].charAt(0).toUpperCase() + check.email.split('@')[0].slice(1);
 
     const googleUser = {
-      userId: 'goog_' + btoa(cleanEmail.toLowerCase()).replace(/=/g, '').slice(0, 16),
-      email: cleanEmail,
+      userId: 'goog_' + btoa(check.email.toLowerCase()).replace(/=/g, '').slice(0, 16),
+      email: check.email,
       name: displayName,
       avatar: selectedAvatar,
       provider: 'google',
@@ -133,17 +164,17 @@ export default function LoginScreen() {
     }, 400);
   }
 
-  // Quick preset login
-  function handleQuickLogin(account) {
+  // 1-Click Guest play
+  function handlePlayAsGuest() {
     sound.buttonClick();
-    loginWithGoogle({
-      userId: 'goog_' + btoa(account.email).replace(/=/g, '').slice(0, 16),
-      email: account.email,
-      name: account.name,
-      avatar: account.avatar,
-      provider: 'google',
-    });
-    toast.success(`Logged in as ${account.name} (${account.email})`);
+    toast('Entering arena as Guest... Have fun! 🎮', { icon: '👤' });
+    loginAsGuest(nameInput.trim() || undefined);
+  }
+
+  // Top Back button handler
+  function handleBack() {
+    sound.buttonClick();
+    closeLoginScreen();
   }
 
   function handleSaveClientId() {
@@ -162,7 +193,7 @@ export default function LoginScreen() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px 16px',
+        padding: '16px',
         overflowY: 'auto',
         zIndex: 100,
       }}
@@ -183,46 +214,79 @@ export default function LoginScreen() {
           position: 'relative',
           width: '100%',
           maxWidth: '460px',
-          background: 'rgba(15, 23, 42, 0.88)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+          background: 'rgba(15, 23, 42, 0.92)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
           border: '1px solid rgba(255, 255, 255, 0.12)',
           borderRadius: '24px',
-          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(245, 158, 11, 0.15)',
-          padding: '32px 28px',
+          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.75), 0 0 40px rgba(245, 158, 11, 0.15)',
+          padding: '28px 26px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           textAlign: 'center',
+          margin: 'auto',
         }}
       >
-        {/* Floating Dual-Face Mini Badge */}
+        {/* ── Top Navigation Bar: Back Button & Mode Pill ── */}
         <div
           style={{
-            display: 'inline-flex',
+            width: '100%',
+            display: 'flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '6px 14px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            borderRadius: 99,
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            marginBottom: 16,
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            color: '#fbbf24',
-            textTransform: 'uppercase',
+            justifyContent: 'space-between',
+            marginBottom: 18,
           }}
         >
-          <span>☀️ Light Side</span>
-          <span style={{ color: 'rgba(255,255,255,0.4)' }}>•</span>
-          <span style={{ color: '#ec4899' }}>🌙 Dark Side</span>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="btn btn-ghost btn-sm"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 12px',
+              borderRadius: 99,
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              color: '#e2e8f0',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            title="Return to Game Hub"
+          >
+            <span>←</span>
+            <span>Back to Game</span>
+          </button>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              borderRadius: 99,
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              color: '#fbbf24',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <span>☀️ LIGHT</span>
+            <span style={{ color: 'rgba(255,255,255,0.3)' }}>/</span>
+            <span style={{ color: '#ec4899' }}>🌙 DARK</span>
+          </div>
         </div>
 
         {/* Title & Brand */}
         <h1
           style={{
-            fontSize: '2.5rem',
+            fontSize: '2.4rem',
             fontWeight: 900,
             fontFamily: 'Outfit, system-ui, sans-serif',
             margin: '0 0 6px 0',
@@ -237,18 +301,17 @@ export default function LoginScreen() {
         <p
           style={{
             color: '#94a3b8',
-            fontSize: '0.92rem',
-            margin: '0 0 24px 0',
+            fontSize: '0.88rem',
+            margin: '0 0 20px 0',
             lineHeight: 1.45,
           }}
         >
-          Sign in with your Google Mail to join the 112-card arena, track career XP, and play with
-          friends worldwide.
+          Sign in with your Google Mail to track career XP and play online, or jump in instantly as a guest!
         </p>
 
         {/* Official Google Identity Services Button Container (if initialized) */}
         <div
-          id="google-btn-slot"
+          id="google-official-btn-slot"
           ref={buttonRef}
           style={{
             marginBottom: hasGsiButton ? 16 : 0,
@@ -258,7 +321,7 @@ export default function LoginScreen() {
           }}
         />
 
-        {/* Quick Google Mail Form */}
+        {/* Real Google Mail Form */}
         <form
           onSubmit={handleGoogleSubmit}
           style={{
@@ -270,26 +333,39 @@ export default function LoginScreen() {
           }}
         >
           <div>
-            <label
+            <div
               style={{
-                display: 'block',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: '#cbd5e1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
                 marginBottom: 6,
-                letterSpacing: '0.03em',
-                textTransform: 'uppercase',
               }}
             >
-              Google Mail Address
-            </label>
+              <label
+                style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  color: '#cbd5e1',
+                  letterSpacing: '0.03em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Google Mail Address <span style={{ color: '#f87171' }}>*</span>
+              </label>
+              <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>
+                @gmail.com only
+              </span>
+            </div>
+
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
                 background: 'rgba(30, 41, 59, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
+                border: validationError
+                  ? '1px solid #f87171'
+                  : '1px solid rgba(255, 255, 255, 0.15)',
                 borderRadius: '14px',
                 padding: '0 14px',
                 transition: 'border-color 0.2s',
@@ -298,7 +374,7 @@ export default function LoginScreen() {
               <GoogleIcon size={20} />
               <input
                 type="text"
-                placeholder="you@gmail.com"
+                placeholder="yourname@gmail.com"
                 value={emailInput}
                 onChange={handleEmailChange}
                 required
@@ -315,7 +391,11 @@ export default function LoginScreen() {
               />
               {!emailInput.includes('@') && emailInput.trim().length > 0 && (
                 <span
-                  onClick={() => setEmailInput(emailInput.trim() + '@gmail.com')}
+                  onClick={() => {
+                    const clean = emailInput.trim() + '@gmail.com';
+                    setEmailInput(clean);
+                    setValidationError('');
+                  }}
                   style={{
                     fontSize: '0.75rem',
                     background: 'rgba(255,255,255,0.1)',
@@ -330,6 +410,20 @@ export default function LoginScreen() {
                 </span>
               )}
             </div>
+
+            {validationError && (
+              <div
+                style={{
+                  color: '#f87171',
+                  fontSize: '0.75rem',
+                  marginTop: 6,
+                  lineHeight: 1.3,
+                  fontWeight: 500,
+                }}
+              >
+                ⚠️ {validationError}
+              </div>
+            )}
           </div>
 
           <div>
@@ -413,12 +507,12 @@ export default function LoginScreen() {
             </div>
           </div>
 
-          {/* Primary Action Button */}
+          {/* Primary Action Button: Sign In with Google Mail */}
           <button
             type="submit"
             disabled={loading}
             style={{
-              marginTop: 6,
+              marginTop: 4,
               width: '100%',
               display: 'flex',
               alignItems: 'center',
@@ -437,7 +531,7 @@ export default function LoginScreen() {
             }}
           >
             <GoogleIcon size={22} />
-            <span>{loading ? 'Signing in...' : 'Sign In with Google Mail'}</span>
+            <span>{loading ? 'Authenticating...' : 'Sign In with Google Mail'}</span>
           </button>
         </form>
 
@@ -448,54 +542,47 @@ export default function LoginScreen() {
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            margin: '22px 0 16px 0',
+            margin: '20px 0 16px 0',
           }}
         >
           <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.1)' }} />
-          <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>
-            OR QUICK DEMO LOGIN
+          <span style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 700, letterSpacing: '0.04em' }}>
+            OR PLAY WITHOUT LOGIN
           </span>
           <div style={{ flex: 1, height: 1, background: 'rgba(255, 255, 255, 0.1)' }} />
         </div>
 
-        {/* 1-Click Fast Presets */}
-        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {DEMO_GOOGLE_ACCOUNTS.map((acc) => (
-            <button
-              key={acc.email}
-              onClick={() => handleQuickLogin(acc)}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '12px',
-                padding: '8px 14px',
-                color: '#e2e8f0',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.2s',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: '1.2rem' }}>{acc.avatar}</span>
-                <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 600 }}>{acc.name}</div>
-                  <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{acc.email}</div>
-                </div>
-              </div>
-              <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>
-                Fast Play →
-              </span>
-            </button>
-          ))}
-        </div>
+        {/* ── First-Class Option: Play as Guest ── */}
+        <button
+          type="button"
+          onClick={handlePlayAsGuest}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(59, 130, 246, 0.22) 100%)',
+            border: '1px solid rgba(56, 189, 248, 0.4)',
+            borderRadius: '14px',
+            padding: '13px 18px',
+            color: '#38bdf8',
+            fontSize: '0.96rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 16px rgba(56, 189, 248, 0.15)',
+          }}
+        >
+          <span style={{ fontSize: '1.2rem' }}>🎮</span>
+          <span>Play as Guest (No Login Required)</span>
+          <span style={{ marginLeft: 'auto', fontSize: '1.1rem' }}>→</span>
+        </button>
 
-        {/* Optional Google Client ID Config Drawer Toggle */}
-        <div style={{ marginTop: 20 }}>
+        {/* Advanced Google Client ID settings toggle */}
+        <div style={{ marginTop: 18 }}>
           <button
+            type="button"
             onClick={() => setShowConfig(!showConfig)}
             style={{
               background: 'none',
@@ -506,7 +593,7 @@ export default function LoginScreen() {
               textDecoration: 'underline',
             }}
           >
-            {showConfig ? 'Hide OAuth Settings ▲' : '⚙️ Advanced: Custom Google Client ID ▼'}
+            {showConfig ? 'Hide OAuth Settings ▲' : '⚙️ Advanced: Google Cloud Client ID ▼'}
           </button>
         </div>
 
@@ -523,8 +610,7 @@ export default function LoginScreen() {
             }}
           >
             <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: 6 }}>
-              Paste your Google Cloud Console Web OAuth Client ID here (or set{' '}
-              <code>VITE_GOOGLE_CLIENT_ID</code> in Render):
+              Paste your Google Cloud Console Web OAuth Client ID:
             </div>
             <input
               type="text"
@@ -544,6 +630,7 @@ export default function LoginScreen() {
               }}
             />
             <button
+              type="button"
               onClick={handleSaveClientId}
               style={{
                 width: '100%',
@@ -565,7 +652,7 @@ export default function LoginScreen() {
         {/* Security & Feature Badges Footer */}
         <div
           style={{
-            marginTop: 20,
+            marginTop: 18,
             display: 'flex',
             justifyContent: 'center',
             gap: 16,
@@ -573,11 +660,11 @@ export default function LoginScreen() {
             color: '#64748b',
           }}
         >
-          <span>🔒 Google Identity</span>
+          <span>🔒 Google Mail Only</span>
+          <span>•</span>
+          <span>👤 Guest Mode Ready</span>
           <span>•</span>
           <span>🤖 Groq AI Referee</span>
-          <span>•</span>
-          <span>⚡ Real-Time WebSockets</span>
         </div>
       </div>
     </div>
