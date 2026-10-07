@@ -320,4 +320,8 @@ const useGameStore = create((set, get) => ({
     }),
 }));
 
+if (typeof window !== 'undefined') {
+  window.__useGameStore = useGameStore;
+}
+
 export default useGameStore;

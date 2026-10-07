@@ -31,3 +31,4 @@ lerna-debug.log*
 *.sln
 *.sw?
 Thumbs.db
+test-results/

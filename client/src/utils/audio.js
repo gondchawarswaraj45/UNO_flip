@@ -87,6 +87,11 @@ class SoundEngine {
     osc.stop(now + 0.11);
   }
 
+  /** Alias for dealing cards */
+  dealCard() {
+    this.drawCard();
+  }
+
   /** Riffle card shuffle sound effect */
   shuffleDeck() {
     if (!this.enabled) return;
