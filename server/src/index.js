@@ -25,15 +25,20 @@ process.on('unhandledRejection', (reason, promise) => {
 const app    = express();
 const server = http.createServer(app);
 
-// Allow the Vite dev server (port 5173) and any same-origin production request
+// Dynamic CORS supporting local dev, PWA standalone, Render, Vercel, and custom domains
+const clientOrigin = process.env.CLIENT_ORIGIN;
+const corsOrigin = clientOrigin
+  ? (clientOrigin.includes(',') ? clientOrigin.split(',').map((s) => s.trim()) : clientOrigin)
+  : true;
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_ORIGIN || ['http://localhost:5173', 'http://localhost:3000'],
+    origin: corsOrigin,
     methods: ['GET', 'POST'],
   },
 });
 
-app.use(cors());
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
 const repository = require('./db/repository');

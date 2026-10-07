@@ -26,8 +26,10 @@ export function useSocket() {
     if (socketRef.current) return; // already initialized
 
     const socket = io(SERVER_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       autoConnect: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
     });
 
     socketRef.current = socket;
