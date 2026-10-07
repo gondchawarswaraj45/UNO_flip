@@ -102,7 +102,8 @@ const clientDist = path.resolve(__dirname, '../../client/dist');
 if (fs.existsSync(clientDist)) {
   console.log(`[Server] Serving static client build from ${clientDist}`);
   app.use(express.static(clientDist));
-  app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+  // Express 5 compatible catch-all route for SPA client navigation
+  app.get('{*splat}', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }
 
 // Register all Socket.IO event handlers
