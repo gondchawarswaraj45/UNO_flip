@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "UNO Flip — Official 112-Card Double-Sided Real-Time Arena",
   "scripts": {
-    "install:all": "npm --prefix server install && npm --prefix client install",
-    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
+    "install:all": "npm --prefix server install && npm --prefix client install --include=dev",
+    "build": "npm --prefix client install --include=dev && npm --prefix client run build && npm --prefix server install",
     "start": "node server/src/index.js",
     "server": "npm --prefix server start",
     "client": "npm --prefix client run dev",
