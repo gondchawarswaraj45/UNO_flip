@@ -6,6 +6,10 @@
 import React from 'react';
 import useGameStore from '../../store/gameStore';
 import { FRAME_STYLES } from '../ui/ProfileModal';
+import { ACTIVE_SIDE } from '../../utils/constants';
+import UnoFlipCard from './UnoFlipCard';
+import CardDualFace from './CardDualFace';
+
 
 export default function OpponentArea({ player, position }) {
   const { gameState, myPlayerId, activeReactions, botThinking, actionAlert } = useGameStore();
@@ -241,7 +245,7 @@ export default function OpponentArea({ player, position }) {
         )}
       </div>
 
-      {/* ── Finished Rank Badge OR Face-Down Fanned Mini Cards ── */}
+      {/* ── Finished Rank Badge OR Face-Down Fanned Mini Cards (using CardDualFace) ── */}
       {player.isFinished || player.rank ? (
         <div
           style={{
@@ -269,31 +273,38 @@ export default function OpponentArea({ player, position }) {
             alignItems: 'center',
             justifyContent: 'center',
             marginTop: -2,
+            position: 'relative',
           }}
         >
-          {Array.from({ length: maxVisible }).map((_, idx) => (
+          {/* Real Outward-Facing Card Backs in Authentic Mini Fan Layout */}
+          {(player.cardsBack && player.cardsBack.length > 0
+            ? player.cardsBack.slice(0, 5)
+            : Array.from({ length: maxVisible })
+          ).map((c, idx) => (
             <div
-              key={idx}
+              key={c?.id || idx}
               style={{
-                width: 26,
-                height: 38,
-                borderRadius: 6,
-                background: isDark
-                  ? 'linear-gradient(135deg, #181024 0%, #2e124d 100%)'
-                  : 'linear-gradient(135deg, #0e1726 0%, #1e293b 100%)',
-                border: `1px solid ${isDark ? 'rgba(168,85,247,0.4)' : 'rgba(229,185,76,0.4)'}`,
-                marginLeft: idx > 0 ? -16 : 0,
-                boxShadow: '0 3px 8px rgba(0,0,0,0.5)',
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.5rem',
-                color: isDark ? '#c084fc' : '#facc15',
-                zIndex: idx,
+                marginLeft: idx === 0 ? 0 : -14,
+                boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                borderRadius: 8,
+                transition: 'transform 0.2s ease',
+                zIndex: idx + 1,
               }}
+              title={
+                c && (isDark ? c.lightSide : c.darkSide)
+                  ? `Opponent Backside: ${(isDark ? c.lightSide : c.darkSide).color} ${(isDark ? c.lightSide : c.darkSide).type}`
+                  : 'Opponent Card'
+              }
             >
-              {isDark ? '◈' : '✦'}
+              <UnoFlipCard
+                card={c && c.lightSide ? c : {
+                  lightSide: { color: 'RED', type: 'NUMBER', value: 0 },
+                  darkSide: { color: 'PINK', type: 'DRAW_FIVE', value: null }
+                }}
+                activeSide={isDark ? ACTIVE_SIDE.LIGHT : ACTIVE_SIDE.DARK}
+                faceDown={false}
+                size="sm"
+              />
             </div>
           ))}
 
@@ -307,7 +318,8 @@ export default function OpponentArea({ player, position }) {
               fontWeight: 800,
               borderRadius: 99,
               padding: '1px 6px',
-              marginLeft: 4,
+              marginLeft: 6,
+              zIndex: 10,
             }}
           >
             {cardCount}

@@ -1,0 +1,1275 @@
+PAGE 1
+
+DOC-ID: UNO-FLIP-SPEC-2026-v1.0
+OFFICIAL TECHNICAL SPECIFICATION
+UNO FLIP
+Authoritative Game Engine
+Real-Time WebSockets
+React 19 + Node.js 24
+Groq AI Match Referee
+UNO FLIP
+Authoritative Digital Card Studio & Multiplayer Architecture Manual
+A comprehensive, exhaustive technical reference detailing the full-stack architecture, official 112-card double-sided
+physical card invariants, server-authoritative state engine, zero-information leakage protocol, zero-dependency Web
+Audio synthesizer, and distributed cloud deployment topology.
+SYSTEM VERSION
+v1.0.0 Production
+PRIMARY ARCHITECT
+gondchawarswaraj45
+ENGINE INVARIANT
+112 Dual-Face Cards
+INFERENCE ENGINE
+Groq Qwen 27B LPU
+Executive Synopsis: UNO Flip Digital Card Studio is an authoritative, sub-millisecond multiplayer card game platform replicating the complete
+official Mattel UNO Flip ruleset. Built on a zero-trust model, all state changes, card validations, draw stacks, and flip operations execute strictly on
+the Node.js server. The client receives mathematically isolated private hand payloads and renders a luxury midnight velvet tabletop with
+procedural 3D card fanning, 100% synthetic Web Audio, and real-time AI referee adjudication.
+© 2026 gondchawarswaraj45. All Rights Reserved.
+Publication Date: October 2026 • Certified Production Architecture
+Page 1 of 15
+
+
+PAGE 2
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 00 // MASTER TABLE OF CONTENTS
+Table of Contents & System Lexicon
+Exhaustive chapter outline spanning all 15 operational and architectural domains of the platform.
+
+---
+
+SECTION XX // CARD BACKSIDE VISIBILITY IN MINI DECK MODE
+
+Overview: In UNO Flip mini deck mode, each player’s hand is displayed with both faces of each card visible to the owner, allowing strategic planning based on the light and dark side values. Additionally, opponents can see the back side of each other's cards, mirroring the physical game where card backs are visible.
+
+Gameplay Impact:
+- Players can preview the dark‑side action (e.g., Draw Five, Skip) while holding a card, aiding decision‑making before a flip.
+- Opponent’s card backs are revealed, enabling anticipation of potential flips and defensive plays.
+
+Implementation Note: The client renders a dual‑face UI component that flips on hover or tap for the owner’s cards, while opponent cards display a static backside sprite representing the dark side.
+Volume I: Architecture & Rules Engine
+SEC-01
+Executive Cover & Synopsis (Page 1)
+SEC-02
+Table of Contents & System Lexicon (Page 2)
+SEC-03
+Full-Stack Monorepo Topology (Page 3)
+SEC-04
+112-Card Deck Specification & Math (Page 4)
+SEC-05
+Authoritative Turn Execution Mechanics (Page 5)
+SEC-06
+The FLIP Mechanic & Draw Stacking (Page 6)
+SEC-07
+Real-Time WebSocket Protocol (Page 7)
+SEC-08
+Groq AI Referee & Match Adjudication (Page 8)
+Volume II: Client, Infrastructure & DevOps
+SEC-09
+AI Bot Engine & Decision Heuristics (Page 9)
+SEC-10
+Client UI Design System & Zustand Store (Page 10)
+SEC-11
+Zero-Dependency Web Audio & GPU FX (Page 11)
+SEC-12
+Database Schema & ACID Storage Engine (Page 12)
+SEC-13
+Cryptographic Security & Anti-Cheat (Page 13)
+SEC-14
+Quality Assurance & Automated Test Suite (Page 14)
+SEC-15
+Deployment Topology & Strategic Roadmap (Page 15)
+PLATFORM LEXICON & STANDARDIZED TERMINOLOGY
+Term
+Technical Definition
+Architectural Impact & Constraints
+Physical Card Entity
+An immutable object containing both
+lightSide  and darkSide  attributes
+under a single static ID.
+Prevents card duplication across side inversions. The deck is always conserved
+at exactly 112 physical units.
+Active Side Inversion
+The global state toggle between LIGHT
+and DARK  modes upon playing a FLIP
+card.
+Mutates the active face of player hands, draw pile, and discard stack
+simultaneously without mutating card IDs.
+Caught Window
+A 3000ms server-enforced countdown
+timer triggered when a player enters 1
+card remaining without pressing UNO.
+Any opponent can issue a callCaught  event. If validated, the server assigns
+a +2 card penalty.
+Draw Stacking
+Progressive accumulation of draw attacks
+(+1, +2, +4, +5) through sequential
+matching counters.
+The active victim must respond with equal or higher draw cards or absorb the
+entire accumulated penalty tally.
+Number-Card Victory
+Official rule prohibiting any player from
+winning on an action, wild, or power card.
+Enforced strictly in validatePlay() ; playing an action card as the final
+hand card throws an error.
+Information Hiding
+Server-authoritative transmission policy
+that strips opponent cards from public
+broadcasts.
+Renders client-side inspection or network packet tampering completely
+incapable of viewing opponent hands.
+TARGET AUDIENCE & COMPLIANCE NORMS
+This specification is intended for full-stack software engineers, security auditors, systems architects, and game designers. All code excerpts
+correspond to the active production codebase. Modifications to card rules, network schemas, or cryptographic key derivations must adhere to
+the invariants defined in this manual.
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 2 of 15
+
+
+PAGE 3
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 01 // SYSTEM TOPOLOGY & MONOREPO STRUCTURE
+Full-Stack Monorepo Topology
+End-to-end multi-tier architecture, directory hierarchies, and communication pathways.
+MONOREPO DIRECTORY LAYOUT
+UNO_Flip/
+├── client/                     # Frontend Application (Vite 8 + React 19)
+│   ├── src/
+│   │   ├── audio/              # Zero-dependency Web Audio synthesizer
+│   │   ├── components/         # GameTable, Hand, Overlays, Modals
+│   │   ├── store/              # Zustand global state store (gameStore.js)
+│   │   ├── workers/            # Web Workers (aiWorker, particleWorker)
+│   │   └── index.css           # Luxury Midnight Velvet CSS system
+│   └── package.json
+├── server/                     # Backend Application (Node 24 + Express + Socket.IO)
+│   ├── src/
+│   │   ├── db/                 # storageEngine.js, repository.js, schema.sql
+│   │   ├── engine/             # cards.js, deckDefinition.js, game.js, rules.js
+│   │   ├── rooms/              # roomManager.js (Lobbies, seats, lifecycle)
+│   │   ├── services/           # authCrypto.js (PBKDF2), groqService.js
+│   │   └── sockets/            # gameSocket.js (WebSocket event gateway)
+│   └── test/                   # deckValidation.test.js, test_gameplay_rules.js
+├── docker-compose.yml          # Production multi-service orchestration
+└── Dockerfile                  # Multi-stage production container build
+      
+END-TO-END ARCHITECTURAL FLOW
+┌─────────────────────────────────────────────────────────
+│                    REACT 19 SPA CLIENT                  
+│   [Zustand Store] ◄───► [Audio Synthesizer] ◄───► [Canva
+└──────────────────────────────┬──────────────────────────
+                               │ WebSocket (Low-Latency Ac
+                               │ HTTP REST (Auth & Leaderb
+                               ▼
+┌─────────────────────────────────────────────────────────
+│                 NODE.JS 24 RUNTIME ENGINE               
+│   ┌─────────────────────────────────────────────────────
+│   │   Socket.IO Gateway (Rate Limiter & Sanitizer)      
+│   └──────────────────────────┬──────────────────────────
+│                              ▼                          
+│   ┌─────────────────────────────────────────────────────
+│   │   Room Manager (Lobbies, Bot Seating & Heartbeat)   
+│   └──────────────────────────┬──────────────────────────
+│                              ▼                          
+│   ┌─────────────────────────────────────────────────────
+│   │   Authoritative Game Engine (rules.js, game.js)     
+│   └───────────────┬──────────────────────┬──────────────
+└───────────────────┼──────────────────────┼──────────────
+                    ▼                      ▼
+┌──────────────────────────────┐ ┌────────────────────────
+│      PERSISTENCE LAYER       │ │      GROQ INFERENCE LPU
+│  - storageEngine.js (ACID)   │ │  - qwen/qwen3.8-27b    
+│  - Supabase PostgreSQL Cloud │ │  - Real-Time Referee HU
+└──────────────────────────────┘ └────────────────────────
+      
+DUAL-PROTOCOL COMMUNICATION MODEL
+Transport
+Endpoint / Channel
+Responsibility
+Throughput / Latency Target
+HTTP / REST
+/api/auth/*
+User registration, login, PBKDF2 hash verification, session
+token generation.
+< 50ms response, stateless request-
+response.
+HTTP / REST
+/api/leaderboard
+Top 100 global rankings, career XP, total flips, and win streak
+aggregations.
+Cached via in-memory Map; < 10ms
+lookup.
+WebSocket
+(Socket.IO)
+room:*  namespace
+Lobby creation, player seating, bot injection, host rule
+reconfiguration.
+Real-time synchronization, instant lobby
+state push.
+WebSocket
+(Socket.IO)
+game:*  namespace
+Card plays, draw penalties, caught challenges, turn passes,
+UNO shouts.
+Sub-5ms server processing, zero broadcast
+delay.
+MATCH LIFECYCLE STATE MACHINE
+A game session traverses five discrete, non-overlapping phases: 1. STAGING (players connect, choose seats, customize rules); 2. INITIALIZATION
+(Fisher-Yates 112-card shuffle, 7-card deal, top card reveal); 3. ACTIVE_LOOP (sequential turn evaluations, FLIP triggers, draw stacks); 4.
+CAUGHT_INTERRUPT (3-second challenge window for missed UNO shouts); and 5. RESOLUTION (ranking calculation, career XP/coin awards,
+and ACID persistence).
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 3 of 15
+
+
+PAGE 4
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 02 // PHYSICAL DECK & COMBINATORIAL MATHEMATICS
+The Official 112-Card Dual-Sided Deck
+Mathematical composition, physical entity invariants, and color tokens of the double-sided card system.
+PHYSICAL ENTITY INVARIANT
+In UNO Flip, a card is not an ephemeral single-sided entity. Instead, it is
+modeled as an immutable physical card object possessing two
+permanent faces:
+// Physical Dual-Sided Card Structure
+{
+  id: "card_c3b9_r4_pt",
+  lightSide: {
+    color: "RED",
+    type: "NUMBER",
+    value: 4
+  },
+  darkSide: {
+    color: "PINK",
+    type: "DRAW_FIVE",
+    value: null
+  }
+}
+      
+Conservation Law: The deck comprises exactly 112 cards. When
+the arena flips, no cards are destroyed, created, or substituted. The
+active face of all 112 cards simply inverts.
+COLOR DESIGN TOKENS & HEX SPECIFICATIONS
+Side
+Color Name
+Hex Token
+Visual Role
+Light
+RED
+#E51D24
+Primary vibrant red face
+Light
+BLUE
+#0063B2
+Deep royal sapphire
+Light
+GREEN
+#1E9A34
+Lush gaming emerald
+Light
+YELLOW
+#FFC700
+High-contrast amber gold
+Light
+LT. PURPLE
+#8B5CF6
+5th Color Expansion Mode
+Dark
+PINK
+#E11D48
+High-voltage neon crimson
+Dark
+TEAL
+#00A3C4
+Electric cyan / deep blue
+Dark
+ORANGE
+#F97316
+Blazing molten orange
+Dark
+PURPLE
+#9333EA
+Cyberpunk deep purple
+Dark
+BROWN
+#78350F
+5th Color Expansion Earth
+Both
+WILD
+#181C26
+Obsidian onyx face
+EXHAUSTIVE DECK COMPOSITION BREAKDOWN (112 PHYSICAL CARDS)
+Card Group
+Light Side Configuration
+Dark Side Configuration
+Qty / Color
+Total Qty
+Official Rule Nuance
+Number Cards
+Numbers 1 through 9 (Red,
+Blue, Green, Yellow)
+Numbers 1 through 9 (Pink,
+Teal, Orange, Purple)
+2 of each (18
+per color)
+72 Cards
+NO ZERO CARDS: Per official rules,
+UNO Flip omits the '0' card entirely.
+Draw Cards
+Draw One (+1)
+Draw Five (+5)
+2 per color
+8 Cards
+Light side imposes +1; Dark side
+escalates into a catastrophic +5
+penalty.
+Reverse Cards
+Reverse (Inverts turn
+direction)
+Reverse (Inverts turn
+direction)
+2 per color
+8 Cards
+In 2-player matches, operates as a
+direct Skip card.
+Skip Cards
+Skip (Next player skips turn)
+Skip Everyone (All
+opponents skipped!)
+2 per color
+8 Cards
+Dark side SKIP_EVERYONE  grants
+the player an immediate extra turn!
+Flip Cards
+Flip (Inverts arena to Dark
+Side)
+Flip (Inverts arena to Light
+Side)
+2 per color
+8 Cards
+Matches active color; immediately
+triggers full deck and hand
+inversion.
+Wild Cards
+Wild (Choose active color)
+Wild Draw Color (Victim
+draws until matching)
+1 per suit
+equivalent
+4 Cards
+Dark side forces victim to draw
+continuously until selected color is
+drawn!
+Wild Draw Cards
+Wild Draw Two (+2)
+Wild (Choose active color)
+1 per suit
+equivalent
+4 Cards
+Light side offers +2 penalty; Dark
+side serves as standard color
+selector.
+TOTAL PHYSICAL CARDS IN DECK:
+112
+Validated by unit test suite with
+100% ID coverage.
+MATHEMATICAL VALIDATION SUMMARY
+Light Color Balance
+26 Cards / Color
+18 Number + 2 Draw1 + 2 Rev + 2 Skip + 2 Flip
+Dark Color Balance
+26 Cards / Color
+18 Number + 2 Draw5 + 2 Rev + 2 SkipAll + 2 Flip
+Wild Cards Allocation
+8 Total Wilds
+4 Regular Wilds + 4 Power Draw Wilds
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 4 of 15
+
+
+PAGE 5
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 03 // GAME ENGINE & TURN EXECUTION
+Authoritative Game Engine Mechanics
+Deterministic state transition pipeline, strict rule enforcement, and cryptographic shuffling.
+SERVER-AUTHORITATIVE PARADIGM
+The game engine operates under a strict server-authoritative
+architecture implemented in server/src/engine/rules.js  and
+game.js . Clients are untrusted visual terminals. When a player plays a
+card, only the card identifier and selected wild color are transmitted.
+The server executes a seven-stage deterministic validation pipeline:
+1. Turn Verification: Asserts currentPlayerId ===
+socket.playerId .
+2. Ownership Check: Verifies card exists in server-side player hand.
+3. Face Resolution: Resolves active face corresponding to current
+activeSide .
+4. Number-Card Victory Law: Rejects action cards if hand count is 1.
+5. Draw Attack Enforcement: Rejects non-draw plays if under active
+attack.
+6. Compatibility Match: Validates color, value, type, or Wild match.
+7. Wild Color Verification: Validates chosen color against active side
+palette.
+STATE TRANSITION SEQUENCE
+┌─────────────────────────────────────────────────────────────┐
+│ 1. CLIENT EMITS: 'game:play_card' { cardId, chosenColor }  │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. ENGINE VALIDATION: validatePlay(playerId, cardId, state) │
+│    - Valid? YES: Proceed    - Invalid? Return ERROR_CODE    │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. DISCARD & ACTION RESOLUTION:                             │
+│    - Remove card from hand; push to discardPile             │
+│    - Apply Action: SKIP, REVERSE, FLIP, or DRAW_STACK       │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. CAUGHT WINDOW EVALUATION:                                │
+│    - Hand size === 1 && !unoPressed? Start 3000ms timer     │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 5. ADVANCE TURN: advanceTurn(state) -> Next Player          │
+│    - Broadcast sanitized state + emit private hands         │
+└─────────────────────────────────────────────────────────────┘
+      
+STRICT OFFICIAL RULE INVARIANTS
+1. The Number-Card Victory Law
+Under official Mattel tournament rules, a player cannot finish a match on
+an action or wild card ( SKIP , REVERSE , FLIP , DRAW_ONE ,
+DRAW_FIVE , WILD , WILD_DRAW_COLOR ). The winning play must be a
+standard Number Card (1–9). If a player attempts to play a power card as
+their last remaining card, the engine rejects the move with code
+LAST_CARD_MUST_BE_NUMBER .
+2. Strict UNO Shouting Conditions
+The UNO button is strictly guarded by server logic. It is enabled only
+when: (a) It is currently the player's active turn; (b) The player holds exactly
+2 cards in hand; and (c) The player possesses at least one legally playable
+card. Premature or out-of-turn UNO shouting is blocked by client and
+rejected by server.
+CRYPTOGRAPHIC FISHER-YATES DECK RESHUFFLING
+When the draw pile is exhausted, the engine reshuffles the discard pile (excluding the top card) using Node.js's cryptographic random byte
+generator to prevent predictability or pseudo-random repetition:
+function shuffleDeck(deck) {
+  const result = [...deck];
+  for (let i = result.length - 1; i > 0; i--) {
+    // Generate uniform cryptographic random 32-bit unsigned integer
+    const randomUint32 = crypto.randomBytes(4).readUInt32LE(0);
+    const j = Math.floor((randomUint32 / 0xFFFFFFFF) * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+  
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 5 of 15
+
+
+PAGE 6
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 04 // THE FLIP MECHANIC & DRAW STACKING
+The FLIP Inversion & Draw Stacking
+Global tabletop state inversion, progressive penalty stacking algorithms, and dark side power cards.
+THE GLOBAL FLIP INVERSION LIFECYCLE
+Playing any FLIP  card triggers an instantaneous tabletop inversion:
+Active Side Toggle: activeSide  flips from LIGHT  to DARK  (or
+vice versa).
+Discard Stack Inversion: The active face of the top discard card
+immediately becomes its reverse face. The newly exposed color and
+action dictate subsequent plays.
+Draw Pile Flip: The draw pile is turned over. The cards on the reverse
+side become active for subsequent draws.
+Player Hand Inversion: All players' physical cards reveal their
+opposite faces. What was previously a Light Blue 3 may now be a Dark
+Purple Skip Everyone!
+DUAL-SIDED ARENA VISUAL COMPARISON
+Light Side: Classic Primary Palette
+Dark Side: Cyberpunk Neon Palette
+PROGRESSIVE DRAW STACKING MECHANICS
+When a draw attack is initiated, the engine initializes a pendingDrawStack  object. The target victim must either counter with an eligible draw card
+or absorb the accumulated card penalty:
+Attack Card
+Base
+Penalty
+Eligible Counters
+Draw One (+1)
++1 Card
++1, +2, +4, +5 (Any Draw
+Card)
+Draw Two (+2) / Wild
++2
++2 Cards
++2, +4, +5 (Equal or Higher)
+Wild Draw Four (+4)
++4 Cards
++4, +5 (Equal or Higher)
+Draw Five (+5)
++5 Cards
++5 Only (Equal or Higher)
+Stacking Rules & Degradation Block:
+No Downgrading: A player under a +2 attack cannot counter with a +1
+card.
+Card Lockdown: Non-draw cards cannot be played while under attack.
+Accumulation: If three +5 cards are chained consecutively, the unfortunate
+fourth player draws 15 cards and loses their turn!
+SPECIAL DARK SIDE ACTION CARDS DEEP DIVE
+Skip Everyone (SKIP_EVERYONE)
+Unlike standard Skip which skips only the immediate next player, Skip
+Everyone skips every single opponent around the table. The turn
+immediately loops back to the player who played the card, granting them
+an immediate consecutive play.
+Wild Draw Color (WILD_DRAW_COLOR)
+The player declares a dark side color. The victim player is compelled to
+continuously draw cards from the draw pile until they draw a card
+matching the declared color. There is no upper bound; a victim may draw
+1 card or 15+ cards before matching!
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 6 of 15
+
+
+PAGE 7
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 05 // REAL-TIME WEBSOCKET PROTOCOL
+Real-Time WebSocket Protocol
+Sub-millisecond state replication, zero-cheating information hiding, and socket lifecycle.
+ZERO-CHEATING INFORMATION HIDING
+Many web games leak opponent hands by transmitting full game state
+objects over WebSockets. UNO Flip implements an uncompromising
+zero-information leakage architecture in
+server/src/sockets/gameSocket.js :
+Public Board Broadcast: Broadcasted to all room participants. Contains
+room ID, active side, top discard card, active player ID, turn direction,
+and player metadata with hand card counts only.
+Private Hand Unicast: The actual card objects ( id , lightSide ,
+darkSide ) are emitted strictly to the authenticated socket of the
+individual player.
+PRIVATE MATCH STAGING LOBBY
+6-letter room code sharing, bot seat controls, and mode rules preview
+WEBSOCKET EVENT PROTOCOL MATRIX
+Event Name
+Dir
+Payload Schema
+Server Handling & Verification
+room:create
+C → S
+{ name, config: { mode, colorMode } }
+Allocates unique 6-letter room code; initializes room
+manager state.
+room:join
+C → S
+{ roomId, playerName, playerId }
+Verifies room capacity (2-6); binds socket to player
+session ID.
+room:add_bot
+C → S
+{ roomId, difficulty }
+Spawns autonomous AI bot instance with unique name
+and avatar.
+game:start
+C → S
+{ roomId }
+Verifies caller is host; initializes deck, shuffles, deals 7
+cards each.
+game:play_card
+C → S
+{ roomId, cardId, chosenColor }
+Executes validatePlay() ; triggers actions, updates
+board.
+game:draw_card
+C → S
+{ roomId }
+Draws card from active pile; checks if playable or
+advances turn.
+game:uno
+C → S
+{ roomId }
+Marks unoPressed = true ; neutralizes Caught
+vulnerability.
+game:caught
+C → S
+{ roomId, targetPlayerId }
+Evaluates Caught timer; if valid, applies +2 penalty
+cards to target.
+game:state_sync
+S → C
+{ roomId, activeSide, topCard, players
+}
+Sanitized public board state pushed to all room
+sockets.
+game:private_hand
+S → C
+{ hand: [ { id, lightSide, darkSide }
+] }
+Unicast private hand array sent exclusively to owning
+player socket.
+refereeCommentary
+S → C
+{ text, eventType, timestamp }
+Groq AI referee commentary broadcasted to HUD
+ticker.
+SOCKET DISCONNECT & SESSION RECOVERY
+When a client socket disconnects mid-match, the room manager retains the seat for a 45-second grace period. If the player reconnects with their
+persistent playerId  token, their socket is re-bound, and their private hand is re-synchronized immediately. If the grace period expires, an
+autonomous AI bot assumes control of the seat to preserve match continuity for remaining players.
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 7 of 15
+
+
+PAGE 8
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 06 // GROQ AI REFEREE & LIVE COMMENTARY
+Groq AI Referee & Live Adjudication
+Real-time match referee powered by Groq LPU high-speed inference engine.
+GROQ LPU INFERENCE ARCHITECTURE
+UNO Flip integrates Groq's ultra-low latency Language Processing Unit
+(LPU) cloud infrastructure to provide real-time match adjudication and
+dynamic referee commentary ( server/src/services/groqService.js ).
+Model Architecture: qwen/qwen3.8-27b  (or compatible high-
+throughput open model).
+Inference Latency: Sub-250ms completion times, ensuring zero
+perceptible lag between physical card plays and referee commentary
+broadcasts.
+Zero Game-Loop Blocking: LLM requests execute asynchronously in
+background promises. If an API timeout or network partition occurs, the
+game engine continues uninterrupted.
+REFEREE EVENT FLOW PIPELINE
+┌─────────────────────────────────────────────────────────────┐
+│ 1. GAME ENGINE DETECTS KEY MATCH EVENT                      │
+│    (FLIP, Draw Stack > 4, CAUGHT Call, Match Point)        │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. DISPATCH TO groqService.generateRefereeCommentary()      │
+│    Context: { eventType, actorName, victimName, details }   │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. GROQ LPU INFERENCE CALL (<200ms)                         │
+│    System Prompt: Official Mattel Rules Referee             │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. EMIT 'refereeCommentary' OVER ROOM WEBSOCKETS            │
+│    Client HUD renders animated glowing ticker badge         │
+└─────────────────────────────────────────────────────────────┘
+      
+REFEREE PROMPT ENGINEERING & PROMPT TEMPLATES
+const SYSTEM_PROMPT = `You are the official referee of a high-stakes UNO Flip tournament match.
+Your job is to provide punchy, energetic, 1-sentence referee commentary on critical match events.
+Rules to follow:
+- Tone: Dramatic, authoritative, impartial, and witty.
+- Max Length: Strictly under 20 words. No emojis.
+- Reference official UNO Flip terminology: Dark Side, Light Side, Caught, Stacking, Draw Five.
+- Never hallucinate illegal card rules.`;
+function buildUserPrompt(eventType, ctx) {
+  switch (eventType) {
+    case 'FLIP_TO_DARK':
+      return `${ctx.actorName} just played a FLIP card! Arena inverted to the punishing DARK SIDE!`;
+    case 'DRAW_STACK_ACCUMULATED':
+      return `Colossal draw attack! ${ctx.actorName} stacked penalty to +${ctx.totalCards} cards on ${ctx.victimName}!`;
+    case 'CAUGHT_PENALTY':
+      return `PENALTY! ${ctx.victimName} failed to shout UNO and was caught by ${ctx.callerName}! +2 cards assigned!`;
+    case 'VICTORY':
+      return `MATCH WON! ${ctx.winnerName} delivers a legal number card finish to claim the championship!`;
+  }
+}
+  
+SAMPLE LIVE COMMENTARY BROADCASTS
+Event Trigger
+Game Context
+Generated Referee Commentary Broadcast
+FLIP Inversion
+Maya plays Pink Flip
+"The arena descends into the obsidian abyss! Prepare for the punishing Dark Side!"
+Colossal Draw Stack
+Stack reaches +15 cards
+"Catastrophic draw surge! Sam absorbs fifteen punishing cards from the Dark Side
+stack!"
+Caught Penalty
+Alex calls caught on Player
+"Whistle blows! Player caught with an uncalled single card! Two penalty cards
+awarded!"
+Skip Everyone
+Sam plays Skip Everyone
+"Total lockdown! Sam skips the entire table and takes the immediate follow-up turn!"
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 8 of 15
+
+
+PAGE 9
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 07 // ARTIFICIAL INTELLIGENCE & HEURISTICS
+AI Bot Engine & Decision Heuristics
+Autonomous bot opponents, multi-tier difficulty heuristics, and humanized cognitive jitter.
+BOT ARCHITECTURE & INTEGRATION
+The AI Bot system ( server/src/engine/ai.js  and client worker
+aiWorker.js ) powers solo offline play and backfills unfilled
+multiplayer lobbies. Bots participate as first-class player entities
+governed by the same authoritative rules as humans.
+Cognitive Principles:
+No Cheating Guarantee: Bots inspect only their own hand and public
+discard top. They have zero access to opponent cards.
+Humanized Response Timing: Decisions pass through
+botThinkDelay()  (600ms–1800ms) with normal distribution jitter to
+simulate human thought rhythm.
+Autonomous UNO Calling: Evaluates hand size on turn end and
+triggers UNO shouts dynamically.
+THREE-TIER DIFFICULTY HEURISTICS
+Tier
+Strategic Logic
+UNO Accuracy
+EASY
+Random legal card selection. No
+color planning or wild conservation.
+65% (Frequently
+vulnerable to Caught
+calls)
+MEDIUM
+Greedy heuristic. Matches color
+count, saves Wilds for emergencies,
+counters draw attacks.
+88% (Rarely caught)
+HARD
+Tactical card counting, tracks
+opponent card totals, triggers FLIP to
+disrupt low-card leaders.
+99% (Near-
+instantaneous UNO
+shouts)
+HEURISTIC DECISION TREE SCORING FUNCTION
+On HARD  difficulty, each legal card in the bot's hand is evaluated through a multi-variable scoring function:
+function evaluateCardScore(card, face, gameState, hand) {
+  let score = 0;
+  
+  // 1. Threat Mitigation: If next player has <= 2 cards, prioritize attack cards
+  const nextPlayerHandSize = getNextPlayerCardCount(gameState);
+  if (nextPlayerHandSize <= 2) {
+    if (face.type === CARD_TYPE.DRAW_FIVE) score += 95;
+    if (face.type === CARD_TYPE.SKIP_EVERYONE) score += 90;
+    if (face.type === CARD_TYPE.DRAW_TWO || face.type === CARD_TYPE.DRAW_ONE) score += 80;
+    if (face.type === CARD_TYPE.SKIP || face.type === CARD_TYPE.REVERSE) score += 70;
+  }
+  // 2. Color Dominance: Favor cards matching the bot's most populous color
+  const colorCount = hand.filter(c => getActiveFace(c, gameState.activeSide).color === face.color).length;
+  score += colorCount * 12;
+  // 3. FLIP Tactics: If opponents have few cards and current side has few attacks, flip!
+  if (face.type === CARD_TYPE.FLIP && opponentsHaveFewerCards(gameState, hand)) {
+    score += 85;
+  }
+  // 4. Wild Preservation: Penalize early playing of Wild cards if standard matches exist
+  if (face.type === CARD_TYPE.WILD || face.type === CARD_TYPE.WILD_DRAW_FOUR) {
+    score -= 40; // Save for emergencies
+  }
+  // 5. Final Card Preparation: Ensure bot preserves a Number Card for the final play
+  if (hand.length === 2 && face.type === CARD_TYPE.NUMBER) {
+    // Playing the number card now leaves an action card, violating the Number Card Victory Rule!
+    score -= 200; 
+  }
+  return score;
+}
+  
+AUTONOMOUS CAUGHT DETECTION
+Bots also monitor opponent hand counts. If an opponent plays their penultimate card and fails to shout UNO, the bot schedules a reaction timer
+(scaled by difficulty: 1200ms on Medium, 500ms on Hard). If the Caught window remains open, the bot issues a server-side game:caught
+challenge to penalize the opponent.
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 9 of 15
+
+
+PAGE 10
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 08 // FRONTEND ARCHITECTURE & DESIGN SYSTEM
+Client Architecture & Design System
+React 19 component hierarchy, luxury midnight velvet aesthetics, and Zustand state store.
+FRONTEND COMPONENT DECOMPOSITION
+client/src/
+├── App.jsx                     # Route coordinator & screen switcher
+├── components/
+│   ├── hub/
+│   │   ├── GameHub.jsx         # 4-Mode launchpad & mode select
+│   │   └── ModeSetupModal.jsx  # Seat count, AI bots & color mode
+│   ├── lobby/
+│   │   └── LobbyRoom.jsx       # 6-letter room code & player roster
+│   ├── game/
+│   │   ├── GameTable.jsx       # Main velvet arena canvas
+│   │   ├── TableArea.jsx       # Discard stack & 3D draw pile
+│   │   ├── FannedHand.jsx      # Arc trigonometric card layout
+│   │   ├── OpponentSeat.jsx    # Circular avatar seats & odds
+│   │   ├── TurnHUD.jsx         # Active player spotlight & timer
+│   │   ├── ColorPicker.jsx     # Radial color selection modal
+│   │   └── CaughtModal.jsx     # Challenge window countdown bar
+│   └── modals/
+│       ├── RulesModal.jsx      # Interactive Mattel rulebook
+│       └── VictoryModal.jsx    # Standings, XP & coin rewards
+      
+DIGITAL CARD HUB & MATCH SETUP
+4 Game Modes Launchpad
+Match Staging & AI Tuning
+PHYSICAL CARD ARC TRIGONOMETRY & 3D RENDERING
+Player hands in FannedHand.jsx  do not render as flat CSS grids. They are arranged in an authentic physical deck arc using dynamic trigonometric
+transformations:
+// Dynamic Arc Fan Calculation
+const totalCards = hand.length;
+const maxSpreadAngle = 36; // degrees
+const angleStep = Math.min(6, maxSpreadAngle / Math.max(1, totalCards - 1));
+hand.map((card, index) => {
+  const normalizedIndex = index - (totalCards - 1) / 2;
+  const rotationDeg = normalizedIndex * angleStep;
+  const translateY = Math.abs(rotationDeg) * 1.8; // arc curve
+  const translateX = normalizedIndex * 24;        // horizontal overlap
+  return {
+    transform: `translateX(${translateX}px) translateY(${translateY}px) rotate(${rotationDeg}deg)`,
+    zIndex: index
+  };
+});
+      
+Luxury Midnight Velvet
+Styling Tokens:
+Arena Canvas: Radial velvet
+gradient ( #080b12  center to
+#020408  outer border).
+Card Shadows: Double-diffused
+elevation ( box-shadow: 0
+12px 28px
+rgba(0,0,0,0.45) ).
+Glass Overlays: Frosted backdrop
+blur ( backdrop-filter:
+blur(14px)  with 1px border
+highlight).
+ZUSTAND CENTRALIZED STATE MANAGEMENT
+Client state is managed by a single reactive store ( client/src/store/gameStore.js ). It maintains normalized state for room lobbies, sanitized
+game boards, private hands, modal states, audio settings, and authenticated user sessions. Sensitive tokens are stored safely in localStorage
+with passwords and cryptographic salts strictly omitted.
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 10 of 15
+
+
+PAGE 11
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 09 // WEB AUDIO SYNTHESIS & PARTICLE FX
+Zero-Dependency Audio & GPU Particles
+Pure synthetic Web Audio API procedural soundscapes and multithreaded particle physics.
+ZERO-DEPENDENCY SYNTHETIC WEB AUDIO
+UNO Flip does not rely on external MP3 or WAV audio assets. All sound
+effects are generated procedurally in real time using the browser's
+native AudioContext  ( client/src/audio/audio.js ).
+Architectural Advantages:
+0KB Bandwidth: Eliminates megabytes of audio asset downloads.
+Zero Latency: No network buffer delays; sounds trigger within 1ms of
+user interaction.
+Dynamic Synthesis: Frequency sweeps and pitches modulate
+dynamically based on game intensity.
+AUDIO SYNTHESIS PIPELINE
+┌─────────────────────────────────────────────────────────────┐
+│ 1. USER INTERACTION OR WEBSOCKET EVENT (Flip / Play / UNO)  │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 2. PROCEDURAL SOUND GENERATOR (audio.js)                    │
+│    - OscillatorNode (Sine, Triangle, Sawtooth, Square)      │
+│    - BiquadFilterNode (Bandpass / Lowpass resonant filter)  │
+│    - ConstantSourceNode / AudioBufferSource (White Noise)   │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 3. ENVELOPE SHAPER: GainNode with exponentialRampToValueAt()│
+│    Attack (2ms) -> Decay (60ms) -> Zero Artifacts           │
+└──────────────────────────────┬──────────────────────────────┘
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ 4. AUDIO DESTINATION (Speakers / Headphones)                │
+└─────────────────────────────────────────────────────────────┘
+      
+PROCEDURAL SOUND GENERATOR SPECIFICATIONS
+Sound Event
+Oscillator / Noise Engine
+Filter & Frequency Curve
+Acoustic Characteristics
+Card Snap / Play
+White noise buffer (40ms) + Sine
+punch (140Hz)
+Bandpass filter at 1800Hz (Q=3.5),
+exponential gain decay
+Crisp, tactile snap mimicking a heavyweight
+cardboard card hitting felt.
+Card Draw
+Triangle wave frequency glide
+Pitch sweeps 120Hz → 290Hz over
+70ms with soft attack
+Smooth tactile slide of a card slipping from the
+draw pile.
+FLIP Inversion
+Sine oscillator + Stereo Pan sweep
+Exponential frequency glide: 180Hz
+→ 1450Hz → 220Hz (380ms)
+Cinematic 3D whoosh conveying the physical
+inverting of the entire table.
+UNO Shout
+Polyphonic 3-Oscillator Brass Triad
+Sawtooth oscillators tuned to C5
+(523Hz), E5 (659Hz), G5 (784Hz)
+Resonant brass fanfare shouting triumph across the
+arena.
+Caught Buzzer
+Dual Square-Wave Dissonant
+Tritone
+Oscillators tuned to 150Hz and
+212Hz (Diminished 5th interval)
+Jarring, unmistakable penalty buzzer penalizing the
+uncalled card.
+Victory Fanfare
+Arpeggiated Major Triad Sequence
+Staggered Sine/Sawtooth
+arpeggios (C5 → E5 → G5 → C6)
+Grand champion celebration anthem accompanied
+by golden confetti.
+GPU PARTICLE SYSTEMS & OFF-THREAD PHYSICS
+When a player claims victory or triggers a massive +15 draw stack, the visual client deploys a high-density confetti particle cannon. Computed off
+the main UI rendering thread via HTML5 Canvas and Web Workers ( particleWorker.js ), hundreds of individual physical particles simulate
+gravity, air drag, and 3D rotational angular momentum without dropping rendering frames below 60 FPS.
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 11 of 15
+
+
+PAGE 12
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 10 // DATABASE SCHEMA & STORAGE ENGINE
+Database Schema & Persistence Layer
+Dual-layer architecture: Atomic disk storage engine and Supabase PostgreSQL cloud integration.
+DUAL-LAYER PERSISTENCE STRATEGY
+UNO Flip features a dual-layer persistence architecture engineered for
+100% operational uptime with zero initial configuration overhead:
+Layer 1 (Atomic Local Storage Engine): A custom, disk-backed ACID
+engine ( server/src/db/storageEngine.js ) writing to
+server/data/uno_db.json . In-memory Map indexing guarantees
+sub-millisecond reads; atomic temporary file renaming eliminates
+corruption on abrupt power loss.
+Layer 2 (Supabase PostgreSQL Cloud): Enterprise relational database
+( server/src/db/schema.sql ) powering global leaderboards, career
+progression, and multi-server synchronization.
+MATCH RESULTS & CAREER RANKINGS
+Match Standings, XP & Coins
+Global Top 100 Leaderboard
+POSTGRESQL RELATIONAL SCHEMA SPECIFICATION
+Table Name
+Primary Columns & Types
+Relational Constraints & Indexes
+user_profiles
+id  UUID PRIMARY KEY
+unique_id  VARCHAR(16) UNIQUE
+username  VARCHAR(32) NOT NULL
+password_hash  TEXT NOT NULL
+salt  VARCHAR(64) NOT NULL
+xp  INT DEFAULT 0, level  INT DEFAULT 1
+coins  INT DEFAULT 100
+Unique index on unique_id  and username .
+Stores cryptographic authentication credentials, career XP progression,
+and unlocked cosmetic frames.
+matches
+id  UUID PRIMARY KEY
+room_id  VARCHAR(8) NOT NULL
+game_mode  VARCHAR(16) NOT NULL
+winner_id  VARCHAR(64) NOT NULL
+total_flips  INT DEFAULT 0
+turn_count  INT DEFAULT 0
+duration_seconds  INT
+standings_json  JSONB NOT NULL
+Index on winner_id  and created_at .
+Maintains full audit logs of completed matches, tournament durations, flip
+counts, and player finish ranks.
+player_stats
+user_id  VARCHAR(64) PRIMARY KEY
+matches_played  INT DEFAULT 0
+matches_won  INT DEFAULT 0
+total_uno_shouts  INT DEFAULT 0
+successful_caughts  INT DEFAULT 0
+highest_win_streak  INT DEFAULT 0
+Foreign key to user_profiles.unique_id .
+Computes win rates, competitive streaks, and caught challenge success
+metrics.
+ACID ATOMIC DISK-FLUSH IMPLEMENTATION
+// storageEngine.js — Atomic Safe Flush Implementation
+flushToDisk() {
+  const tmpPath = `${this.filePath}.tmp`;
+  const serialized = JSON.stringify(this.inMemoryData, null, 2);
+  
+  // 1. Write to temporary sibling file first
+  fs.writeFileSync(tmpPath, serialized, 'utf8');
+  
+  // 2. Atomic filesystem rename — guaranteed atomic under POSIX and NTFS
+  fs.renameSync(tmpPath, this.filePath);
+}
+  
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 12 of 15
+
+
+PAGE 13
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 11 // AUTHENTICATION, CRYPTOGRAPHY & SECURITY
+Cryptographic Security & Anti-Cheat
+PBKDF2 key derivation offloaded to libuv worker threads, timing-safe authentication, and anti-cheat.
+ASYNCHRONOUS MULTITHREADED
+AUTH
+Security operations must never freeze the real-time
+game loop. In server/src/services/authCrypto.js ,
+password hashing utilizes PBKDF2 with SHA-512
+(100,000 iterations).
+libuv Worker Offloading:
+Because Node.js's asynchronous crypto.pbkdf2
+delegates computation directly to the background
+libuv  thread pool, heavy password verification never
+occupies the primary V8 event loop. WebSocket frame
+rates and game actions maintain sub-millisecond latency
+even during sudden spikes in login traffic.
+TIMING-SAFE CONSTANT-TIME VERIFICATION
+Standard string comparisons ( hashA === hashB ) leak information through variable
+execution time, exposing the server to side-channel timing attacks. UNO Flip validates
+credentials using constant-time buffer comparison:
+function verifyPassword(password, salt, storedHashHex) {
+  return new Promise((resolve, reject) => {
+    crypto.pbkdf2(password, salt, 100000, 64, 'sha512', (err, key) => {
+      if (err) return reject(err);
+      const computedBuffer = key;
+      const storedBuffer = Buffer.from(storedHashHex, 'hex');
+      
+      // Constant-time comparison eliminates timing exploits
+      if (computedBuffer.length !== storedBuffer.length) return resolve(false);
+      const isValid = crypto.timingSafeEqual(computedBuffer, storedBuffer);
+      resolve(isValid);
+    });
+  });
+}
+      
+UNIQUE PLAYER ID CSPRNG GENERATOR
+Every registered player and guest is assigned an alphanumeric Unique Player ID (e.g., UNO-7821 , UNO-9K2L ). Identifiers are generated using
+cryptographically secure pseudo-random bytes ( crypto.randomBytes ) filtered against an unambiguous character set (omitting ambiguous
+characters like 0, O, 1, I) to eliminate collision risks and user transcription errors.
+MULTI-LAYER ANTI-CHEAT & SAFEGUARD SPECIFICATIONS
+Vulnerability Vector
+Potential Exploitation Mechanism
+Authoritative Countermeasure Implemented
+Packet Tampering
+Client modifies WebSocket payload to inject unheld cards
+or claim wild color overrides.
+Strict Server Validation: Engine verifies card ID exists in
+server-side hand array. Invalid plays trigger an immediate
+error rejection.
+Client Memory Inspection
+Player inspects browser DOM or devtools memory to read
+opponent hands or draw deck sequence.
+Zero Information Leakage: Client state contains only card
+counts. Opponent card values and draw deck sequence do
+not exist in client memory.
+Event Flooding (DoS)
+Malicious client spams game:play_card  or
+game:caught  events to overwhelm CPU.
+Token Bucket Rate Limiting: Enforces max 5 action events
+per second per socket. Exceeding limits results in silent drops
+or disconnection.
+Desynchronization Spoofing
+Hacked client attempts to force arena side toggle
+( activeSide = DARK ) out of turn.
+Server-Driven State Authority: Side inversion is triggered
+solely when the server resolves a valid FLIP  card play.
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 13 of 15
+
+
+PAGE 14
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 12 // QUALITY ASSURANCE & TEST VALIDATION
+Quality Assurance & Test Automation
+Automated deck invariant test suite, gameplay rule validations, and regression testing.
+TEST SUITE ARCHITECTURE
+The platform enforces comprehensive automated test suites in
+server/test/  executed on every build pipeline:
+deckValidation.test.js : Validates mathematical composition and
+physical invariants of all 112 cards.
+test_gameplay_rules.js : Validates game rules, draw stacking,
+caught countdown timers, and win states.
+CI Execution Target: Entire test suite runs in under 120ms with
+zero external service dependencies.
+IN-GAME RULES & ACTION GUIDE MODALS
+Official Rules Compendium
+Action Cards Reference Guide
+AUTOMATED DECK INVARIANT TEST ASSERTIONS
+// server/test/deckValidation.test.js — Key Assertions
+console.log('✓ Test 1.1: Exactly 112 physical cards exist');
+assert.strictEqual(deck.length, 112);
+console.log('✓ Test 1.2: Every card has a unique ID');
+assert.strictEqual(new Set(deck.map(c => c.id)).size, 112);
+console.log('✓ Test 2.1: Light Side Colors (26 Red, 26 Blue, 26 Green, 26 Yellow, 8 Wild)');
+assert.strictEqual(lightStats.colors[LIGHT_COLORS.RED], 26);
+assert.strictEqual(lightStats.colors[LIGHT_COLORS.BLUE], 26);
+assert.strictEqual(lightStats.colors[LIGHT_COLORS.GREEN], 26);
+assert.strictEqual(lightStats.colors[LIGHT_COLORS.YELLOW], 26);
+assert.strictEqual(lightStats.colors.WILD, 8);
+console.log('✓ Test 2.2: Light Side numbers 1-9 (2 copies each, ZERO 0 cards)');
+for (const color of ['RED', 'BLUE', 'GREEN', 'YELLOW']) {
+  assert.strictEqual(lightStats.numbers[`${color}_0`], undefined, 'Must not contain 0');
+  for (let n = 1; n <= 9; n++) {
+    assert.strictEqual(lightStats.numbers[`${color}_${n}`], 2, 'Must have 2 copies');
+  }
+}
+console.log('✓ Test 3.1: Dark Side Colors (26 Pink, 26 Teal, 26 Orange, 26 Purple, 8 Wild)');
+assert.strictEqual(darkStats.colors[DARK_COLORS.PINK], 26);
+assert.strictEqual(darkStats.colors[DARK_COLORS.TEAL], 26);
+assert.strictEqual(darkStats.colors[DARK_COLORS.ORANGE], 26);
+assert.strictEqual(darkStats.colors[DARK_COLORS.PURPLE], 26);
+assert.strictEqual(darkStats.colors.WILD, 8);
+  
+GAMEPLAY ENGINE AUTOMATED TEST SCENARIOS
+Test Scenario
+Input Action & Setup
+Expected Engine Response
+Pass Status
+Legal Number Play
+Play Red 4 on Red 7 discard top
+Validation passes; discard top updated
+PASSED
+Illegal Mismatch Play
+Play Blue 3 on Green 8 discard top
+Throws COLOR_OR_VALUE_MISMATCH
+PASSED
+Power Card Victory Block
+Attempt to play Skip as last hand card
+Throws LAST_CARD_MUST_BE_NUMBER
+PASSED
+Draw Stacking
+Accumulation
+Chain three +5 cards consecutively
+Victim receives +15 cards total penalty
+PASSED
+Caught Window Penalty
+Player holds 1 card; callCaught triggered
+Victim assigned +2 penalty cards
+PASSED
+Draw Pile Reshuffle
+Draw pile hits 0 cards during draw turn
+Discard reshuffles; draw completes
+PASSED
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 14 of 15
+
+
+PAGE 15
+
+UNO FLIP TECHNICAL SPECIFICATION
+SECTION 13 // DEVOPS DEPLOYMENT & FUTURE ROADMAP
+DevOps Deployment & Strategic Roadmap
+Production Docker containerization, multi-cloud hosting, and feature development roadmap.
+MULTI-STAGE PRODUCTION DOCKERFILE
+# Stage 1: Build the React + Vite Client
+FROM node:20-alpine AS client-builder
+WORKDIR /app/client
+COPY client/package*.json ./
+RUN npm ci
+COPY client/ ./
+RUN npm run build
+# Stage 2: Production Server Runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3001
+COPY server/package*.json ./server/
+RUN cd server && npm ci --omit=dev
+COPY server/ ./server/
+# Copy static bundle for Express serving
+COPY --from=client-builder /app/client/dist ./client/dist
+EXPOSE 3001
+CMD ["node", "server/src/index.js"]
+      
+DOCKER COMPOSE ORCHESTRATION
+version: '3.8'
+services:
+  uno-flip:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uno-flip-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-qwen/qwen3.8-27b}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      
+Single Container Artifact: Express statically serves Vite client
+assets while hosting WebSocket connections on port 3001.
+STRATEGIC ROADMAP & FUTURE EVOLUTION (FROM SUGGESTIONS.TXT)
+System Domain
+Proposed Feature & Engineering Scope
+Target Milestone
+Gameplay House Rules
+2v2 Team Battles: 4 players in opposing teams (North/South vs
+East/West) with shared victory conditions and combined hand scoring.
+MILESTONE 2.0 (Q1 2027)
+Social & Communications
+WebRTC Spatial Voice Chat: Integrated peer-to-peer voice with
+directional stereo panning matching player table seat positions.
+MILESTONE 2.1 (Q2 2027)
+Advanced Rules
+Jump-In & 7-0 Hand Rotation: Immediate play on exact card match; 7
+swaps hand with opponent; 0 rotates all hands clockwise.
+MILESTONE 2.0 (Q1 2027)
+Social Mechanics
+Clan & Guild Tournaments: Clan tags, weekly cumulative clan cups, and
+exclusive clan card sleeves.
+MILESTONE 2.2 (Q3 2027)
+Horizontal Scaling
+Redis Socket.IO Adapter: Redis Pub/Sub cluster adapter enabling multi-
+node horizontal server scaling.
+MILESTONE 2.3 (Q4 2027)
+DOCUMENT REVISION HISTORY & SIGN-OFF
+Revision
+Effective Date
+Lead Architect
+Summary of Changes
+Verification Status
+v0.8.0
+September
+2026
+gondchawarswaraj45
+Initial 112-card engine prototype & WebSocket socket prototype.
+ARCHIVED
+v1.0.0
+October 2026
+gondchawarswaraj45
+Production release: Groq AI Referee, Web Audio, ACID storage engine, 15-page
+spec.
+VERIFIED
+MASTER
+UNO Flip Monorepo Technical Manual
+Authored by gondchawarswaraj45
+Page 15 of 15

@@ -51,12 +51,12 @@ function createGame(config, players) {
     }
   }
 
-  // Flip the first card to the discard pile
-  // Re-draw if the first card is a Wild or Flip (house rule: keep it clean)
+  // Start the game with DARK side
+  const startSide = ACTIVE_SIDE.DARK;
   let firstCard;
   do {
     firstCard = deck.pop();
-    const face = getActiveFace(firstCard, ACTIVE_SIDE.LIGHT);
+    const face = getActiveFace(firstCard, startSide);
     if (face.type === CARD_TYPE.WILD || face.type === CARD_TYPE.WILD_DRAW_FOUR ||
         face.type === CARD_TYPE.WILD_DRAW_TWO || face.type === CARD_TYPE.WILD_DRAW_COLOR || face.type === CARD_TYPE.FLIP) {
       deck.unshift(firstCard); // push back to bottom
@@ -64,7 +64,7 @@ function createGame(config, players) {
     }
   } while (!firstCard);
 
-  const initialFace = getActiveFace(firstCard, ACTIVE_SIDE.LIGHT);
+  const initialFace = getActiveFace(firstCard, startSide);
 
   const state = {
     gameId: uuidv4(),
@@ -74,7 +74,7 @@ function createGame(config, players) {
     hands,                        // { [playerId]: Card[] }
     deck,                         // remaining draw pile
     discardPile: [firstCard],
-    activeSide: ACTIVE_SIDE.LIGHT,
+    activeSide: startSide,
     currentColor: initialFace.color,
     direction: 1,                 // 1 = clockwise, -1 = counter-clockwise
     currentPlayerIndex: 0,
@@ -860,6 +860,12 @@ function getPublicState(state) {
         unoPressedCorrectly: !!state.unoPressedBy[p.id],
         isFinished: !!finisher,
         rank: finisher ? finisher.rank : null,
+        // In physical UNO Flip, the backside of an opponent's card is visible to other players
+        cardsBack: (state.hands[p.id] || []).map(c => ({
+          id: c.id,
+          lightSide: c.lightSide,
+          darkSide: c.darkSide,
+        })),
       };
     }),
     finishers: (state.finishers || []).map(f => ({

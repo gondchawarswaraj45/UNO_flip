@@ -1,7 +1,140 @@
 {
   "version": 1,
-  "savedAt": "2026-10-08T00:00:00.000Z",
-  "users": [],
-  "playerStats": [],
-  "matches": []
+  "savedAt": "2026-10-27T10:22:48.425Z",
+  "users": [
+    {
+      "id": "GUEST-5851",
+      "username": "Guest 102",
+      "avatar": "👤",
+      "email": null,
+      "created_at": "2026-10-24T17:22:16.886Z",
+      "last_seen_at": "2026-10-27T10:10:22.938Z"
+    },
+    {
+      "id": "GUEST-3582",
+      "username": "Guest 383",
+      "avatar": "👤",
+      "email": null,
+      "created_at": "2026-10-27T10:10:29.178Z",
+      "last_seen_at": "2026-10-27T10:19:58.970Z"
+    }
+  ],
+  "playerStats": [
+    {
+      "user_id": "GUEST-5851",
+      "username": "Guest 102",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-10-24T17:22:16.886Z"
+    },
+    {
+      "user_id": "GUEST-3582",
+      "username": "Guest 383",
+      "matches_played": 2,
+      "matches_won": 1,
+      "cards_played": 15,
+      "uno_calls": 2,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 115,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-10-27T10:22:48.020Z"
+    }
+  ],
+  "matches": [
+    {
+      "room_code": "7Z2YHU",
+      "game_mode": "TWO_SIDE",
+      "color_mode": "FOUR",
+      "winner_id": "77ea8619-6e72-4ded-bfde-13c9dd7e6dad",
+      "winner_name": "Maya (Bot)",
+      "total_turns": 16,
+      "duration_seconds": 155,
+      "total_flips": 0,
+      "final_standings": [
+        {
+          "id": "77ea8619-6e72-4ded-bfde-13c9dd7e6dad",
+          "name": "Maya (Bot)",
+          "isBot": true,
+          "cardCount": 0,
+          "rank": 1
+        },
+        {
+          "id": "GUEST-3582",
+          "name": "Guest 383",
+          "isBot": false,
+          "cardCount": 7,
+          "rank": 2
+        }
+      ],
+      "created_at": "2026-10-27T10:13:07.650Z",
+      "id": "match_1793095987650"
+    },
+    {
+      "room_code": "GVUMW9",
+      "game_mode": "TWO_SIDE",
+      "color_mode": "FOUR",
+      "winner_id": "GUEST-3582",
+      "winner_name": "Guest 383",
+      "total_turns": 183,
+      "duration_seconds": 497,
+      "total_flips": 7,
+      "final_standings": [
+        {
+          "id": "GUEST-3582",
+          "name": "Guest 383",
+          "isBot": false,
+          "cardCount": 0,
+          "rank": 1
+        },
+        {
+          "id": "eef78583-d611-40ca-9d86-5e41250d0c01",
+          "name": "Leo (Bot)",
+          "isBot": true,
+          "cardCount": 0,
+          "rank": 2
+        },
+        {
+          "id": "cddd725c-2aa4-4bd7-a8a3-7bcf6b6a7d8f",
+          "name": "Alex (Bot)",
+          "isBot": true,
+          "cardCount": 0,
+          "rank": 3
+        },
+        {
+          "id": "83bfa67e-899d-4f79-b377-5e9ffa5f246e",
+          "name": "Zoe (Bot)",
+          "isBot": true,
+          "cardCount": 0,
+          "rank": 4
+        },
+        {
+          "id": "65a0d371-0ca7-4296-ba3c-53f5ec5ed8f8",
+          "name": "Maya (Bot)",
+          "isBot": true,
+          "cardCount": 0,
+          "rank": 5
+        },
+        {
+          "id": "d8697856-51ac-4874-a337-91a98d8cb425",
+          "name": "Sam (Bot)",
+          "isBot": true,
+          "cardCount": 7,
+          "rank": 6
+        }
+      ],
+      "created_at": "2026-10-27T10:22:48.020Z",
+      "id": "match_1793096568020"
+    }
+  ]
 }

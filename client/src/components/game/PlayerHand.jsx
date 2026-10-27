@@ -13,8 +13,10 @@ import sound from '../../utils/audio';
 
 export default function PlayerHand({ onCardClick }) {
   const { myHand, selectedCardId, gameState } = useGameStore();
-  const activeSide = gameState?.activeSide || 'LIGHT';
+  const activeSide = gameState?.activeSide || 'DARK';
+  const oppositeSide = activeSide === 'DARK' ? 'LIGHT' : 'DARK';
 
+  const [peekOpposite, setPeekOpposite] = useState(false);
   const [isMobile, setIsMobile] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 768 : false
   );
@@ -46,6 +48,7 @@ export default function PlayerHand({ onCardClick }) {
   }
 
   const count = myHand.length;
+  const displaySide = peekOpposite ? oppositeSide : activeSide;
 
   function handleCardTap(card) {
     sound.playCard();
@@ -53,158 +56,228 @@ export default function PlayerHand({ onCardClick }) {
     onCardClick(card);
   }
 
-  // ─── Mobile View: Horizontal Touch-Scrolling Tray ───
-  if (isMobile) {
-    return (
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+      {/* ── Button to View Opposite Side (Replaces Hover) ── */}
       <div
         style={{
-          width: '100%',
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          padding: '16px 16px 8px',
           display: 'flex',
-          alignItems: 'flex-end',
-          gap: 6,
-          scrollbarWidth: 'none',
-          WebkitOverflowScrolling: 'touch',
-          touchAction: 'pan-x',
-          justifyContent: count <= 4 ? 'center' : 'flex-start',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 10,
+          marginBottom: 4,
+          zIndex: 60,
+          position: 'relative',
         }}
       >
-        {myHand.map((card, idx) => {
-          const isSelected = card.id === selectedCardId;
-          const isDrawnThisTurn = gameState?.hasDrawnThisTurn && card.id === gameState?.drawnCardId;
-          return (
-            <div
-              key={card.id}
-              onClick={() => handleCardTap(card)}
-              className="anim-deal-card"
-              style={{
-                flexShrink: 0,
-                transform: isSelected ? 'translateY(-16px) scale(1.08)' : 'scale(1)',
-                transition: 'transform 0.18s ease',
-                zIndex: isSelected ? 40 : idx + 1,
-                cursor: 'pointer',
-                position: 'relative',
-                animationDelay: `${Math.min(idx, 8) * 0.06}s`,
-              }}
-            >
-              {isDrawnThisTurn && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: -10,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                    color: '#ffffff',
-                    fontSize: '0.58rem',
-                    fontWeight: 900,
-                    letterSpacing: '0.04em',
-                    padding: '1px 6px',
-                    borderRadius: 99,
-                    boxShadow: '0 0 10px rgba(245, 158, 11, 0.8)',
-                    whiteSpace: 'nowrap',
-                    zIndex: 50,
-                    pointerEvents: 'none',
-                  }}
-                >
-                  ✦ DRAWN
-                </div>
-              )}
-              <UnoFlipCard
-                card={card}
-                activeSide={activeSide}
-                selected={isSelected}
-                size="md"
-              />
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  // ─── Desktop View: Elegant Curved Fan Layout ───
-  return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-        height: '140px',
-        width: '100%',
-        paddingBottom: '8px',
-      }}
-    >
-      {myHand.map((card, i) => {
-        const isSelected = card.id === selectedCardId;
-        const isDrawnThisTurn = gameState?.hasDrawnThisTurn && card.id === gameState?.drawnCardId;
-
-        // Fan layout: cards spread in an adaptive arc
-        const fanSpread = Math.min(count * 28, 560);
-        const step      = count > 1 ? fanSpread / (count - 1) : 0;
-        const offsetX   = count > 1 ? -fanSpread / 2 + i * step : 0;
-
-        // Rotation: cards near center are straight, edges are tilted
-        const midIdx = (count - 1) / 2;
-        const rot    = (i - midIdx) * (count > 8 ? 2.0 : 2.5);
-
-        // Vertical arc
-        const distFromMid = Math.abs(i - midIdx) / (midIdx || 1);
-        const arcY        = distFromMid * 12;
-
-        return (
-          <div
-            key={card.id}
-            className="anim-deal-card"
+        <button
+          type="button"
+          onClick={() => {
+            sound.flipWoosh();
+            sound.vibrate(25);
+            setPeekOpposite((prev) => !prev);
+          }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '5px 16px',
+            borderRadius: 99,
+            background: peekOpposite
+              ? (activeSide === 'DARK'
+                  ? 'linear-gradient(135deg, #eab308, #ca8a04)'
+                  : 'linear-gradient(135deg, #9333ea, #7e22ce)')
+              : 'rgba(15, 23, 42, 0.9)',
+            border: `1.5px solid ${
+              peekOpposite
+                ? (activeSide === 'DARK' ? '#facc15' : '#c084fc')
+                : 'rgba(255, 255, 255, 0.25)'
+            }`,
+            color: peekOpposite ? '#ffffff' : 'var(--text-gold)',
+            fontSize: '0.78rem',
+            fontWeight: 800,
+            cursor: 'pointer',
+            boxShadow: peekOpposite
+              ? (activeSide === 'DARK'
+                  ? '0 0 18px rgba(234, 179, 8, 0.75)'
+                  : '0 0 18px rgba(168, 85, 247, 0.75)')
+              : '0 3px 10px rgba(0,0,0,0.5)',
+            transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            userSelect: 'none',
+          }}
+          title={`Click to view your cards on the ${oppositeSide} side`}
+        >
+          <span style={{ fontSize: '1rem' }}>{peekOpposite ? '👁️' : '🔄'}</span>
+          <span>
+            {peekOpposite
+              ? `Viewing ${oppositeSide} Side — Tap to Flip Back`
+              : `Flip to View ${oppositeSide} Side`}
+          </span>
+          <span
             style={{
-              position: 'absolute',
-              left: `calc(50% + ${offsetX}px)`,
-              bottom: `${arcY}px`,
-              transform: `rotate(${rot}deg) ${isSelected ? 'translateY(-24px) scale(1.1)' : ''}`,
-              transformOrigin: 'bottom center',
-              zIndex: isSelected ? 50 : i + 1,
-              transition: 'transform 0.18s ease',
-              cursor: 'pointer',
-              animationDelay: `${Math.min(i, 8) * 0.06}s`,
+              fontSize: '0.62rem',
+              padding: '1px 7px',
+              borderRadius: 99,
+              background: 'rgba(0,0,0,0.35)',
+              fontWeight: 900,
+              letterSpacing: '0.04em',
             }}
-            onClick={() => handleCardTap(card)}
           >
-            {isDrawnThisTurn && (
+            {peekOpposite ? 'FLIPPED' : 'PEEK'}
+          </span>
+        </button>
+      </div>
+
+      {/* ─── Mobile View: Horizontal Touch-Scrolling Tray ─── */}
+      {isMobile ? (
+        <div
+          style={{
+            width: '100%',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            padding: '12px 16px 8px',
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: 6,
+            scrollbarWidth: 'none',
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-x',
+            justifyContent: count <= 4 ? 'center' : 'flex-start',
+          }}
+        >
+          {myHand.map((card, idx) => {
+            const isSelected = card.id === selectedCardId;
+            const isDrawnThisTurn = gameState?.hasDrawnThisTurn && card.id === gameState?.drawnCardId;
+            return (
               <div
+                key={card.id}
+                onClick={() => handleCardTap(card)}
+                className="anim-deal-card"
                 style={{
-                  position: 'absolute',
-                  top: -12,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                  color: '#ffffff',
-                  fontSize: '0.62rem',
-                  fontWeight: 900,
-                  letterSpacing: '0.04em',
-                  padding: '2px 8px',
-                  borderRadius: 99,
-                  boxShadow: '0 0 12px rgba(245, 158, 11, 0.8)',
-                  whiteSpace: 'nowrap',
-                  zIndex: 60,
-                  pointerEvents: 'none',
-                  animation: 'fadeIn 0.2s ease',
+                  flexShrink: 0,
+                  transform: isSelected ? 'translateY(-16px) scale(1.08)' : 'scale(1)',
+                  transition: 'transform 0.18s ease',
+                  zIndex: isSelected ? 40 : idx + 1,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  animationDelay: `${Math.min(idx, 8) * 0.06}s`,
                 }}
               >
-                ✦ DRAWN
+                {isDrawnThisTurn && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -10,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      color: '#ffffff',
+                      fontSize: '0.58rem',
+                      fontWeight: 900,
+                      letterSpacing: '0.04em',
+                      padding: '1px 6px',
+                      borderRadius: 99,
+                      boxShadow: '0 0 10px rgba(245, 158, 11, 0.8)',
+                      whiteSpace: 'nowrap',
+                      zIndex: 50,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    ✦ DRAWN
+                  </div>
+                )}
+                <UnoFlipCard
+                  card={card}
+                  activeSide={displaySide}
+                  selected={isSelected}
+                  size="md"
+                />
               </div>
-            )}
-            <UnoFlipCard
-              card={card}
-              activeSide={activeSide}
-              selected={isSelected}
-              size="md"
-            />
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      ) : (
+        /* ─── Desktop View: Elegant Curved Fan Layout ─── */
+        <div
+          style={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            height: '140px',
+            width: '100%',
+            paddingBottom: '8px',
+          }}
+        >
+          {myHand.map((card, i) => {
+            const isSelected = card.id === selectedCardId;
+            const isDrawnThisTurn = gameState?.hasDrawnThisTurn && card.id === gameState?.drawnCardId;
+
+            // Fan layout: cards spread in an adaptive arc
+            const fanSpread = Math.min(count * 28, 560);
+            const step      = count > 1 ? fanSpread / (count - 1) : 0;
+            const offsetX   = count > 1 ? -fanSpread / 2 + i * step : 0;
+
+            // Rotation: cards near center are straight, edges are tilted
+            const midIdx = (count - 1) / 2;
+            const rot    = (i - midIdx) * (count > 8 ? 2.0 : 2.5);
+
+            // Vertical arc
+            const distFromMid = Math.abs(i - midIdx) / (midIdx || 1);
+            const arcY        = distFromMid * 12;
+
+            return (
+              <div
+                key={card.id}
+                className="anim-deal-card"
+                style={{
+                  position: 'absolute',
+                  left: `calc(50% + ${offsetX}px)`,
+                  bottom: `${arcY}px`,
+                  transform: `rotate(${rot}deg) ${isSelected ? 'translateY(-24px) scale(1.1)' : ''}`,
+                  transformOrigin: 'bottom center',
+                  zIndex: isSelected ? 50 : i + 1,
+                  transition: 'transform 0.18s ease',
+                  cursor: 'pointer',
+                  animationDelay: `${Math.min(i, 8) * 0.06}s`,
+                }}
+                onClick={() => handleCardTap(card)}
+              >
+                {isDrawnThisTurn && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -12,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                      color: '#ffffff',
+                      fontSize: '0.62rem',
+                      fontWeight: 900,
+                      letterSpacing: '0.04em',
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      boxShadow: '0 0 12px rgba(245, 158, 11, 0.8)',
+                      whiteSpace: 'nowrap',
+                      zIndex: 60,
+                      pointerEvents: 'none',
+                      animation: 'fadeIn 0.2s ease',
+                    }}
+                  >
+                    ✦ DRAWN
+                  </div>
+                )}
+                <UnoFlipCard
+                  card={card}
+                  activeSide={displaySide}
+                  selected={isSelected}
+                  size="md"
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

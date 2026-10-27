@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'react-hot-toast';
 import useGameStore from '../../store/gameStore';
 import UnoFlipCard from '../game/UnoFlipCard';
 import PlayerHand from '../game/PlayerHand';
@@ -160,7 +161,41 @@ export default function GameScreen() {
     prevIsMyTurn.current = isNowMyTurn;
   }, [gameState?.activeSide, gameState?.currentPlayerId, myPlayerId]);
 
-  if (!gameState) return null;
+  if (!gameState) {
+    return (
+      <div
+        className="game-table"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100dvh',
+          gap: 16,
+          color: 'var(--text-gold)',
+          userSelect: 'none',
+          position: 'relative',
+        }}
+      >
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: '50%',
+            border: '3px solid rgba(229, 185, 76, 0.2)',
+            borderTopColor: 'var(--gold-primary)',
+            animation: 'spin 1s linear infinite',
+          }}
+        />
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, letterSpacing: '0.04em' }}>
+          Entering UNO Arena…
+        </h2>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+          Synchronizing authoritative game deck and table state
+        </p>
+      </div>
+    );
+  }
 
   const { players, activeSide, currentColor, discardPile, deckCount, status } = gameState;
   const topCard   = discardPile?.[0] || null;
