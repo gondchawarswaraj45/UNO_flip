@@ -54,8 +54,14 @@ function registerGameSocket(io) {
   // ─── Match End & Persistence Handler ──────────────────────────────────────
 
   async function handleGameOver(io, room) {
-    if (!room || !room.gameState || room.gameState.status !== 'OVER' || room.isGameOverHandled) return;
-    room.isGameOverHandled = true;
+    try {
+      if (!room || !room.gameState || room.gameState.status !== 'OVER' || room.isGameOverHandled) return;
+      room.isGameOverHandled = true;
+      if (room._botTimer) {
+        clearTimeout(room._botTimer);
+        room._botTimer = null;
+        room._botTimerPlayerId = null;
+      }
 
     const state = room.gameState;
     const winnerId = state.winner;
@@ -128,6 +134,9 @@ function registerGameSocket(io) {
     });
 
     emitReferee(room.id, 'WIN', { actorName: winnerName });
+    } catch (err) {
+      console.error('[HandleGameOver Error]:', err);
+    }
   }
 
   // ─── Utility: broadcast public state + private hands ──────────────────────
@@ -234,9 +243,25 @@ function registerGameSocket(io) {
             }
           );
 
-          // If playing failed (e.g. card invalid or stale state), fallback to draw so bot never hangs!
+          // If playing failed (e.g. card invalid or stale state), fallback to draw and pass so bot never hangs!
           if (!result || !result.success) {
             result = processDrawCard(currentPlayer.id, r.gameState, () => {});
+            broadcastGameState(io, r);
+            setTimeout(() => {
+              try {
+                const rFallback = getRoom(room.id);
+                if (rFallback && rFallback.gameState && rFallback.gameState.status === 'PLAYING' && rFallback.gameState.currentPlayerId === currentPlayer.id) {
+                  processPassTurn(currentPlayer.id, rFallback.gameState, () => {});
+                  broadcastGameState(io, rFallback);
+                  if (rFallback.gameState.status === 'OVER') {
+                    handleGameOver(io, rFallback);
+                  } else {
+                    scheduleBotTurn(io, rFallback);
+                  }
+                }
+              } catch (_) {}
+            }, 600);
+            return;
           } else {
             // Bot UNO press with broadcast event and reaction bubble
             if (botShouldPressUno(currentPlayer.id, currentPlayer.difficulty, r.gameState)) {
@@ -887,6 +912,16 @@ function registerGameSocket(io) {
           playerId: info.player.id,
           name:     info.player.name,
         });
+
+        // Clear active bot timers if no human remains in room
+        const remainingHumans = info.room.players.filter(p => !p.isBot && p.connected !== false);
+        if (remainingHumans.length === 0) {
+          if (info.room._botTimer) {
+            clearTimeout(info.room._botTimer);
+            info.room._botTimer = null;
+            info.room._botTimerPlayerId = null;
+          }
+        }
       }
     });
   });

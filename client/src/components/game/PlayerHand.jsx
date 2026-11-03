@@ -58,20 +58,23 @@ export default function PlayerHand({ onCardClick }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-      {/* ── Button to View Opposite Side (Replaces Hover) ── */}
+      {/* ── High-Visibility Floating Button to View Opposite Side ── */}
       <div
         style={{
           display: 'flex',
-          justifyContent: 'center',
+          flexDirection: 'column',
           alignItems: 'center',
-          gap: 10,
-          marginBottom: 4,
-          zIndex: 60,
+          justifyContent: 'center',
+          width: '100%',
+          padding: isMobile ? '3px 8px 4px' : '5px 12px 6px',
+          zIndex: 80,
           position: 'relative',
+          flexShrink: 0,
         }}
       >
         <button
           type="button"
+          id="flip-peek-hand-btn"
           onClick={() => {
             sound.flipWoosh();
             sound.vibrate(25);
@@ -80,52 +83,76 @@ export default function PlayerHand({ onCardClick }) {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 8,
-            padding: '5px 16px',
+            justifyContent: 'center',
+            gap: isMobile ? 6 : 9,
+            padding: isMobile ? '6px 14px' : '7px 20px',
             borderRadius: 99,
             background: peekOpposite
               ? (activeSide === 'DARK'
                   ? 'linear-gradient(135deg, #eab308, #ca8a04)'
                   : 'linear-gradient(135deg, #9333ea, #7e22ce)')
-              : 'rgba(15, 23, 42, 0.9)',
-            border: `1.5px solid ${
+              : (activeSide === 'DARK'
+                  ? 'linear-gradient(135deg, #24143a 0%, #121826 100%)'
+                  : 'linear-gradient(135deg, #2c2006 0%, #121826 100%)'),
+            border: `2px solid ${
               peekOpposite
                 ? (activeSide === 'DARK' ? '#facc15' : '#c084fc')
-                : 'rgba(255, 255, 255, 0.25)'
+                : (activeSide === 'DARK' ? 'rgba(192, 132, 252, 0.75)' : 'rgba(250, 204, 21, 0.75)')
             }`,
-            color: peekOpposite ? '#ffffff' : 'var(--text-gold)',
-            fontSize: '0.78rem',
-            fontWeight: 800,
+            color: peekOpposite ? '#ffffff' : (activeSide === 'DARK' ? '#f5d0fe' : '#fef08a'),
+            fontSize: isMobile ? '0.75rem' : '0.82rem',
+            fontWeight: 900,
             cursor: 'pointer',
             boxShadow: peekOpposite
               ? (activeSide === 'DARK'
-                  ? '0 0 18px rgba(234, 179, 8, 0.75)'
-                  : '0 0 18px rgba(168, 85, 247, 0.75)')
-              : '0 3px 10px rgba(0,0,0,0.5)',
+                  ? '0 0 22px rgba(234, 179, 8, 0.85)'
+                  : '0 0 22px rgba(168, 85, 247, 0.85)')
+              : '0 4px 14px rgba(0,0,0,0.65)',
             transition: 'all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)',
             userSelect: 'none',
+            WebkitTapHighlightColor: 'transparent',
+            letterSpacing: '0.02em',
           }}
           title={`Click to view your cards on the ${oppositeSide} side`}
         >
-          <span style={{ fontSize: '1rem' }}>{peekOpposite ? '👁️' : '🔄'}</span>
+          <span style={{ fontSize: isMobile ? '1rem' : '1.15rem' }}>{peekOpposite ? '👁️' : '🔄'}</span>
           <span>
             {peekOpposite
-              ? `Viewing ${oppositeSide} Side — Tap to Flip Back`
-              : `Flip to View ${oppositeSide} Side`}
+              ? `PEEKING ${oppositeSide} SIDE — TAP TO FLIP BACK`
+              : `FLIP HAND TO VIEW ${oppositeSide} SIDE`}
           </span>
           <span
             style={{
               fontSize: '0.62rem',
-              padding: '1px 7px',
+              padding: '2px 8px',
               borderRadius: 99,
-              background: 'rgba(0,0,0,0.35)',
+              background: peekOpposite
+                ? 'rgba(0,0,0,0.5)'
+                : (activeSide === 'DARK' ? 'rgba(147, 51, 234, 0.45)' : 'rgba(234, 179, 8, 0.35)'),
               fontWeight: 900,
-              letterSpacing: '0.04em',
+              letterSpacing: '0.05em',
             }}
           >
-            {peekOpposite ? 'FLIPPED' : 'PEEK'}
+            {peekOpposite ? 'ACTIVE' : 'PEEK'}
           </span>
         </button>
+
+        {peekOpposite && (
+          <div
+            style={{
+              fontSize: '0.68rem',
+              color: '#fef08a',
+              fontWeight: 700,
+              marginTop: 3,
+              background: 'rgba(0,0,0,0.6)',
+              padding: '1px 8px',
+              borderRadius: 99,
+              animation: 'fadeIn 0.2s ease',
+            }}
+          >
+            ⚠️ Viewing opposite faces. Tap button above to return to playable face.
+          </div>
+        )}
       </div>
 
       {/* ─── Mobile View: Horizontal Touch-Scrolling Tray ─── */}
@@ -135,7 +162,7 @@ export default function PlayerHand({ onCardClick }) {
             width: '100%',
             overflowX: 'auto',
             overflowY: 'hidden',
-            padding: '12px 16px 8px',
+            padding: '6px 12px 6px',
             display: 'flex',
             alignItems: 'flex-end',
             gap: 6,

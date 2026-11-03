@@ -61,13 +61,18 @@ function findLegalPlays(botId, state) {
   const legal = [];
 
   for (const card of hand) {
+    if (!card) continue;
     const face = getActiveFace(card, state.activeSide);
-    const oppositeFace = state.activeSide === ACTIVE_SIDE.DARK ? card.lightSide : card.darkSide;
+    if (!face) continue;
+    const oppositeSide = state.activeSide === ACTIVE_SIDE.DARK ? ACTIVE_SIDE.LIGHT : ACTIVE_SIDE.DARK;
+    const oppositeFace = oppositeSide === ACTIVE_SIDE.DARK ? card.darkSide : card.lightSide;
     const isBackWild = face.type === CARD_TYPE.FLIP && oppositeFace && (oppositeFace.color === 'WILD' || oppositeFace.type === CARD_TYPE.WILD_DRAW_COLOR);
 
     let chosenColor = null;
-    if (face.color === 'WILD' || isBackWild) {
-      chosenColor = pickBestColor(botId, state);
+    if (face.color === 'WILD') {
+      chosenColor = pickBestColor(botId, state, state.activeSide);
+    } else if (isBackWild) {
+      chosenColor = pickBestColor(botId, state, oppositeSide);
     }
     const result = validatePlay(botId, card.id, state, chosenColor);
     if (result.valid) {
@@ -82,15 +87,18 @@ function findLegalPlays(botId, state) {
  * Choose the best color for a Wild card based on the bot's hand composition.
  * Picks the color the bot holds the most cards of.
  */
-function pickBestColor(botId, state) {
+function pickBestColor(botId, state, targetSide = null) {
+  const side = targetSide || state.activeSide;
   const hand = state.hands[botId] || [];
-  const colors = getLegalColors(state);
+  const { getColors } = require('./config');
+  const colors = getColors(side, state.config.colorMode);
   const counts = {};
   for (const c of colors) counts[c] = 0;
 
   for (const card of hand) {
-    const face = getActiveFace(card, state.activeSide);
-    if (face.color !== 'WILD' && counts[face.color] !== undefined) {
+    if (!card) continue;
+    const face = getActiveFace(card, side);
+    if (face && face.color !== 'WILD' && counts[face.color] !== undefined) {
       counts[face.color]++;
     }
   }

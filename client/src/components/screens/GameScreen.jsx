@@ -34,29 +34,68 @@ import sound from '../../utils/audio';
  * Dynamically scale table felt dimensions according to player count.
  * 2 players: compact, 3 players: small, 4 players: medium, 6 players: big grand casino table.
  */
-function getTableDimensions(playerCount) {
+function getTableDimensions(playerCount, isMobile = false) {
+  if (isMobile) {
+    return {
+      width: 'min(95vw, 420px)',
+      height: 'clamp(180px, 28vh, 230px)',
+    };
+  }
   if (playerCount <= 2) {
-    return { width: 'min(640px, 88vw)', height: 'clamp(300px, 46vh, 360px)' };
+    return { width: 'min(640px, 88vw)', height: 'clamp(260px, 38vh, 330px)' };
   }
   if (playerCount === 3) {
-    return { width: 'min(760px, 90vw)', height: 'clamp(330px, 50vh, 400px)' };
+    return { width: 'min(740px, 90vw)', height: 'clamp(280px, 42vh, 360px)' };
   }
   if (playerCount === 4) {
-    return { width: 'min(880px, 92vw)', height: 'clamp(360px, 54vh, 440px)' };
+    return { width: 'min(840px, 92vw)', height: 'clamp(300px, 44vh, 390px)' };
   }
   if (playerCount === 5) {
-    return { width: 'min(1000px, 94vw)', height: 'clamp(390px, 58vh, 480px)' };
+    return { width: 'min(960px, 94vw)', height: 'clamp(320px, 48vh, 420px)' };
   }
-  // 6 or more players: grand casino stadium table
-  return { width: 'min(1160px, 96vw)', height: 'clamp(410px, 62vh, 520px)' };
+  return { width: 'min(1100px, 96vw)', height: 'clamp(340px, 50vh, 440px)' };
 }
 
 /**
- * Seat opponents symmetrically along the outer rim of the felt table based on count.
+ * Seat opponents symmetrically along the outer rim of the felt table based on count and mobile view.
  */
-function getOpponentSeatStyle(idx, count) {
+function getOpponentSeatStyle(idx, count, isMobile = false) {
+  if (isMobile) {
+    if (count === 1) {
+      return {
+        position: 'absolute',
+        top: -36,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 25,
+      };
+    }
+    if (count === 2) {
+      const positions = [
+        { top: -32, left: '26%', transform: 'translateX(-50%)' },
+        { top: -32, left: '74%', transform: 'translateX(-50%)' },
+      ];
+      return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
+    }
+    if (count === 3) {
+      const positions = [
+        { top: -8, left: 4, transform: 'none' },
+        { top: -34, left: '50%', transform: 'translateX(-50%)' },
+        { top: -8, right: 4, transform: 'none' },
+      ];
+      return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
+    }
+    const positions = [
+      { top: 0, left: 4 },
+      { top: -32, left: '26%', transform: 'translateX(-50%)' },
+      { top: -36, left: '50%', transform: 'translateX(-50%)' },
+      { top: -32, left: '74%', transform: 'translateX(-50%)' },
+      { top: 0, right: 4 },
+    ];
+    return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
+  }
+
   if (count === 1) {
-    // 2 players: 1 opponent directly top center
     return {
       position: 'absolute',
       top: -46,
@@ -66,7 +105,6 @@ function getOpponentSeatStyle(idx, count) {
     };
   }
   if (count === 2) {
-    // 3 players: small table, 2 opponents at top-left and top-right
     const positions = [
       { top: -42, left: '26%', transform: 'translateX(-50%)' },
       { top: -42, left: '74%', transform: 'translateX(-50%)' },
@@ -74,7 +112,6 @@ function getOpponentSeatStyle(idx, count) {
     return { position: 'absolute', ...positions[idx], zIndex: 25 };
   }
   if (count === 3) {
-    // 4 players: Left rim, Top Center, Right rim
     const positions = [
       { top: '48%', left: -52, transform: 'translateY(-50%)' },
       { top: -46, left: '50%', transform: 'translateX(-50%)' },
@@ -83,7 +120,6 @@ function getOpponentSeatStyle(idx, count) {
     return { position: 'absolute', ...positions[idx], zIndex: 25 };
   }
   if (count === 4) {
-    // 5 players: Mid-Left, Top-Left, Top-Right, Mid-Right
     const positions = [
       { top: '56%', left: -48, transform: 'translateY(-50%)' },
       { top: -44, left: '24%', transform: 'translateX(-50%)' },
@@ -92,7 +128,6 @@ function getOpponentSeatStyle(idx, count) {
     ];
     return { position: 'absolute', ...positions[idx], zIndex: 25 };
   }
-  // 5 or more opponents (6+ players): Far-Left, Top-Left, Top-Center, Top-Right, Far-Right
   const positions = [
     { top: '60%', left: -52, transform: 'translateY(-50%)' },
     { top: -38, left: '18%', transform: 'translateX(-50%)' },
@@ -130,6 +165,17 @@ export default function GameScreen() {
   const [drawLoading, setDrawLoading] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
   const [hasShuffled, setHasShuffled] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 768);
+    }
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const prevGameId = useRef(gameState?.gameId);
   const prevActiveSide = useRef(gameState?.activeSide);
   const prevIsMyTurn = useRef(false);
@@ -206,7 +252,7 @@ export default function GameScreen() {
   const isPlaying = status === 'PLAYING';
 
   // Compute dynamic table dimensions based on total player count
-  const tableDim = getTableDimensions(players.length);
+  const tableDim = getTableDimensions(players.length, isMobile);
 
   // My own reaction bubble if any
   const myReaction = activeReactions[myPlayerId];
@@ -437,7 +483,7 @@ export default function GameScreen() {
           justifyContent: 'center',
           position: 'relative',
           minHeight: 0,
-          padding: '16px 24px',
+          padding: isMobile ? '4px 8px' : '16px 24px',
           zIndex: 5,
         }}
       >
@@ -447,7 +493,7 @@ export default function GameScreen() {
             width: tableDim.width,
             height: tableDim.height,
             position: 'relative',
-            borderRadius: 'min(200px, 48vw)',
+            borderRadius: isMobile ? '24px' : 'min(200px, 48vw)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -457,7 +503,7 @@ export default function GameScreen() {
         >
           {/* Opponents seated dynamically along the felt perimeter */}
           {opponents.map((player, idx) => (
-            <div key={player.id} style={getOpponentSeatStyle(idx, opponents.length)}>
+            <div key={player.id} style={getOpponentSeatStyle(idx, opponents.length, isMobile)}>
               <OpponentArea player={player} />
             </div>
           ))}
@@ -489,8 +535,8 @@ export default function GameScreen() {
               >
                 <div
                   style={{
-                    width: 'clamp(68px, 16vw, 86px)',
-                    height: 'clamp(100px, 24vw, 126px)',
+                    width: isMobile ? 'clamp(56px, 14vw, 70px)' : 'clamp(68px, 16vw, 86px)',
+                    height: isMobile ? 'clamp(82px, 20vw, 104px)' : 'clamp(100px, 24vw, 126px)',
                     borderRadius: 16,
                     background:
                       activeSide === 'DARK'
@@ -564,7 +610,7 @@ export default function GameScreen() {
                     card={topCard}
                     activeSide={activeSide}
                     isDiscard={true}
-                    size="lg"
+                    size={isMobile ? "md" : "lg"}
                   />
                 ) : (
                   <div
@@ -806,7 +852,7 @@ export default function GameScreen() {
       </div>
 
       {/* ── My Hand Area (Responsive Carousel on Mobile, Fan on Desktop) ── */}
-      <div style={{ position: 'relative', zIndex: 15, width: '100%' }}>
+      <div style={{ position: 'relative', zIndex: 30, width: '100%', flexShrink: 0 }}>
         <PlayerHand onCardClick={handleCardClick} />
       </div>
 
@@ -816,11 +862,12 @@ export default function GameScreen() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 12,
-          padding: '8px 16px 12px',
-          zIndex: 20,
+          gap: isMobile ? 6 : 12,
+          padding: isMobile ? '4px 10px 8px' : '8px 16px 12px',
+          zIndex: 35,
           position: 'relative',
-          background: 'linear-gradient(180deg, transparent 0%, rgba(8, 11, 18, 0.85) 100%)',
+          flexShrink: 0,
+          background: 'linear-gradient(180deg, transparent 0%, rgba(8, 11, 18, 0.95) 100%)',
         }}
       >
         {/* Left: My Player Station Pod */}
@@ -855,8 +902,8 @@ export default function GameScreen() {
           {/* Avatar Ring */}
           <div
             style={{
-              width: 44,
-              height: 44,
+              width: isMobile ? 36 : 44,
+              height: isMobile ? 36 : 44,
               borderRadius: '50%',
               padding: 2.5,
               background: isMyTurn ? 'var(--gold-gradient)' : myFrameObj.border,
@@ -902,19 +949,21 @@ export default function GameScreen() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {myInfo?.name || profile.username} (You)
+            <span style={{ fontSize: isMobile ? '0.72rem' : '0.82rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              {myInfo?.name || profile.username} {isMobile ? '' : '(You)'}
             </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-gold)', fontWeight: 700 }}>
-              {myInfo?.isFinished || myHand.length === 0
-                ? `🎉 Cleared Hand! (${myInfo?.rank === 1 ? '🥇 1st' : myInfo?.rank === 2 ? '🥈 2nd' : myInfo?.rank === 3 ? '🥉 3rd' : `#${myInfo?.rank || 1}`} Place) • Spectating`
-                : `${myHand.length} cards remaining`}
-            </span>
+            {!isMobile && (
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-gold)', fontWeight: 700 }}>
+                {myInfo?.isFinished || myHand.length === 0
+                  ? `🎉 Cleared Hand! (${myInfo?.rank === 1 ? '🥇 1st' : myInfo?.rank === 2 ? '🥈 2nd' : myInfo?.rank === 3 ? '🥉 3rd' : `#${myInfo?.rank || 1}`} Place) • Spectating`
+                  : `${myHand.length} cards remaining`}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Center / Right: Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, flexWrap: 'nowrap' }}>
           {myInfo?.isFinished || myHand.length === 0 ? (
             <div
               style={{
@@ -945,8 +994,9 @@ export default function GameScreen() {
                 onClick={handleDraw}
                 disabled={drawLoading || !isMyTurn || !isPlaying}
                 style={{
-                  padding: '10px 18px',
-                  fontSize: '0.9rem',
+                  padding: isMobile ? '7px 11px' : '10px 18px',
+                  fontSize: isMobile ? '0.78rem' : '0.9rem',
+                  flexShrink: 0,
                   opacity: !isMyTurn || !isPlaying ? 0.4 : gameState.hasDrawnThisTurn && !gameState.pendingDrawStack?.active ? 0.65 : 1,
                   cursor: !isMyTurn || !isPlaying ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s ease',

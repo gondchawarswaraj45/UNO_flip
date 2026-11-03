@@ -338,7 +338,8 @@ function buildDeck(gameMode, colorMode) {
  * @returns {{ color, type, value }}
  */
 function getActiveFace(card, activeSide) {
-  return activeSide === ACTIVE_SIDE.DARK ? card.darkSide : card.lightSide;
+  if (!card) return null;
+  return activeSide === ACTIVE_SIDE.DARK ? (card.darkSide || null) : (card.lightSide || null);
 }
 
 module.exports = { buildDeck, getActiveFace };

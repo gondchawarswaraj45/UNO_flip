@@ -51,20 +51,21 @@ function createGame(config, players) {
     }
   }
 
-  // Start the game with DARK side
-  const startSide = ACTIVE_SIDE.DARK;
+  // In TWO_SIDE (UNO Flip) mode start on DARK side; in CLASSIC mode start on LIGHT side
+  const startSide = (cfg.mode === GAME_MODE.TWO_SIDE) ? ACTIVE_SIDE.DARK : ACTIVE_SIDE.LIGHT;
   let firstCard;
   do {
     firstCard = deck.pop();
+    if (!firstCard) break;
     const face = getActiveFace(firstCard, startSide);
-    if (face.type === CARD_TYPE.WILD || face.type === CARD_TYPE.WILD_DRAW_FOUR ||
+    if (!face || face.type === CARD_TYPE.WILD || face.type === CARD_TYPE.WILD_DRAW_FOUR ||
         face.type === CARD_TYPE.WILD_DRAW_TWO || face.type === CARD_TYPE.WILD_DRAW_COLOR || face.type === CARD_TYPE.FLIP) {
       deck.unshift(firstCard); // push back to bottom
       firstCard = null;
     }
   } while (!firstCard);
 
-  const initialFace = getActiveFace(firstCard, startSide);
+  const initialFace = getActiveFace(firstCard, startSide) || { color: 'RED', type: CARD_TYPE.NUMBER, value: 1 };
 
   const state = {
     gameId: uuidv4(),
@@ -131,18 +132,27 @@ function createGame(config, players) {
  */
 function nextActiveIndex(state, steps = 1) {
   const n = state.players.length;
-  const activeCount = state.players.filter(p => (state.hands[p.id]?.length || 0) > 0).length;
-  if (activeCount <= 1) return state.currentPlayerIndex;
+  if (n === 0) return 0;
+  const activePlayers = state.players.filter(p => (state.hands[p.id]?.length || 0) > 0);
+  if (activePlayers.length <= 1) {
+    if (activePlayers.length === 1) {
+      const idx = state.players.findIndex(p => p.id === activePlayers[0].id);
+      if (idx !== -1) return idx;
+    }
+    return Math.max(0, Math.min(state.currentPlayerIndex || 0, n - 1));
+  }
 
-  let curr = state.currentPlayerIndex;
+  let curr = (typeof state.currentPlayerIndex === 'number' && state.currentPlayerIndex >= 0)
+    ? state.currentPlayerIndex
+    : 0;
   let remainingSteps = steps;
   let safetyLoop = 0;
 
   while (remainingSteps > 0 && safetyLoop < n * 4) {
     safetyLoop++;
     curr = ((curr + state.direction) % n + n) % n;
-    const pId = state.players[curr].id;
-    if (state.hands[pId] && state.hands[pId].length > 0) {
+    const p = state.players[curr];
+    if (p && state.hands[p.id] && state.hands[p.id].length > 0) {
       remainingSteps--;
     }
   }
@@ -155,7 +165,8 @@ function nextActiveIndex(state, steps = 1) {
  */
 function advanceTurn(state, steps = 1) {
   state.currentPlayerIndex = nextActiveIndex(state, steps);
-  state.currentPlayerId    = state.players[state.currentPlayerIndex].id;
+  const nextPlayer = state.players[state.currentPlayerIndex];
+  state.currentPlayerId    = nextPlayer ? nextPlayer.id : (state.players[0]?.id || null);
   state.hasDrawnThisTurn   = false;
   state.drawnCardId        = null;
   state.turnCount += 1;
@@ -174,12 +185,16 @@ function advanceTurn(state, steps = 1) {
  */
 function drawCards(playerId, count, state) {
   const drawn = [];
+  if (!state.hands[playerId]) {
+    state.hands[playerId] = [];
+  }
   for (let i = 0; i < count; i++) {
     if (state.deck.length === 0) {
       reshuffleDiscard(state);
       if (state.deck.length === 0) break; // truly no cards left
     }
     const card = state.deck.pop();
+    if (!card) break; // guard against undefined
     state.hands[playerId].push(card);
     drawn.push(card);
   }
@@ -190,9 +205,11 @@ function drawCards(playerId, count, state) {
  * Reshuffle the discard pile back into the deck, keeping the top card.
  */
 function reshuffleDiscard(state) {
+  if (!state.discardPile || state.discardPile.length <= 1) return;
   const topCard = state.discardPile.pop();
-  state.deck    = shuffleDeck(state.discardPile);
-  state.discardPile = [topCard];
+  const pool = state.discardPile.filter(Boolean);
+  state.deck    = shuffleDeck(pool);
+  state.discardPile = topCard ? [topCard] : [];
 }
 
 // ─── Move Processing ──────────────────────────────────────────────────────────
@@ -318,13 +335,18 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
     let matchingCardFound = false;
     let safetyCounter = 120;
 
-    while (!matchingCardFound && safetyCounter > 0) {
+    if (targetId && !state.hands[targetId]) {
+      state.hands[targetId] = [];
+    }
+
+    while (!matchingCardFound && safetyCounter > 0 && targetId) {
       safetyCounter--;
       if (state.deck.length === 0) {
         reshuffleDiscard(state);
         if (state.deck.length === 0) break;
       }
       const drawnCard = state.deck.pop();
+      if (!drawnCard) break;
       state.hands[targetId].push(drawnCard);
       drawnCount++;
       const drawnFace = getActiveFace(drawnCard, state.activeSide);
@@ -627,7 +649,12 @@ function processPassTurn(playerId, state, emitEvent) {
     return { success: false, error: 'CANNOT_PASS_DURING_DRAW_ATTACK' };
   }
   if (!state.hasDrawnThisTurn) {
-    return { success: false, error: 'CANNOT_PASS_WITHOUT_DRAWING' };
+    // If deck and discard are completely depleted, allow passing without drawing
+    const deckCount = state.deck?.length || 0;
+    const discardCount = state.discardPile?.length || 0;
+    if (deckCount > 0 || discardCount > 1) {
+      return { success: false, error: 'CANNOT_PASS_WITHOUT_DRAWING' };
+    }
   }
 
   state.hasDrawnThisTurn = false;
@@ -852,19 +879,20 @@ function getPublicState(state) {
     config: state.config,
     players: state.players.map(p => {
       const finisher = (state.finishers || []).find(f => f.playerId === p.id);
+      const hand = (state.hands[p.id] || []).filter(Boolean);
       return {
         id:        p.id,
         name:      p.name,
         isBot:     p.isBot,
-        cardCount: (state.hands[p.id] || []).length,
+        cardCount: hand.length,
         unoPressedCorrectly: !!state.unoPressedBy[p.id],
         isFinished: !!finisher,
         rank: finisher ? finisher.rank : null,
         // In physical UNO Flip, the backside of an opponent's card is visible to other players
-        cardsBack: (state.hands[p.id] || []).map(c => ({
+        cardsBack: hand.map(c => ({
           id: c.id,
-          lightSide: c.lightSide,
-          darkSide: c.darkSide,
+          lightSide: c.lightSide || null,
+          darkSide: c.darkSide || null,
         })),
       };
     }),
@@ -875,8 +903,10 @@ function getPublicState(state) {
       cardCount: f.cardCount || 0,
       isBot: !!f.isBot,
     })),
-    discardPile: [state.discardPile[state.discardPile.length - 1]], // only top card
-    deckCount:   state.deck.length,
+    discardPile: (state.discardPile && state.discardPile.length > 0)
+      ? [state.discardPile[state.discardPile.length - 1]]
+      : [],
+    deckCount:   state.deck ? state.deck.length : 0,
     activeSide:  state.activeSide,
     currentColor: state.currentColor,
     direction:   state.direction,
