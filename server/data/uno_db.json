@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-11-03T14:59:45.510Z",
+  "savedAt": "2026-11-05T11:25:37.225Z",
   "users": [
     {
       "id": "GUEST-5851",
@@ -8,7 +8,7 @@
       "avatar": "👤",
       "email": null,
       "created_at": "2026-10-24T17:22:16.886Z",
-      "last_seen_at": "2026-11-03T14:59:45.220Z"
+      "last_seen_at": "2026-11-05T11:25:36.819Z"
     },
     {
       "id": "GUEST-3582",
@@ -23,17 +23,17 @@
     {
       "user_id": "GUEST-5851",
       "username": "Guest 102",
-      "matches_played": 0,
-      "matches_won": 0,
-      "cards_played": 0,
-      "uno_calls": 0,
+      "matches_played": 2,
+      "matches_won": 1,
+      "cards_played": 35,
+      "uno_calls": 2,
       "caught_success": 0,
-      "caught_penalized": 0,
-      "total_score": 0,
+      "caught_penalized": 2,
+      "total_score": 130,
       "total_flips": 0,
       "win_streak": 0,
       "highest_streak": 0,
-      "updated_at": "2026-10-24T17:22:16.886Z"
+      "updated_at": "2026-11-03T15:18:04.356Z"
     },
     {
       "user_id": "GUEST-3582",
@@ -135,6 +135,69 @@
       ],
       "created_at": "2026-10-27T10:22:48.020Z",
       "id": "match_1793096568020"
+    },
+    {
+      "room_code": "3WMS5V",
+      "game_mode": "TWO_SIDE",
+      "color_mode": "FOUR",
+      "winner_id": "d107ca59-50ab-42f3-9c1c-a340d0f34481",
+      "winner_name": "Alex (Bot)",
+      "total_turns": 46,
+      "duration_seconds": 356,
+      "total_flips": 3,
+      "final_standings": [
+        {
+          "id": "d107ca59-50ab-42f3-9c1c-a340d0f34481",
+          "name": "Alex (Bot)",
+          "isBot": true,
+          "cardCount": 0,
+          "rank": 1
+        },
+        {
+          "id": "72d39a64-cd8c-499b-b275-32400eff467b",
+          "name": "Maya (Bot)",
+          "isBot": true,
+          "cardCount": 0,
+          "rank": 2
+        },
+        {
+          "id": "GUEST-5851",
+          "name": "Guest 102",
+          "isBot": false,
+          "cardCount": 4,
+          "rank": 3
+        }
+      ],
+      "created_at": "2026-11-03T15:14:43.661Z",
+      "id": "match_1793718883661"
+    },
+    {
+      "room_code": "98ML69",
+      "game_mode": "TWO_SIDE",
+      "color_mode": "FOUR",
+      "winner_id": "GUEST-5851",
+      "winner_name": "Guest 102",
+      "total_turns": 46,
+      "duration_seconds": 196,
+      "total_flips": 3,
+      "final_standings": [
+        {
+          "id": "GUEST-5851",
+          "name": "Guest 102",
+          "isBot": false,
+          "cardCount": 0,
+          "rank": 1
+        },
+        {
+          "id": "2895927f-eb06-4c92-b1e4-9c073d5dd71a",
+          "name": "Maya (Bot)",
+          "isBot": true,
+          "cardCount": 2,
+          "rank": 2
+        }
+      ],
+      "created_at": "2026-11-03T15:18:04.356Z",
+      "id": "match_1793719084356"
     }
   ]
 }

@@ -13,11 +13,13 @@ import {
   DARK_COLORS_BY_MODE,
 } from '../../utils/constants';
 import sound from '../../utils/audio';
+import useWindowSize from '../../hooks/useWindowSize';
 
 export default function ColorPicker({ onSelect, onCancel }) {
   const { gameState, myHand, pendingWildCardId } = useGameStore();
   const activeSide = gameState?.activeSide || ACTIVE_SIDE.LIGHT;
   const colorMode = gameState?.config?.colorMode || 'FOUR';
+  const { isSmall, isMobile } = useWindowSize();
 
   // If the pending card is a FLIP card with Wild on the opposite side, target the opposite side colors!
   const card = (myHand || []).find((c) => c.id === pendingWildCardId);
@@ -43,11 +45,11 @@ export default function ColorPicker({ onSelect, onCancel }) {
         className="modal-box anim-fade-in-up"
         onClick={(e) => e.stopPropagation()}
         style={{
-          maxWidth: 520,
+          maxWidth: 'min(500px, 94vw)',
           background: 'linear-gradient(145deg, #151c2e 0%, #0c121e 100%)',
           border: '1px solid rgba(229, 185, 76, 0.45)',
           boxShadow: '0 24px 60px rgba(0,0,0,0.85), 0 0 30px rgba(229,185,76,0.2)',
-          padding: '28px 24px',
+          padding: isSmall ? '16px 14px' : '24px 20px',
           borderRadius: 24,
           textAlign: 'center',
         }}
@@ -79,7 +81,7 @@ export default function ColorPicker({ onSelect, onCancel }) {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${colors.length <= 4 ? 4 : 5}, 1fr)`,
+            gridTemplateColumns: `repeat(${colors.length <= 4 ? 4 : (isSmall ? 3 : 5)}, 1fr)`,
             gap: 12,
             marginBottom: 24,
           }}
@@ -98,7 +100,7 @@ export default function ColorPicker({ onSelect, onCancel }) {
                   border: '3px solid #ffffff',
                   boxShadow: `0 8px 24px ${hex}88, 0 2px 6px rgba(0,0,0,0.6)`,
                   borderRadius: 16,
-                  height: 112,
+                  height: isSmall ? 82 : 112,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',

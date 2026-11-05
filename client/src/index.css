@@ -81,6 +81,8 @@
   /* Card Dimensions */
   --card-w:    72px;
   --card-h:    108px;
+  --card-w-xs: 28px;
+  --card-h-xs: 42px;
   --card-w-sm: 52px;
   --card-h-sm: 78px;
   --card-w-lg: 88px;
@@ -313,6 +315,13 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   transform: translateY(-24px) scale(1.12);
   z-index: 25;
   box-shadow: 0 0 0 3px #ffffff, 0 20px 48px rgba(0, 0, 0, 0.85);
+}
+
+.card-base.card-xs {
+  width: var(--card-w-xs);
+  height: var(--card-h-xs);
+  border-radius: 6px;
+  border-width: 1.5px !important;
 }
 
 .card-base.card-sm {
@@ -1062,6 +1071,8 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   :root {
     --card-w: 60px;
     --card-h: 90px;
+    --card-w-xs: 26px;
+    --card-h-xs: 38px;
     --card-w-sm: 44px;
     --card-h-sm: 66px;
     --card-w-lg: 74px;
@@ -1108,6 +1119,8 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   :root {
     --card-w: 52px;
     --card-h: 78px;
+    --card-w-xs: 24px;
+    --card-h-xs: 36px;
     --card-w-sm: 38px;
     --card-h-sm: 58px;
     --card-w-lg: 66px;
@@ -1165,3 +1178,36 @@ p  { color: var(--text-secondary); line-height: 1.6; }
   }
 }
 
+
+/* ─── Felt Direction Orbit Animations ────────────────────────── */
+@keyframes orbitClockwise {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes orbitCounter {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+/* ─── Enhanced 3D Card Physics & Performance ─────────────────── */
+.card-base {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  will-change: transform, box-shadow;
+}
+
+.card-base:hover:not(.card-xs) {
+  transform: translateY(-14px) scale(1.06);
+  z-index: 20;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 18px rgba(255, 255, 255, 0.25);
+}
+
+.card-base.card-xs {
+  transition: transform 0.15s ease;
+}
+
+.card-base.card-xs:hover {
+  transform: translateY(-4px) scale(1.08);
+  z-index: 25;
+}

@@ -206,7 +206,7 @@ export function FullOvalPinwheel({ isDark = false }) {
 
 // ─── Main UnoFlipCard Component ───────────────────────────────────────────────
 
-export default function UnoFlipCard({
+function UnoFlipCard({
   card,
   activeSide = ACTIVE_SIDE.LIGHT,
   selected = false,
@@ -223,8 +223,9 @@ export default function UnoFlipCard({
   // Authoritative physical card face: exactly card.lightSide on Light, card.darkSide on Dark
   const face = card ? (isDark ? card.darkSide : card.lightSide) : null;
 
-  const sizeMap = { sm: 'card-sm', md: '', lg: 'card-lg' };
+  const sizeMap = { xs: 'card-xs', sm: 'card-sm', md: '', lg: 'card-lg' };
   const sizeClass = sizeMap[size] || '';
+  const isXs = size === 'xs';
 
   // ─── 1. Face-Down Card Back with Authentic "UNO FLIP!" Logo ─────────────────
   if (faceDown) {
@@ -235,9 +236,10 @@ export default function UnoFlipCard({
           background: isDark
             ? 'linear-gradient(145deg, #090B10 0%, #171126 100%)'
             : 'linear-gradient(145deg, #0E131F 0%, #1A2132 100%)',
-          // Light side back: solid crisp white border; Dark side back: solid black border with neon purple ambient outline
-          border: isDark ? '3.5px solid #000000' : '3.5px solid #FFFFFF',
-          borderRadius: 14,
+          border: isXs
+            ? (isDark ? '1.5px solid #000000' : '1.5px solid #FFFFFF')
+            : (isDark ? '3.5px solid #000000' : '3.5px solid #FFFFFF'),
+          borderRadius: isXs ? 6 : 14,
           boxShadow: isDark
             ? '0 8px 24px rgba(0,0,0,0.9), 0 0 12px rgba(147,51,234,0.35)'
             : '0 8px 24px rgba(0,0,0,0.65)',
@@ -248,6 +250,17 @@ export default function UnoFlipCard({
         }}
         onClick={onClick}
       >
+        {/* Tactile Micro-Sheen for Card Back */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,0.25) 100%)',
+            borderRadius: 'inherit',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }}
+        />
         {/* Tilted Centerpiece Oval with Official "UNO FLIP!" Branding */}
         <div
           style={{
@@ -350,9 +363,9 @@ export default function UnoFlipCard({
               fontFamily: "'Outfit', 'Arial Black', sans-serif",
               fontWeight: 900,
               fontStyle: 'italic',
-              fontSize: isDiscard ? '2.1rem' : '1.5rem',
+              fontSize: isXs ? '0.75rem' : (isDiscard ? '2.1rem' : '1.5rem'),
               color: '#FFFFFF',
-              WebkitTextStroke: isDiscard ? '4px #000000' : '3px #000000',
+              WebkitTextStroke: isXs ? '1.5px #000000' : (isDiscard ? '4px #000000' : '3px #000000'),
               paintOrder: 'stroke fill',
               filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.85))',
               lineHeight: 1,
@@ -365,7 +378,7 @@ export default function UnoFlipCard({
     }
 
     if (face.type === CARD_TYPE.WILD_DRAW_COLOR) {
-      return <WildDrawColorIcon size={isDiscard ? 44 : 32} />;
+      return <WildDrawColorIcon size={isXs ? 14 : (isDiscard ? 44 : 32)} />;
     }
 
     if (isNumber) {
@@ -391,9 +404,11 @@ export default function UnoFlipCard({
               fontFamily: "'Outfit', 'Arial Black', sans-serif",
               fontWeight: 900,
               fontStyle: 'italic',
-              fontSize: isDiscard ? '3.8rem' : '2.85rem',
+              fontSize: isXs ? '1.15rem' : (isDiscard ? '3.8rem' : '2.85rem'),
               color: isDark ? '#FFFFFF' : numeralColor,
-              WebkitTextStroke: isDiscard
+              WebkitTextStroke: isXs
+                ? (isDark ? `1.8px ${cardColor}` : '1.8px #000000')
+                : isDiscard
                 ? (isDark ? `4.5px ${cardColor}` : '4.5px #000000')
                 : (isDark ? `3.5px ${cardColor}` : '3.5px #000000'),
               paintOrder: 'stroke fill',
@@ -410,11 +425,11 @@ export default function UnoFlipCard({
           {isSixOrNine && (
             <div
               style={{
-                width: isDiscard ? 26 : 18,
-                height: isDiscard ? 4 : 3,
+                width: isXs ? 10 : (isDiscard ? 26 : 18),
+                height: isXs ? 2 : (isDiscard ? 4 : 3),
                 background: isDark ? '#FFFFFF' : '#000000',
                 borderRadius: 2,
-                marginTop: 2,
+                marginTop: isXs ? 1 : 2,
               }}
             />
           )}
@@ -431,9 +446,9 @@ export default function UnoFlipCard({
             fontFamily: "'Outfit', 'Arial Black', sans-serif",
             fontWeight: 900,
             fontStyle: 'italic',
-            fontSize: isDiscard ? '2.8rem' : '2.1rem',
+            fontSize: isXs ? '0.85rem' : (isDiscard ? '2.8rem' : '2.1rem'),
             color: cardColor,
-            WebkitTextStroke: isDiscard ? '4px #000000' : '3px #000000',
+            WebkitTextStroke: isXs ? '1.5px #000000' : (isDiscard ? '4px #000000' : '3px #000000'),
             paintOrder: 'stroke fill',
             filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.5))',
             lineHeight: 1,
@@ -452,9 +467,9 @@ export default function UnoFlipCard({
             fontFamily: "'Outfit', 'Arial Black', sans-serif",
             fontWeight: 900,
             fontStyle: 'italic',
-            fontSize: isDiscard ? '2.8rem' : '2.1rem',
+            fontSize: isXs ? '0.85rem' : (isDiscard ? '2.8rem' : '2.1rem'),
             color: cardColor,
-            WebkitTextStroke: isDiscard ? '4px #000000' : '3px #000000',
+            WebkitTextStroke: isXs ? '1.5px #000000' : (isDiscard ? '4px #000000' : '3px #000000'),
             paintOrder: 'stroke fill',
             filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.5))',
             lineHeight: 1,
@@ -474,9 +489,9 @@ export default function UnoFlipCard({
             fontFamily: "'Outfit', 'Arial Black', sans-serif",
             fontWeight: 900,
             fontStyle: 'italic',
-            fontSize: isDiscard ? '2.8rem' : '2.1rem',
+            fontSize: isXs ? '0.85rem' : (isDiscard ? '2.8rem' : '2.1rem'),
             color: '#FFFFFF',
-            WebkitTextStroke: isDiscard ? '4.5px #000000' : '3.5px #000000',
+            WebkitTextStroke: isXs ? '1.5px #000000' : (isDiscard ? '4.5px #000000' : '3.5px #000000'),
             paintOrder: 'stroke fill',
             filter: `drop-shadow(0 0 12px ${cardColor})`,
             lineHeight: 1,
@@ -488,19 +503,19 @@ export default function UnoFlipCard({
     }
 
     if (face.type === CARD_TYPE.SKIP) {
-      return <SkipIcon size={isDiscard ? 44 : 32} isDark={isDark} color={isDark ? cardColor : cardColor} />;
+      return <SkipIcon size={isXs ? 14 : (isDiscard ? 44 : 32)} isDark={isDark} color={isDark ? cardColor : cardColor} />;
     }
 
     if (face.type === CARD_TYPE.REVERSE) {
-      return <ReverseIcon size={isDiscard ? 46 : 34} isDark={isDark} color={isDark ? cardColor : cardColor} />;
+      return <ReverseIcon size={isXs ? 15 : (isDiscard ? 46 : 34)} isDark={isDark} color={isDark ? cardColor : cardColor} />;
     }
 
     if (face.type === CARD_TYPE.FLIP) {
-      return <FlipIcon size={isDiscard ? 46 : 34} isDark={isDark} />;
+      return <FlipIcon size={isXs ? 15 : (isDiscard ? 46 : 34)} isDark={isDark} />;
     }
 
     if (face.type === CARD_TYPE.SKIP_EVERYONE) {
-      return <SkipEveryoneIcon size={isDiscard ? 46 : 34} />;
+      return <SkipEveryoneIcon size={isXs ? 15 : (isDiscard ? 46 : 34)} />;
     }
 
     return null;
@@ -508,6 +523,7 @@ export default function UnoFlipCard({
 
   // ─── 3. Corner Pip Indicators ───────────────────────────────────────────────
   function renderCornerPip() {
+    if (isXs) return null;
     if (isNumber) return String(face.value);
     if (face.type === CARD_TYPE.DRAW_ONE) return '+1';
     if (face.type === CARD_TYPE.DRAW_TWO) return '+2';
@@ -531,8 +547,10 @@ export default function UnoFlipCard({
       style={{
         background: cardColor,
         // Light Side: Pure white border; Dark Side: Solid deep black border with neon ambient glow
-        border: isDark ? '3.5px solid #000000' : '3.5px solid #FFFFFF',
-        borderRadius: 14,
+        border: isXs
+          ? (isDark ? '1.5px solid #000000' : '1.5px solid #FFFFFF')
+          : (isDark ? '3.5px solid #000000' : '3.5px solid #FFFFFF'),
+        borderRadius: isXs ? 6 : 14,
         boxShadow: selected
           ? (isDark
               ? `0 0 0 3px #FFFFFF, 0 0 28px ${cardColor}`
@@ -547,6 +565,21 @@ export default function UnoFlipCard({
       }}
       onClick={handleClick}
     >
+      {/* ── Tactile Micro-Linen & Specular Cardstock Finish ── */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.02) 42%, rgba(0,0,0,0.14) 100%)',
+          borderRadius: 'inherit',
+          pointerEvents: 'none',
+          boxShadow: isDark
+            ? 'inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.5)'
+            : 'inset 0 1.5px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(0,0,0,0.15)',
+          zIndex: 1,
+        }}
+      />
+
       {/* ── Top Gloss Specular Highlight ── */}
       <div
         style={{
@@ -632,3 +665,16 @@ export default function UnoFlipCard({
     </div>
   );
 }
+
+function areCardsEqual(prev, next) {
+  if (prev.card?.id !== next.card?.id) return false;
+  if (prev.activeSide !== next.activeSide) return false;
+  if (prev.selected !== next.selected) return false;
+  if (prev.faceDown !== next.faceDown) return false;
+  if (prev.size !== next.size) return false;
+  if (prev.isDiscard !== next.isDiscard) return false;
+  if (prev.className !== next.className) return false;
+  return true;
+}
+
+export default React.memo(UnoFlipCard, areCardsEqual);

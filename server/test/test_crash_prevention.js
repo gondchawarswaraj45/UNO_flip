@@ -43,5 +43,20 @@ const botDecision = botDecide('p2', 'MEDIUM', state);
 assert(botDecision && (botDecision.action === 'PLAY' || botDecision.action === 'DRAW'));
 console.log('✓ Test 5: Bot decision safety passed');
 
+// Test 6: UNO reset on draw & required every time
+const { processPressUno } = require('../src/engine/game');
+const unoState = createGame(DEFAULT_CONFIG, players);
+unoState.hands['p1'] = [{ id: 'c1', lightSide: { color: 'RED', type: CARD_TYPE.NUMBER, value: 5 } }];
+processPressUno('p1', unoState);
+assert.strictEqual(unoState.unoPressedBy['p1'], true);
+
+// Drawing card increases hand to 2 -> must revoke prior UNO call
+drawCards('p1', 1, unoState);
+assert.strictEqual(unoState.hands['p1'].length, 2);
+assert.strictEqual(unoState.unoPressedBy['p1'], undefined);
+const pubUno = getPublicState(unoState);
+assert.strictEqual(pubUno.players.find(p => p.id === 'p1').unoPressedCorrectly, false);
+console.log('✓ Test 6: UNO call correctly revoked on drawing cards (required every time)');
+
 console.log('\n🎉 ALL RESILIENCY & CRASH PREVENTION TESTS PASSED!');
 

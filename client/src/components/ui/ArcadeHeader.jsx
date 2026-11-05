@@ -16,6 +16,7 @@ import sound from '../../utils/audio';
 import { toast } from 'react-hot-toast';
 import { FRAME_STYLES } from './ProfileModal';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import useWindowSize from '../../hooks/useWindowSize';
 
 export default function ArcadeHeader({ showRoomCode = false, showChat = false }) {
   const {
@@ -39,6 +40,7 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
   } = useGameStore();
 
   const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
+  const { isSmall, isMobile } = useWindowSize();
 
   const currentFrameObj = FRAME_STYLES.find(f => f.id === profile.frame) || FRAME_STYLES[0];
   const level = Math.max(1, Math.floor((profile.xp || 0) / 150) + 1);
@@ -63,7 +65,7 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '10px 16px',
+        padding: isSmall ? '6px 8px' : isMobile ? '8px 12px' : '10px 16px',
         position: 'relative',
         zIndex: 50,
       }}
@@ -145,7 +147,7 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
                 fontSize: '0.85rem',
                 fontWeight: 800,
                 color: 'var(--text-primary)',
-                maxWidth: 100,
+                maxWidth: isSmall ? 68 : 100,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',

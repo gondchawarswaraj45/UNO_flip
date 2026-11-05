@@ -1,18 +1,25 @@
 /**
- * UNO Button — Authoritative Rule:
- * "UNO button is only available when I have 2 cards, one of those cards is playable, and it is my turn."
+ * UNO Button — Authoritative Rule & UX:
+ * 1. Preemptive Call: Available on player's turn when holding 2 cards with a legal play.
+ * 2. Emergency Call: Available when holding 1 card and UNO has not yet been called.
+ * 3. Every-Time Rule: Player must say UNO every time they reach UNO condition, not just the first time!
  */
 
 import React, { useMemo } from 'react';
 import useGameStore from '../../store/gameStore';
+import useWindowSize from '../../hooks/useWindowSize';
 
 export default function UnoButton({ onPress }) {
   const { myHand, gameState, myPlayerId } = useGameStore();
+  const { isSmall, isMobile } = useWindowSize();
 
   const isPlaying = gameState?.status === 'PLAYING';
   const isMyTurn = gameState?.currentPlayerId === myPlayerId;
   const cardCount = myHand?.length || 0;
-  const alreadyPressed = !!gameState?.players?.find((p) => p.id === myPlayerId)?.unoPressedCorrectly;
+  
+  // A player's UNO call is only valid for their current 1-card / 2-card instance
+  const playerInfo = gameState?.players?.find((p) => p.id === myPlayerId);
+  const alreadyPressed = !!playerInfo?.unoPressedCorrectly && (cardCount === 1 || (cardCount === 2 && isMyTurn));
 
   // Determine if at least one card in hand is playable right now
   const hasPlayableCard = useMemo(() => {
@@ -64,9 +71,13 @@ export default function UnoButton({ onPress }) {
     });
   }, [myHand, gameState]);
 
-  // Strict Condition: 2 cards held, one is playable, and it is player's turn
-  const canCallUno = isMyTurn && cardCount === 2 && hasPlayableCard;
-  const isEnabled = isPlaying && canCallUno && !alreadyPressed;
+  // Condition 1: Preemptive call holding 2 cards on your turn with a playable move
+  const canPreCallUno = isMyTurn && cardCount === 2 && hasPlayableCard;
+  // Condition 2: Active 1-card call before being caught
+  const canPostCallUno = cardCount === 1;
+
+  const isEligible = (canPreCallUno || canPostCallUno) && !alreadyPressed;
+  const isEnabled = isPlaying && isEligible;
 
   return (
     <button
@@ -75,10 +86,13 @@ export default function UnoButton({ onPress }) {
       onClick={onPress}
       disabled={!isEnabled}
       style={{
+        padding: isSmall ? '8px 14px' : isMobile ? '9px 18px' : '11px 26px',
+        fontSize: isSmall ? '0.95rem' : isMobile ? '1.1rem' : '1.35rem',
         opacity: isEnabled ? 1 : alreadyPressed ? 0.95 : 0.28,
         transform: isEnabled ? 'scale(1.06)' : 'scale(0.96)',
         cursor: isEnabled ? 'pointer' : alreadyPressed ? 'default' : 'not-allowed',
         transition: 'all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        flexShrink: 0,
         ...(alreadyPressed
           ? {
               background: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
@@ -88,7 +102,7 @@ export default function UnoButton({ onPress }) {
             }
           : isEnabled
           ? {
-              boxShadow: '0 0 26px rgba(220, 38, 38, 0.9), 0 0 14px rgba(234, 179, 8, 0.8)',
+              boxShadow: '0 0 28px rgba(220, 38, 38, 0.95), 0 0 16px rgba(234, 179, 8, 0.85)',
             }
           : {}),
       }}
@@ -96,12 +110,12 @@ export default function UnoButton({ onPress }) {
         alreadyPressed
           ? 'UNO called! You are safe from Caught penalties when you play down to 1.'
           : isEnabled
-          ? 'Call UNO now before playing your 2nd card down to 1!'
-          : !isMyTurn
-          ? 'UNO is only available on your turn when you have 2 cards and a playable move.'
-          : cardCount !== 2
-          ? 'UNO is only available when you hold exactly 2 cards.'
-          : !hasPlayableCard
+          ? (cardCount === 1 ? 'Say UNO now before another player catches you!' : 'Call UNO now before playing down to 1!')
+          : !isMyTurn && cardCount !== 1
+          ? 'UNO is available on your turn when you have 2 cards, or anytime you hold 1 card.'
+          : cardCount > 2
+          ? 'UNO is only available when holding 1 or 2 cards.'
+          : !hasPlayableCard && cardCount === 2
           ? 'UNO is only available when you have a playable card to drop.'
           : 'Disabled'
       }

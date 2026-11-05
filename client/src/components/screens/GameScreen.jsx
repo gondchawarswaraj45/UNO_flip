@@ -13,6 +13,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import useGameStore from '../../store/gameStore';
 import UnoFlipCard from '../game/UnoFlipCard';
+import TableDeckArea from '../game/TableDeckArea';
 import PlayerHand from '../game/PlayerHand';
 import OpponentArea from '../game/OpponentArea';
 import UnoButton from '../game/UnoButton';
@@ -29,111 +30,112 @@ import ShuffleDealAnimation from '../game/ShuffleDealAnimation';
 import TableEventOverlays from '../game/TableEventOverlays';
 import { CARD_TYPE, COLOR_HEX } from '../../utils/constants';
 import sound from '../../utils/audio';
+import useWindowSize from '../../hooks/useWindowSize';
 
 /**
- * Dynamically scale table felt dimensions according to player count.
- * 2 players: compact, 3 players: small, 4 players: medium, 6 players: big grand casino table.
+ * Dynamically scale table felt dimensions according to player count and window dimensions.
+ * Constrains width and height so side opponent pods NEVER clip outside the window.
  */
-function getTableDimensions(playerCount, isMobile = false) {
+function getTableDimensions(playerCount, dims) {
+  const { width: winW, height: winH, isMobile, isShort } = dims;
+
+  let targetWidth;
   if (isMobile) {
-    return {
-      width: 'min(95vw, 420px)',
-      height: 'clamp(180px, 28vh, 230px)',
-    };
+    targetWidth = Math.min(winW * 0.94, 460);
+  } else {
+    // Leave safe horizontal margin for side opponent pods on left and right
+    const maxSafeW = Math.max(340, winW - 130);
+    const idealByCount = playerCount <= 2 ? 620 : playerCount === 3 ? 700 : 800;
+    targetWidth = Math.min(idealByCount, maxSafeW);
   }
-  if (playerCount <= 2) {
-    return { width: 'min(640px, 88vw)', height: 'clamp(260px, 38vh, 330px)' };
+
+  let targetHeight;
+  if (isShort) {
+    targetHeight = Math.max(160, Math.min(winH * 0.32, 220));
+  } else if (isMobile) {
+    targetHeight = Math.max(180, Math.min(winH * 0.30, 240));
+  } else {
+    targetHeight = Math.max(220, Math.min(winH * 0.40, 340));
   }
-  if (playerCount === 3) {
-    return { width: 'min(740px, 90vw)', height: 'clamp(280px, 42vh, 360px)' };
-  }
-  if (playerCount === 4) {
-    return { width: 'min(840px, 92vw)', height: 'clamp(300px, 44vh, 390px)' };
-  }
-  if (playerCount === 5) {
-    return { width: 'min(960px, 94vw)', height: 'clamp(320px, 48vh, 420px)' };
-  }
-  return { width: 'min(1100px, 96vw)', height: 'clamp(340px, 50vh, 440px)' };
+
+  return {
+    width: `${Math.round(targetWidth)}px`,
+    height: `${Math.round(targetHeight)}px`,
+  };
 }
 
 /**
- * Seat opponents symmetrically along the outer rim of the felt table based on count and mobile view.
+ * Seat opponents symmetrically along the outer rim of the felt table based on count and dynamic window size.
  */
-function getOpponentSeatStyle(idx, count, isMobile = false) {
+function getOpponentSeatStyle(idx, count, dims) {
+  const { isMobile, width: winW } = dims;
+
   if (isMobile) {
     if (count === 1) {
-      return {
-        position: 'absolute',
-        top: -36,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 25,
-      };
+      return { position: 'absolute', top: -38, left: '50%', transform: 'translateX(-50%)', zIndex: 25 };
     }
     if (count === 2) {
+      // 3 players: Left & Right rims
       const positions = [
-        { top: -32, left: '26%', transform: 'translateX(-50%)' },
-        { top: -32, left: '74%', transform: 'translateX(-50%)' },
+        { top: '46%', left: 4, transform: 'translateY(-50%)' },
+        { top: '46%', right: 4, transform: 'translateY(-50%)' },
       ];
       return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
     }
     if (count === 3) {
+      // 4 players: Left, Top, Right
       const positions = [
-        { top: -8, left: 4, transform: 'none' },
+        { top: '46%', left: 4, transform: 'translateY(-50%)' },
         { top: -34, left: '50%', transform: 'translateX(-50%)' },
-        { top: -8, right: 4, transform: 'none' },
+        { top: '46%', right: 4, transform: 'translateY(-50%)' },
       ];
       return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
     }
     const positions = [
-      { top: 0, left: 4 },
+      { top: '46%', left: 2, transform: 'translateY(-50%)' },
       { top: -32, left: '26%', transform: 'translateX(-50%)' },
       { top: -36, left: '50%', transform: 'translateX(-50%)' },
       { top: -32, left: '74%', transform: 'translateX(-50%)' },
-      { top: 0, right: 4 },
+      { top: '46%', right: 2, transform: 'translateY(-50%)' },
     ];
     return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
   }
 
+  // Desktop / Tablet
+  const sideOffset = winW < 960 ? -44 : -52;
   if (count === 1) {
-    return {
-      position: 'absolute',
-      top: -46,
-      left: '50%',
-      transform: 'translateX(-50%)',
-      zIndex: 25,
-    };
+    return { position: 'absolute', top: -48, left: '50%', transform: 'translateX(-50%)', zIndex: 25 };
   }
   if (count === 2) {
     const positions = [
-      { top: -42, left: '26%', transform: 'translateX(-50%)' },
-      { top: -42, left: '74%', transform: 'translateX(-50%)' },
+      { top: '46%', left: sideOffset, transform: 'translateY(-50%)' },
+      { top: '46%', right: sideOffset, transform: 'translateY(-50%)' },
     ];
     return { position: 'absolute', ...positions[idx], zIndex: 25 };
   }
   if (count === 3) {
     const positions = [
-      { top: '48%', left: -52, transform: 'translateY(-50%)' },
-      { top: -46, left: '50%', transform: 'translateX(-50%)' },
-      { top: '48%', right: -52, transform: 'translateY(-50%)' },
+      { top: '48%', left: sideOffset, transform: 'translateY(-50%)' },
+      { top: -48, left: '50%', transform: 'translateX(-50%)' },
+      { top: '48%', right: sideOffset, transform: 'translateY(-50%)' },
     ];
     return { position: 'absolute', ...positions[idx], zIndex: 25 };
   }
   if (count === 4) {
     const positions = [
-      { top: '56%', left: -48, transform: 'translateY(-50%)' },
+      { top: '56%', left: sideOffset, transform: 'translateY(-50%)' },
       { top: -44, left: '24%', transform: 'translateX(-50%)' },
       { top: -44, left: '76%', transform: 'translateX(-50%)' },
-      { top: '56%', right: -48, transform: 'translateY(-50%)' },
+      { top: '56%', right: sideOffset, transform: 'translateY(-50%)' },
     ];
     return { position: 'absolute', ...positions[idx], zIndex: 25 };
   }
   const positions = [
-    { top: '60%', left: -52, transform: 'translateY(-50%)' },
+    { top: '60%', left: sideOffset, transform: 'translateY(-50%)' },
     { top: -38, left: '18%', transform: 'translateX(-50%)' },
-    { top: -46, left: '50%', transform: 'translateX(-50%)' },
+    { top: -48, left: '50%', transform: 'translateX(-50%)' },
     { top: -38, left: '82%', transform: 'translateX(-50%)' },
-    { top: '60%', right: -52, transform: 'translateY(-50%)' },
+    { top: '60%', right: sideOffset, transform: 'translateY(-50%)' },
   ];
   return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
 }
@@ -165,17 +167,8 @@ export default function GameScreen() {
   const [drawLoading, setDrawLoading] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
   const [hasShuffled, setHasShuffled] = useState(false);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < 768 : false
-  );
-
-  useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth < 768);
-    }
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  const windowDims = useWindowSize();
+  const { isMobile, isSmall, isShort, width: winW } = windowDims;
   const prevGameId = useRef(gameState?.gameId);
   const prevActiveSide = useRef(gameState?.activeSide);
   const prevIsMyTurn = useRef(false);
@@ -252,7 +245,7 @@ export default function GameScreen() {
   const isPlaying = status === 'PLAYING';
 
   // Compute dynamic table dimensions based on total player count
-  const tableDim = getTableDimensions(players.length, isMobile);
+  const tableDim = getTableDimensions(players.length, windowDims);
 
   // My own reaction bubble if any
   const myReaction = activeReactions[myPlayerId];
@@ -503,159 +496,46 @@ export default function GameScreen() {
         >
           {/* Opponents seated dynamically along the felt perimeter */}
           {opponents.map((player, idx) => (
-            <div key={player.id} style={getOpponentSeatStyle(idx, opponents.length, isMobile)}>
+            <div key={player.id} style={getOpponentSeatStyle(idx, opponents.length, windowDims)}>
               <OpponentArea player={player} />
             </div>
           ))}
 
+          {/* Subtle Directional Orbit Trail */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: isMobile ? 8 : 14,
+              borderRadius: isMobile ? '20px' : 'min(185px, 44vw)',
+              border: `1.5px dashed ${
+                activeSide === 'DARK' ? 'rgba(168, 85, 247, 0.22)' : 'rgba(229, 185, 76, 0.22)'
+              }`,
+              pointerEvents: 'none',
+              animation: gameState?.direction === 1 ? 'orbitClockwise 30s linear infinite' : 'orbitCounter 30s linear infinite',
+            }}
+          />
+
           {/* Center Table Play Surface */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, zIndex: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isShort ? 6 : 10, zIndex: 10 }}>
             {/* Side & Direction Indicator */}
             <GameInfo />
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-              {/* Draw Pile */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 6,
-                  cursor: isMyTurn && isPlaying ? 'pointer' : 'default',
-                  opacity: gameState.hasDrawnThisTurn && !gameState.pendingDrawStack?.active ? 0.75 : 1,
-                }}
-                onClick={handleDraw}
-                title={
-                  gameState.pendingDrawStack?.active
-                    ? `Active Draw Stack! Take ${gameState.pendingDrawStack.totalCards} penalty cards and pass turn.`
-                    : gameState.hasDrawnThisTurn
-                    ? 'Card already drawn this turn! Play a matching card or press Pass.'
-                    : 'Draw 1 card from the deck'
-                }
-              >
-                <div
-                  style={{
-                    width: isMobile ? 'clamp(56px, 14vw, 70px)' : 'clamp(68px, 16vw, 86px)',
-                    height: isMobile ? 'clamp(82px, 20vw, 104px)' : 'clamp(100px, 24vw, 126px)',
-                    borderRadius: 16,
-                    background:
-                      activeSide === 'DARK'
-                        ? 'linear-gradient(135deg, #181024 0%, #2e124d 100%)'
-                        : 'linear-gradient(135deg, #0e1726 0%, #1e293b 100%)',
-                    border: gameState.pendingDrawStack?.active
-                      ? '2.5px solid #ef4444'
-                      : `2px solid ${
-                          activeSide === 'DARK' ? 'rgba(168,85,247,0.45)' : 'rgba(229,185,76,0.45)'
-                        }`,
-                    boxShadow: gameState.pendingDrawStack?.active
-                      ? '0 0 32px rgba(239,68,68,0.85)'
-                      : isMyTurn && isPlaying && !gameState.hasDrawnThisTurn
-                      ? activeSide === 'DARK'
-                        ? '0 0 28px rgba(168,85,247,0.6)'
-                        : '0 0 28px rgba(229,185,76,0.5)'
-                      : '0 8px 24px rgba(0,0,0,0.6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'column',
-                    gap: 4,
-                    transition: 'all 0.2s ease',
-                    transform: isMyTurn && isPlaying && (!gameState.hasDrawnThisTurn || gameState.pendingDrawStack?.active) ? 'scale(1.06)' : 'scale(1)',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '1.6rem',
-                      color: gameState.pendingDrawStack?.active ? '#ef4444' : activeSide === 'DARK' ? '#c084fc' : '#facc15',
-                      opacity: 0.9,
-                    }}
-                  >
-                    {gameState.pendingDrawStack?.active ? '⚡' : activeSide === 'DARK' ? '◈' : '✦'}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                      color: gameState.pendingDrawStack?.active ? '#fca5a5' : 'var(--text-secondary)',
-                      letterSpacing: '0.06em',
-                    }}
-                  >
-                    {deckCount} cards
-                  </span>
-                </div>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    color: gameState.pendingDrawStack?.active
-                      ? '#ef4444'
-                      : gameState.hasDrawnThisTurn
-                      ? '#22c55e'
-                      : 'var(--text-muted)',
-                    fontWeight: 700,
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  {gameState.pendingDrawStack?.active
-                    ? `TAKE +${gameState.pendingDrawStack.totalCards}`
-                    : gameState.hasDrawnThisTurn
-                    ? 'DRAWN ✓'
-                    : 'DRAW'}
-                </span>
-              </div>
-
-              {/* Discard Pile */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                {topCard ? (
-                  <UnoFlipCard
-                    card={topCard}
-                    activeSide={activeSide}
-                    isDiscard={true}
-                    size={isMobile ? "md" : "lg"}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 80,
-                      height: 118,
-                      borderRadius: 16,
-                      background: 'var(--bg-glass)',
-                      border: '2px dashed var(--border-mid)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--text-muted)',
-                      fontSize: '0.8rem',
-                    }}
-                  >
-                    Empty
-                  </div>
-                )}
-
-                {/* Active Color Pip Indicator */}
-                {currentColor && (
-                  <div
-                    style={{
-                      width: 34,
-                      height: 9,
-                      borderRadius: 99,
-                      background: COLOR_HEX[currentColor] || '#888',
-                      boxShadow: `0 0 14px ${COLOR_HEX[currentColor] || '#888'}`,
-                      border: '1px solid rgba(255,255,255,0.4)',
-                    }}
-                  />
-                )}
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    color: 'var(--text-muted)',
-                    fontWeight: 700,
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  DISCARD
-                </span>
-              </div>
-            </div>
+            {/* 3D Physical Table Deck & Discard Experience */}
+            <TableDeckArea
+              deckCount={deckCount}
+              topCard={topCard}
+              discardPile={discardPile || []}
+              activeSide={activeSide}
+              currentColor={currentColor}
+              isMyTurn={isMyTurn}
+              isPlaying={isPlaying}
+              hasDrawnThisTurn={gameState.hasDrawnThisTurn}
+              pendingDrawStack={gameState.pendingDrawStack}
+              onDraw={handleDraw}
+              isMobile={isMobile}
+              isSmall={isSmall}
+              isShort={isShort}
+            />
 
             {/* Real-time Progressive Draw Attack Stack Banner */}
             {gameState.pendingDrawStack?.active && (

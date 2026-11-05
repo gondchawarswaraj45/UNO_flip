@@ -1,33 +1,25 @@
 /**
- * PlayerHand — Responsive player hand rendering with support for both mobile and desktop.
+ * PlayerHand — Responsive player hand rendering with support for mobile and desktop.
  *
+ *  - Reactive to window size changes: dynamically adjusts fan arc, card spread, and heights.
  *  - Mobile (<768px): Smooth touch-scrolling carousel with snappy touch selection.
- *  - Desktop (>=768px): Tactile curved card fan with vertical elevation on select.
+ *  - Desktop (>=768px): Tactile curved card fan with adaptive arc that never overflows browser width.
  *  - Authoritative: NEVER highlights "playable" cards — player chooses freely.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import UnoFlipCard from './UnoFlipCard';
 import useGameStore from '../../store/gameStore';
+import useWindowSize from '../../hooks/useWindowSize';
 import sound from '../../utils/audio';
 
 export default function PlayerHand({ onCardClick }) {
   const { myHand, selectedCardId, gameState } = useGameStore();
+  const { width, isMobile, isSmall, isShort } = useWindowSize();
   const activeSide = gameState?.activeSide || 'DARK';
   const oppositeSide = activeSide === 'DARK' ? 'LIGHT' : 'DARK';
 
   const [peekOpposite, setPeekOpposite] = useState(false);
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < 768 : false
-  );
-
-  useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth < 768);
-    }
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   if (!myHand || myHand.length === 0) {
     return (
@@ -36,7 +28,7 @@ export default function PlayerHand({ onCardClick }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          height: '110px',
+          height: isShort ? '80px' : '110px',
           color: 'var(--text-muted)',
           fontSize: '0.85rem',
           fontWeight: 600,
@@ -57,7 +49,7 @@ export default function PlayerHand({ onCardClick }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', flexShrink: 0 }}>
       {/* ── High-Visibility Floating Button to View Opposite Side ── */}
       <div
         style={{
@@ -66,7 +58,7 @@ export default function PlayerHand({ onCardClick }) {
           alignItems: 'center',
           justifyContent: 'center',
           width: '100%',
-          padding: isMobile ? '3px 8px 4px' : '5px 12px 6px',
+          padding: isSmall ? '2px 6px 3px' : isMobile ? '3px 8px 4px' : '4px 12px 5px',
           zIndex: 80,
           position: 'relative',
           flexShrink: 0,
@@ -84,8 +76,8 @@ export default function PlayerHand({ onCardClick }) {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: isMobile ? 6 : 9,
-            padding: isMobile ? '6px 14px' : '7px 20px',
+            gap: isSmall ? 5 : isMobile ? 6 : 9,
+            padding: isSmall ? '5px 12px' : isMobile ? '6px 14px' : '7px 20px',
             borderRadius: 99,
             background: peekOpposite
               ? (activeSide === 'DARK'
@@ -100,7 +92,7 @@ export default function PlayerHand({ onCardClick }) {
                 : (activeSide === 'DARK' ? 'rgba(192, 132, 252, 0.75)' : 'rgba(250, 204, 21, 0.75)')
             }`,
             color: peekOpposite ? '#ffffff' : (activeSide === 'DARK' ? '#f5d0fe' : '#fef08a'),
-            fontSize: isMobile ? '0.75rem' : '0.82rem',
+            fontSize: isSmall ? '0.7rem' : isMobile ? '0.75rem' : '0.82rem',
             fontWeight: 900,
             cursor: 'pointer',
             boxShadow: peekOpposite
@@ -115,7 +107,7 @@ export default function PlayerHand({ onCardClick }) {
           }}
           title={`Click to view your cards on the ${oppositeSide} side`}
         >
-          <span style={{ fontSize: isMobile ? '1rem' : '1.15rem' }}>{peekOpposite ? '👁️' : '🔄'}</span>
+          <span style={{ fontSize: isSmall ? '0.85rem' : isMobile ? '1rem' : '1.15rem' }}>{peekOpposite ? '👁️' : '🔄'}</span>
           <span>
             {peekOpposite
               ? `PEEKING ${oppositeSide} SIDE — TAP TO FLIP BACK`
@@ -124,7 +116,7 @@ export default function PlayerHand({ onCardClick }) {
           <span
             style={{
               fontSize: '0.62rem',
-              padding: '2px 8px',
+              padding: '2px 7px',
               borderRadius: 99,
               background: peekOpposite
                 ? 'rgba(0,0,0,0.5)'
@@ -140,10 +132,10 @@ export default function PlayerHand({ onCardClick }) {
         {peekOpposite && (
           <div
             style={{
-              fontSize: '0.68rem',
+              fontSize: '0.65rem',
               color: '#fef08a',
               fontWeight: 700,
-              marginTop: 3,
+              marginTop: 2,
               background: 'rgba(0,0,0,0.6)',
               padding: '1px 8px',
               borderRadius: 99,
@@ -162,14 +154,15 @@ export default function PlayerHand({ onCardClick }) {
             width: '100%',
             overflowX: 'auto',
             overflowY: 'hidden',
-            padding: '6px 12px 6px',
+            padding: isSmall ? '4px 8px 4px' : '6px 12px 6px',
             display: 'flex',
             alignItems: 'flex-end',
-            gap: 6,
+            gap: isSmall ? 4 : 6,
             scrollbarWidth: 'none',
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-x',
             justifyContent: count <= 4 ? 'center' : 'flex-start',
+            height: isShort ? '86px' : '108px',
           }}
         >
           {myHand.map((card, idx) => {
@@ -182,7 +175,7 @@ export default function PlayerHand({ onCardClick }) {
                 className="anim-deal-card"
                 style={{
                   flexShrink: 0,
-                  transform: isSelected ? 'translateY(-16px) scale(1.08)' : 'scale(1)',
+                  transform: isSelected ? 'translateY(-14px) scale(1.08)' : 'scale(1)',
                   transition: 'transform 0.18s ease',
                   zIndex: isSelected ? 40 : idx + 1,
                   cursor: 'pointer',
@@ -199,10 +192,10 @@ export default function PlayerHand({ onCardClick }) {
                       transform: 'translateX(-50%)',
                       background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                       color: '#ffffff',
-                      fontSize: '0.58rem',
+                      fontSize: '0.55rem',
                       fontWeight: 900,
                       letterSpacing: '0.04em',
-                      padding: '1px 6px',
+                      padding: '1px 5px',
                       borderRadius: 99,
                       boxShadow: '0 0 10px rgba(245, 158, 11, 0.8)',
                       whiteSpace: 'nowrap',
@@ -217,7 +210,7 @@ export default function PlayerHand({ onCardClick }) {
                   card={card}
                   activeSide={displaySide}
                   selected={isSelected}
-                  size="md"
+                  size={isShort ? 'sm' : 'md'}
                 />
               </div>
             );
@@ -231,27 +224,28 @@ export default function PlayerHand({ onCardClick }) {
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            height: '140px',
+            height: isShort ? '112px' : '136px',
             width: '100%',
-            paddingBottom: '8px',
+            paddingBottom: '6px',
           }}
         >
           {myHand.map((card, i) => {
             const isSelected = card.id === selectedCardId;
             const isDrawnThisTurn = gameState?.hasDrawnThisTurn && card.id === gameState?.drawnCardId;
 
-            // Fan layout: cards spread in an adaptive arc
-            const fanSpread = Math.min(count * 28, 560);
+            // Responsive fan layout: cards spread smoothly and adaptively with window width
+            const maxSpread = Math.min(width * 0.72, 580);
+            const fanSpread = Math.min(count * (width < 900 ? 22 : 28), maxSpread);
             const step      = count > 1 ? fanSpread / (count - 1) : 0;
             const offsetX   = count > 1 ? -fanSpread / 2 + i * step : 0;
 
             // Rotation: cards near center are straight, edges are tilted
             const midIdx = (count - 1) / 2;
-            const rot    = (i - midIdx) * (count > 8 ? 2.0 : 2.5);
+            const rot    = (i - midIdx) * (count > 8 ? 1.8 : 2.4);
 
             // Vertical arc
             const distFromMid = Math.abs(i - midIdx) / (midIdx || 1);
-            const arcY        = distFromMid * 12;
+            const arcY        = distFromMid * (isShort ? 8 : 12);
 
             return (
               <div
@@ -261,7 +255,7 @@ export default function PlayerHand({ onCardClick }) {
                   position: 'absolute',
                   left: `calc(50% + ${offsetX}px)`,
                   bottom: `${arcY}px`,
-                  transform: `rotate(${rot}deg) ${isSelected ? 'translateY(-24px) scale(1.1)' : ''}`,
+                  transform: `rotate(${rot}deg) ${isSelected ? 'translateY(-22px) scale(1.1)' : ''}`,
                   transformOrigin: 'bottom center',
                   zIndex: isSelected ? 50 : i + 1,
                   transition: 'transform 0.18s ease',
@@ -298,7 +292,7 @@ export default function PlayerHand({ onCardClick }) {
                   card={card}
                   activeSide={displaySide}
                   selected={isSelected}
-                  size="md"
+                  size={isShort ? 'sm' : 'md'}
                 />
               </div>
             );

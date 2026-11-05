@@ -9,6 +9,7 @@ import { FRAME_STYLES } from '../ui/ProfileModal';
 import { ACTIVE_SIDE } from '../../utils/constants';
 import UnoFlipCard from './UnoFlipCard';
 import CardDualFace from './CardDualFace';
+import useWindowSize from '../../hooks/useWindowSize';
 
 
 export default function OpponentArea({ player, position }) {
@@ -20,10 +21,12 @@ export default function OpponentArea({ player, position }) {
   const hasUno     = player.unoPressedCorrectly;
   const activeSide = gameState?.activeSide || 'LIGHT';
   const isDark     = activeSide === 'DARK';
+  const isTwoSide  = gameState?.config?.mode === 'TWO_SIDE';
   const isThinking = !!botThinking?.[player.id];
   const hasPenalty = actionAlert?.targetId === player.id && actionAlert?.type === 'PENALTY_DRAW' && actionAlert?.drawCount > 0;
 
-  const maxVisible = Math.min(cardCount, 5);
+  const { isSmall, isMobile } = useWindowSize();
+  const maxVisible = Math.min(cardCount, isSmall ? 3 : 4);
 
   // Active floating reaction bubble
   const reaction = activeReactions[player.id];
@@ -144,8 +147,8 @@ export default function OpponentArea({ player, position }) {
       {/* ── Circular Player Pod with Turn Aura ── */}
       <div
         style={{
-          width: 52,
-          height: 52,
+          width: isSmall ? 38 : 44,
+          height: isSmall ? 38 : 44,
           borderRadius: '50%',
           padding: 3,
           background: isActive
@@ -171,7 +174,7 @@ export default function OpponentArea({ player, position }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '1.45rem',
+            fontSize: '1.25rem',
             userSelect: 'none',
           }}
         >
@@ -207,7 +210,7 @@ export default function OpponentArea({ player, position }) {
           background: isActive ? 'rgba(229, 185, 76, 0.18)' : 'rgba(16, 24, 38, 0.85)',
           border: `1px solid ${isActive ? 'rgba(229, 185, 76, 0.5)' : 'var(--border-subtle)'}`,
           borderRadius: 99,
-          padding: '3px 10px',
+          padding: '2px 8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
         }}
       >
@@ -278,15 +281,15 @@ export default function OpponentArea({ player, position }) {
         >
           {/* Real Outward-Facing Card Backs in Authentic Mini Fan Layout */}
           {(player.cardsBack && player.cardsBack.length > 0
-            ? player.cardsBack.slice(0, 5)
+            ? player.cardsBack.slice(0, 4)
             : Array.from({ length: maxVisible })
           ).map((c, idx) => (
             <div
               key={c?.id || idx}
               style={{
-                marginLeft: idx === 0 ? 0 : -14,
-                boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
-                borderRadius: 8,
+                marginLeft: idx === 0 ? 0 : (isSmall ? -18 : -16),
+                boxShadow: '0 3px 8px rgba(0,0,0,0.6)',
+                borderRadius: 6,
                 transition: 'transform 0.2s ease',
                 zIndex: idx + 1,
               }}
@@ -302,8 +305,8 @@ export default function OpponentArea({ player, position }) {
                   darkSide: { color: 'PINK', type: 'DRAW_FIVE', value: null }
                 }}
                 activeSide={isDark ? ACTIVE_SIDE.LIGHT : ACTIVE_SIDE.DARK}
-                faceDown={false}
-                size="sm"
+                faceDown={!isTwoSide}
+                size="xs"
               />
             </div>
           ))}

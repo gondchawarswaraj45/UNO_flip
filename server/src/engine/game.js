@@ -198,6 +198,11 @@ function drawCards(playerId, count, state) {
     state.hands[playerId].push(card);
     drawn.push(card);
   }
+  // User rule: Player must say UNO every time they reach UNO condition, not just the first time.
+  // Drawing cards revokes any prior UNO call if hand now holds > 1 card.
+  if (state.hands[playerId] && state.hands[playerId].length > 1 && state.unoPressedBy) {
+    delete state.unoPressedBy[playerId];
+  }
   return drawn;
 }
 
@@ -353,6 +358,10 @@ function processPlayCard(playerId, cardId, chosenColor, state, emitEvent) {
       if (drawnFace && (drawnFace.color === chosenColor || drawnFace.color === 'WILD')) {
         matchingCardFound = true;
       }
+    }
+
+    if (targetId && state.hands[targetId] && state.hands[targetId].length > 1 && state.unoPressedBy) {
+      delete state.unoPressedBy[targetId];
     }
 
     // Target player loses their turn
@@ -683,6 +692,11 @@ function processPassTurn(playerId, state, emitEvent) {
     resolved: false,
   };
 
+  // Revoke preemptive UNO call if player passes without reducing to 1 card
+  if (state.hands[playerId] && state.hands[playerId].length > 1 && state.unoPressedBy) {
+    delete state.unoPressedBy[playerId];
+  }
+
   // Turn advances to next active player
   advanceTurn(state, 1);
 
@@ -885,7 +899,7 @@ function getPublicState(state) {
         name:      p.name,
         isBot:     p.isBot,
         cardCount: hand.length,
-        unoPressedCorrectly: !!state.unoPressedBy[p.id],
+        unoPressedCorrectly: ((hand.length === 1) || (hand.length === 2 && state.currentPlayerId === p.id)) && !!state.unoPressedBy[p.id],
         isFinished: !!finisher,
         rank: finisher ? finisher.rank : null,
         // In physical UNO Flip, the backside of an opponent's card is visible to other players

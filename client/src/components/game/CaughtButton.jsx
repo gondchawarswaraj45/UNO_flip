@@ -8,9 +8,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import useGameStore from '../../store/gameStore';
+import useWindowSize from '../../hooks/useWindowSize';
 
 export default function CaughtButton({ onCaught }) {
   const { gameState, myPlayerId, caughtWindowUi } = useGameStore();
+  const { isSmall, isMobile } = useWindowSize();
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timerRef = useRef(null);
 
@@ -51,12 +53,22 @@ export default function CaughtButton({ onCaught }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, position: 'relative' }}>
       {/* Caught window status badge */}
       {windowActive && !isSelfTarget && (
-        <div className="caught-window-badge anim-fade-in">
+        <div
+          className="caught-window-badge anim-fade-in"
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            marginBottom: 6,
+            whiteSpace: 'nowrap',
+            fontSize: isSmall ? '0.62rem' : '0.68rem',
+            padding: '2px 8px',
+          }}
+        >
           <div className="caught-window-dot" />
-          CAUGHT AVAILABLE — {secondsLeft}s
+          CAUGHT — {secondsLeft}s
         </div>
       )}
 
@@ -65,6 +77,11 @@ export default function CaughtButton({ onCaught }) {
         onClick={handleCaught}
         disabled={disabled}
         id="caught-btn"
+        style={{
+          padding: isSmall ? '7px 11px' : isMobile ? '8px 14px' : '10px 18px',
+          fontSize: isSmall ? '0.78rem' : isMobile ? '0.85rem' : '0.95rem',
+          flexShrink: 0,
+        }}
         title={
           !windowActive
             ? 'No active violation to catch'
