@@ -28,8 +28,11 @@ export function useSocket() {
     const socket = io(SERVER_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
-      reconnectionAttempts: 10,
+      reconnection: true,
+      reconnectionAttempts: Infinity, // Keep retrying indefinitely during Render 50s+ cold starts!
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
 
     socketRef.current = socket;
@@ -64,9 +67,13 @@ export function useSocket() {
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       setConnected(false);
-      toast.error('Connection lost. Reconnecting…');
+      console.log('[Socket] Disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        socket.connect();
+      }
+      toast.error('Connection lost. Reconnecting…', { id: 'conn-lost', duration: 3000 });
     });
 
     // ─── Lobby events ──────────────────────────────────────────────────────────

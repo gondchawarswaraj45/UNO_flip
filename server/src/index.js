@@ -36,6 +36,8 @@ const io = new Server(server, {
     origin: corsOrigin,
     methods: ['GET', 'POST'],
   },
+  pingInterval: 15000, // Active heartbeat every 15s (prevents Render 55s proxy idle drop)
+  pingTimeout: 30000,  // Wait 30s before dropping socket
 });
 
 app.use(cors({ origin: corsOrigin }));
