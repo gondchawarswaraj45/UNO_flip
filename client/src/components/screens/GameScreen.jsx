@@ -44,18 +44,18 @@ function getTableDimensions(playerCount, dims) {
     targetWidth = Math.min(winW * 0.94, 460);
   } else {
     // Leave safe horizontal margin for side opponent pods on left and right
-    const maxSafeW = Math.max(340, winW - 130);
-    const idealByCount = playerCount <= 2 ? 620 : playerCount === 3 ? 700 : 800;
+    const maxSafeW = Math.max(340, winW - 160);
+    const idealByCount = playerCount <= 2 ? 640 : playerCount === 3 ? 720 : playerCount <= 4 ? 760 : 840;
     targetWidth = Math.min(idealByCount, maxSafeW);
   }
 
   let targetHeight;
   if (isShort) {
-    targetHeight = Math.max(160, Math.min(winH * 0.32, 220));
+    targetHeight = Math.max(170, Math.min(winH * 0.34, 230));
   } else if (isMobile) {
-    targetHeight = Math.max(180, Math.min(winH * 0.30, 240));
+    targetHeight = Math.max(190, Math.min(winH * 0.32, 250));
   } else {
-    targetHeight = Math.max(220, Math.min(winH * 0.40, 340));
+    targetHeight = Math.max(240, Math.min(winH * 0.42, 350));
   }
 
   return {
@@ -66,78 +66,98 @@ function getTableDimensions(playerCount, dims) {
 
 /**
  * Seat opponents symmetrically along the outer rim of the felt table based on count and dynamic window size.
+ * Returns both CSS positioning and the semantic layout orientation ('top', 'top-left', 'top-right', 'left', 'right')
+ * so cards fan outward away from the center table surface.
  */
-function getOpponentSeatStyle(idx, count, dims) {
+function getOpponentSeatConfig(idx, count, dims) {
   const { isMobile, width: winW } = dims;
 
   if (isMobile) {
     if (count === 1) {
-      return { position: 'absolute', top: -38, left: '50%', transform: 'translateX(-50%)', zIndex: 25 };
+      return {
+        style: { position: 'absolute', top: -46, left: '50%', transform: 'translateX(-50%)', zIndex: 25 },
+        layout: 'top',
+      };
     }
     if (count === 2) {
       // 3 players: Left & Right rims
-      const positions = [
-        { top: '46%', left: 4, transform: 'translateY(-50%)' },
-        { top: '46%', right: 4, transform: 'translateY(-50%)' },
+      const configs = [
+        { style: { position: 'absolute', top: '46%', left: -6, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'left' },
+        { style: { position: 'absolute', top: '46%', right: -6, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'right' },
       ];
-      return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
+      return configs[idx] || configs[0];
     }
     if (count === 3) {
       // 4 players: Left, Top, Right
-      const positions = [
-        { top: '46%', left: 4, transform: 'translateY(-50%)' },
-        { top: -34, left: '50%', transform: 'translateX(-50%)' },
-        { top: '46%', right: 4, transform: 'translateY(-50%)' },
+      const configs = [
+        { style: { position: 'absolute', top: '48%', left: -6, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'left' },
+        { style: { position: 'absolute', top: -46, left: '50%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top' },
+        { style: { position: 'absolute', top: '48%', right: -6, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'right' },
       ];
-      return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
+      return configs[idx] || configs[0];
     }
-    const positions = [
-      { top: '46%', left: 2, transform: 'translateY(-50%)' },
-      { top: -32, left: '26%', transform: 'translateX(-50%)' },
-      { top: -36, left: '50%', transform: 'translateX(-50%)' },
-      { top: -32, left: '74%', transform: 'translateX(-50%)' },
-      { top: '46%', right: 2, transform: 'translateY(-50%)' },
+    if (count === 4) {
+      // 5 players: Left, Top-Left, Top-Right, Right
+      const configs = [
+        { style: { position: 'absolute', top: '54%', left: -6, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'left' },
+        { style: { position: 'absolute', top: -40, left: '22%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top-left' },
+        { style: { position: 'absolute', top: -40, left: '78%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top-right' },
+        { style: { position: 'absolute', top: '54%', right: -6, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'right' },
+      ];
+      return configs[idx] || configs[0];
+    }
+    // 6 players: Left, Top-Left, Top-Center, Top-Right, Right
+    const configs = [
+      { style: { position: 'absolute', top: '56%', left: -6, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'left' },
+      { style: { position: 'absolute', top: -40, left: '16%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top-left' },
+      { style: { position: 'absolute', top: -46, left: '50%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top' },
+      { style: { position: 'absolute', top: -40, left: '84%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top-right' },
+      { style: { position: 'absolute', top: '56%', right: -6, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'right' },
     ];
-    return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
+    return configs[idx] || configs[0];
   }
 
   // Desktop / Tablet
-  const sideOffset = winW < 960 ? -44 : -52;
+  const sideOffset = winW < 960 ? -48 : -64;
   if (count === 1) {
-    return { position: 'absolute', top: -48, left: '50%', transform: 'translateX(-50%)', zIndex: 25 };
+    return {
+      style: { position: 'absolute', top: -56, left: '50%', transform: 'translateX(-50%)', zIndex: 25 },
+      layout: 'top',
+    };
   }
   if (count === 2) {
-    const positions = [
-      { top: '46%', left: sideOffset, transform: 'translateY(-50%)' },
-      { top: '46%', right: sideOffset, transform: 'translateY(-50%)' },
+    const configs = [
+      { style: { position: 'absolute', top: '48%', left: sideOffset, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'left' },
+      { style: { position: 'absolute', top: '48%', right: sideOffset, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'right' },
     ];
-    return { position: 'absolute', ...positions[idx], zIndex: 25 };
+    return configs[idx] || configs[0];
   }
   if (count === 3) {
-    const positions = [
-      { top: '48%', left: sideOffset, transform: 'translateY(-50%)' },
-      { top: -48, left: '50%', transform: 'translateX(-50%)' },
-      { top: '48%', right: sideOffset, transform: 'translateY(-50%)' },
+    const configs = [
+      { style: { position: 'absolute', top: '50%', left: sideOffset, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'left' },
+      { style: { position: 'absolute', top: -56, left: '50%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top' },
+      { style: { position: 'absolute', top: '50%', right: sideOffset, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'right' },
     ];
-    return { position: 'absolute', ...positions[idx], zIndex: 25 };
+    return configs[idx] || configs[0];
   }
   if (count === 4) {
-    const positions = [
-      { top: '56%', left: sideOffset, transform: 'translateY(-50%)' },
-      { top: -44, left: '24%', transform: 'translateX(-50%)' },
-      { top: -44, left: '76%', transform: 'translateX(-50%)' },
-      { top: '56%', right: sideOffset, transform: 'translateY(-50%)' },
+    const configs = [
+      { style: { position: 'absolute', top: '56%', left: sideOffset, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'left' },
+      { style: { position: 'absolute', top: -52, left: '22%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top-left' },
+      { style: { position: 'absolute', top: -52, left: '78%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top-right' },
+      { style: { position: 'absolute', top: '56%', right: sideOffset, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'right' },
     ];
-    return { position: 'absolute', ...positions[idx], zIndex: 25 };
+    return configs[idx] || configs[0];
   }
-  const positions = [
-    { top: '60%', left: sideOffset, transform: 'translateY(-50%)' },
-    { top: -38, left: '18%', transform: 'translateX(-50%)' },
-    { top: -48, left: '50%', transform: 'translateX(-50%)' },
-    { top: -38, left: '82%', transform: 'translateX(-50%)' },
-    { top: '60%', right: sideOffset, transform: 'translateY(-50%)' },
+  // count === 5 (6 players)
+  const configs = [
+    { style: { position: 'absolute', top: '60%', left: sideOffset, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'left' },
+    { style: { position: 'absolute', top: -52, left: '18%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top-left' },
+    { style: { position: 'absolute', top: -58, left: '50%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top' },
+    { style: { position: 'absolute', top: -52, left: '82%', transform: 'translateX(-50%)', zIndex: 25 }, layout: 'top-right' },
+    { style: { position: 'absolute', top: '60%', right: sideOffset, transform: 'translateY(-50%)', zIndex: 25 }, layout: 'right' },
   ];
-  return { position: 'absolute', ...(positions[idx] || positions[0]), zIndex: 25 };
+  return configs[idx] || configs[0];
 }
 
 export default function GameScreen() {
@@ -494,12 +514,15 @@ export default function GameScreen() {
             transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
-          {/* Opponents seated dynamically along the felt perimeter */}
-          {opponents.map((player, idx) => (
-            <div key={player.id} style={getOpponentSeatStyle(idx, opponents.length, windowDims)}>
-              <OpponentArea player={player} />
-            </div>
-          ))}
+          {/* Opponents seated dynamically along the felt perimeter with outward-fanning card alignment */}
+          {opponents.map((player, idx) => {
+            const seat = getOpponentSeatConfig(idx, opponents.length, windowDims);
+            return (
+              <div key={player.id} style={seat.style}>
+                <OpponentArea player={player} seatLayout={seat.layout} />
+              </div>
+            );
+          })}
 
           {/* Subtle Directional Orbit Trail */}
           <div

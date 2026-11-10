@@ -49,10 +49,18 @@ function GameInfo() {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: isSmall ? 6 : isMobile ? 8 : 12,
-        flexWrap: 'wrap',
+        gap: isSmall ? 5 : isMobile ? 6 : 8,
+        flexWrap: 'nowrap',
         justifyContent: 'center',
         userSelect: 'none',
+        background: 'rgba(10, 16, 28, 0.75)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        backdropFilter: 'blur(8px)',
+        padding: isSmall ? '2px 8px' : '3px 12px',
+        borderRadius: 99,
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.45)',
+        zIndex: 15,
+        maxWidth: '96%',
       }}
     >
       {/* Active Side Badge */}
@@ -60,8 +68,9 @@ function GameInfo() {
         <div
           className={`side-badge ${isDark ? 'dark' : 'light'}`}
           style={{
-            padding: isSmall ? '4px 10px' : '5px 14px',
-            fontSize: isSmall ? '0.72rem' : '0.78rem',
+            padding: isSmall ? '3px 8px' : '4px 10px',
+            fontSize: isSmall ? '0.7rem' : '0.75rem',
+            whiteSpace: 'nowrap',
           }}
         >
           {isDark ? '🌑 Dark Side' : '☀️ Light Side'}
@@ -71,16 +80,17 @@ function GameInfo() {
       {/* Direction Pill */}
       <div
         style={{
-          padding: isSmall ? '4px 10px' : '5px 12px',
+          padding: isSmall ? '3px 8px' : '4px 10px',
           borderRadius: 99,
           background: 'rgba(15, 23, 42, 0.75)',
           border: '1px solid var(--border-subtle)',
-          fontSize: isSmall ? '0.72rem' : '0.78rem',
+          fontSize: isSmall ? '0.7rem' : '0.75rem',
           fontWeight: 700,
           color: 'var(--text-secondary)',
           display: 'flex',
           alignItems: 'center',
           gap: 4,
+          whiteSpace: 'nowrap',
         }}
       >
         <span>{dirLabel}</span>
@@ -89,13 +99,14 @@ function GameInfo() {
       {/* Turn Counter */}
       <div
         style={{
-          padding: isSmall ? '4px 8px' : '5px 12px',
+          padding: isSmall ? '3px 6px' : '4px 8px',
           borderRadius: 99,
           background: 'rgba(15, 23, 42, 0.75)',
           border: '1px solid var(--border-subtle)',
-          fontSize: isSmall ? '0.7rem' : '0.76rem',
+          fontSize: isSmall ? '0.68rem' : '0.74rem',
           color: 'var(--text-muted)',
           fontWeight: 600,
+          whiteSpace: 'nowrap',
         }}
       >
         Turn {turnCount}
@@ -105,26 +116,27 @@ function GameInfo() {
       {currentTurnOdds !== null && (
         <div
           style={{
-            padding: isSmall ? '3px 8px' : '4px 12px',
+            padding: isSmall ? '2px 6px' : '3px 8px',
             borderRadius: 99,
             background: 'rgba(56, 189, 248, 0.12)',
             border: '1px solid rgba(56, 189, 248, 0.35)',
-            fontSize: isSmall ? '0.68rem' : '0.75rem',
+            fontSize: isSmall ? '0.65rem' : '0.72rem',
             fontWeight: 800,
             color: '#38bdf8',
             display: 'flex',
             alignItems: 'center',
-            gap: 5,
+            gap: 4,
+            whiteSpace: 'nowrap',
           }}
           title="Live win probability analyzed on a background Web Worker thread without main UI blocking"
         >
           <span>⚡ Odds: {currentTurnOdds}%</span>
           <span
             style={{
-              fontSize: '0.58rem',
+              fontSize: '0.55rem',
               background: 'rgba(56, 189, 248, 0.24)',
-              padding: '1px 4px',
-              borderRadius: 4,
+              padding: '1px 3px',
+              borderRadius: 3,
               letterSpacing: '0.04em',
             }}
           >
