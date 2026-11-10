@@ -76,9 +76,25 @@ const getStoredProfile = (userId) => {
 
 // ─── Store Definition ────────────────────────────────────────────────────────
 
+const getStoredActiveSession = () => {
+  try {
+    const raw = localStorage.getItem('uno_active_session');
+    if (!raw) return null;
+    const session = JSON.parse(raw);
+    if (session.timestamp && Date.now() - session.timestamp > 4 * 60 * 60 * 1000) {
+      localStorage.removeItem('uno_active_session');
+      return null;
+    }
+    return session;
+  } catch (_) {
+    return null;
+  }
+};
+
 const initialAuthUser = getStoredAuthUser();
 const initialUserId = initialAuthUser?.userId || getStoredUserId();
 const initialProfile = getStoredProfile(initialUserId);
+const initialActiveSession = getStoredActiveSession();
 
 const useGameStore = create((set, get) => ({
   // ─── Connection ─────────────────────────────────────────────────────────────
@@ -86,6 +102,70 @@ const useGameStore = create((set, get) => ({
   connected: false,
   setSocket: (socket) => set({ socket }),
   setConnected: (v) => set({ connected: v }),
+
+  // ─── Match Session Retention & Reconnect System ─────────────────────────────
+  activeSession: initialActiveSession,
+  sessionRestoring: false,
+  showSessionPrompt: Boolean(initialActiveSession),
+  sessionPendingState: null,
+
+  setSessionRestoring: (v) => set({ sessionRestoring: v }),
+  setShowSessionPrompt: (v) => set({ showSessionPrompt: v }),
+  setSessionPendingState: (data) => set({ sessionPendingState: data, showSessionPrompt: true }),
+
+  saveActiveSession: ({ roomId, playerId, sessionToken, isSolo, isOffline, mode }) => {
+    const session = {
+      roomId,
+      playerId,
+      sessionToken,
+      isSolo: !!isSolo,
+      isOffline: !!isOffline,
+      mode: mode || 'TWO_SIDE',
+      timestamp: Date.now(),
+    };
+    try {
+      localStorage.setItem('uno_active_session', JSON.stringify(session));
+    } catch (_) {}
+    set({ activeSession: session, roomId, myPlayerId: playerId, showSessionPrompt: true });
+  },
+
+  clearActiveSession: () => {
+    try {
+      localStorage.removeItem('uno_active_session');
+    } catch (_) {}
+    set({ activeSession: null, sessionPendingState: null, showSessionPrompt: false });
+  },
+
+  restoreGameSession: (data) => {
+    const { roomId, playerId, sessionToken, lobby, gameState, hand, isOffline, isSolo, status } = data;
+    const isPlaying = status === 'PLAYING' || (gameState && gameState.status === 'PLAYING');
+    const session = {
+      roomId,
+      playerId,
+      sessionToken: sessionToken || get().activeSession?.sessionToken,
+      isSolo: isSolo !== undefined ? !!isSolo : !!get().activeSession?.isSolo,
+      isOffline: isOffline !== undefined ? !!isOffline : !!get().activeSession?.isOffline,
+      timestamp: Date.now(),
+    };
+    try {
+      localStorage.setItem('uno_active_session', JSON.stringify(session));
+    } catch (_) {}
+
+    set({
+      activeSession: session,
+      sessionPendingState: null,
+      showSessionPrompt: false,
+      roomId,
+      myPlayerId: playerId,
+      lobbyState: lobby,
+      gameState: gameState || null,
+      myHand: hand || [],
+      isOfflineMode: !!isOffline,
+      screen: isPlaying ? 'GAME' : 'LOBBY',
+      sessionRestoring: false,
+    });
+  },
+
 
   // ─── Authentication & User Accounts (Unique ID + Password) ─────────────────
   authUser: initialAuthUser,

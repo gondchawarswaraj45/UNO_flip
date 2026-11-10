@@ -38,6 +38,30 @@ export function useSocket() {
     socket.on('connect', () => {
       setConnected(true);
       console.log('[Socket] Connected:', socket.id);
+
+      // Check for active match session in storage without forcing view change (keeps game paused)
+      const activeSession = useGameStore.getState().activeSession;
+      if (activeSession && activeSession.roomId && activeSession.playerId) {
+        useGameStore.getState().setSessionRestoring(true);
+        socket.emit(
+          'resumeSession',
+          {
+            roomId: activeSession.roomId,
+            playerId: activeSession.playerId,
+            sessionToken: activeSession.sessionToken,
+            unpause: false, // Keep paused! Let player choose whether to continue!
+          },
+          (res) => {
+            useGameStore.getState().setSessionRestoring(false);
+            if (res && res.ok) {
+              useGameStore.getState().setSessionPendingState(res);
+            } else {
+              console.log('[Session] Previous session expired or invalid on server:', res?.error);
+              useGameStore.getState().clearActiveSession();
+            }
+          }
+        );
+      }
     });
 
     socket.on('disconnect', () => {
@@ -236,15 +260,28 @@ export function useSocket() {
     // ─── Game over ─────────────────────────────────────────────────────────────
 
     socket.on('gameOver', (result) => {
+      useGameStore.getState().clearActiveSession();
       setGameResult(result);
       useGameStore.getState().recordMatchCompleted(result);
       setScreen('RESULT');
     });
 
-    // ─── Disconnect notification ───────────────────────────────────────────────
+    // ─── Disconnect & Reconnect notifications ──────────────────────────────────
 
     socket.on('playerDisconnected', ({ name }) => {
-      toast(`${name} disconnected`, { icon: '⚠️' });
+      toast(`⚠️ ${name} disconnected (waiting for reconnect...)`, { icon: '📶', duration: 3500 });
+    });
+
+    socket.on('playerReconnected', ({ name }) => {
+      toast(`🟢 ${name} reconnected to the match!`, { icon: '⚡', duration: 3000 });
+    });
+
+    socket.on('playerReplacedByBot', ({ name }) => {
+      toast.error(`⚠️ ${name} disconnected and has been replaced by AI.`, { duration: 4000 });
+    });
+
+    socket.on('playerForfeited', ({ name }) => {
+      toast(`🏳️ ${name} forfeited the match.`, { icon: '⚠️', duration: 4000 });
     });
 
     return () => {

@@ -10,7 +10,7 @@
  *  - Audio mute/unmute toggle 🔊.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import useGameStore from '../../store/gameStore';
 import sound from '../../utils/audio';
 import { toast } from 'react-hot-toast';
@@ -37,7 +37,43 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
     setShowRulesModal,
     showQuickChat,
     setShowQuickChat,
+    screen,
+    myPlayerId,
+    reset,
+    clearActiveSession,
+    socket,
   } = useGameStore();
+
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const { activeSession } = useGameStore();
+
+  const isSoloMatch = Boolean(
+    gameState?.isSolo ||
+    activeSession?.isSolo ||
+    lobbyState?.isSolo ||
+    (gameState && !gameState.isOffline && !gameState.players?.some(p => !p.isBot && p.id !== myPlayerId))
+  );
+
+  function handleConfirmLeave(isForfeit = false) {
+    sound.buttonClick();
+    if (socket && activeRoomCode) {
+      socket.emit('leaveGame', { roomId: activeRoomCode, playerId: myPlayerId, isForfeit });
+    }
+    clearActiveSession();
+    setShowLeaveConfirm(false);
+    reset();
+    toast(isForfeit ? '🏳️ You forfeited the match.' : '🗑 Match session deleted.', { icon: isForfeit ? '🏳️' : '🗑', duration: 3500 });
+  }
+
+  function handlePauseAndSave() {
+    sound.buttonClick();
+    if (socket && activeRoomCode) {
+      socket.emit('pauseGame', { roomId: activeRoomCode, playerId: myPlayerId });
+    }
+    setShowLeaveConfirm(false);
+    reset();
+    toast('⏸ Match kept in pause state. You can continue anytime from the menu!', { icon: '⏸', duration: 4000 });
+  }
 
   const { isInstallable, isInstalled, promptInstall } = usePwaInstall();
   const { isSmall, isMobile } = useWindowSize();
@@ -288,6 +324,34 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
           </button>
         )}
 
+        {/* Pause / Forfeit Match button (when inside game or lobby) */}
+        {(screen === 'GAME' || screen === 'LOBBY') && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              sound.buttonClick();
+              setShowLeaveConfirm(true);
+            }}
+            title={isSoloMatch ? 'Pause or leave game' : 'Forfeit match with real players'}
+            style={{
+              padding: '6px 11px',
+              borderRadius: 'var(--radius-lg)',
+              color: isSoloMatch ? '#38bdf8' : '#f87171',
+              border: `1px solid ${isSoloMatch ? 'rgba(56, 189, 248, 0.35)' : 'rgba(248, 113, 113, 0.35)'}`,
+              background: isSoloMatch ? 'rgba(56, 189, 248, 0.1)' : 'rgba(248, 113, 113, 0.1)',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            <span>{isSoloMatch ? '⏸' : '🚪'}</span>
+            <span style={{ fontSize: '0.8rem', display: 'none' }} className="sm-inline">
+              {isSoloMatch ? 'Pause / Exit' : 'Forfeit'}
+            </span>
+          </button>
+        )}
+
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => {
@@ -371,6 +435,122 @@ export default function ArcadeHeader({ showRoomCode = false, showChat = false })
           </button>
         )}
       </div>
+
+      {/* Leave / Pause Match Confirmation Modal */}
+      {showLeaveConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+        >
+          <div
+            className="glass-strong anim-scale-up"
+            style={{
+              width: 'min(450px, 94vw)',
+              borderRadius: 'var(--radius-2xl)',
+              padding: '24px',
+              border: `1.5px solid ${isSoloMatch ? 'rgba(56, 189, 248, 0.4)' : 'rgba(248, 113, 113, 0.4)'}`,
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.6)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>{isSoloMatch ? '⏸' : '🏳️'}</div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: 8, color: isSoloMatch ? '#38bdf8' : '#f87171' }}>
+              {isSoloMatch ? 'Pause or Exit Solo Match?' : 'Forfeit Live Match?'}
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.55 }}>
+              {isSoloMatch ? (
+                <>
+                  You are playing against Computer Bots.
+                  <br />
+                  Would you like to keep the game in pause state to continue later, or delete this match session?
+                </>
+              ) : (
+                <>
+                  <span style={{ color: '#fca5a5', fontWeight: 700 }}>
+                    ⚠️ Once you leave this game with real players, you forfeit the match!
+                  </span>
+                  <br />
+                  An AI bot will take over your seat for the remaining players.
+                </>
+              )}
+            </p>
+
+            {isSoloMatch ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  className="btn btn-gold w-full"
+                  onClick={() => {
+                    sound.buttonClick();
+                    setShowLeaveConfirm(false);
+                  }}
+                  style={{ padding: '10px 16px', fontWeight: 800 }}
+                >
+                  ▶ Return to Match
+                </button>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={handlePauseAndSave}
+                    style={{ flex: 1, padding: '10px 12px', fontSize: '0.84rem', border: '1px solid var(--border-mid)' }}
+                  >
+                    ⏸ Keep Paused & Exit
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => handleConfirmLeave(false)}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      fontSize: '0.84rem',
+                      color: '#f87171',
+                      border: '1px solid rgba(248, 113, 113, 0.35)',
+                      background: 'rgba(248, 113, 113, 0.08)',
+                    }}
+                  >
+                    🗑 Delete Session
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    sound.buttonClick();
+                    setShowLeaveConfirm(false);
+                  }}
+                  style={{ flex: 1, padding: '10px 16px' }}
+                >
+                  Stay in Match
+                </button>
+                <button
+                  className="btn"
+                  onClick={() => handleConfirmLeave(true)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    border: '1px solid #f87171',
+                  }}
+                >
+                  🏳️ Forfeit & Leave
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

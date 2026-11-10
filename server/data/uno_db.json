@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-11-05T11:25:37.225Z",
+  "savedAt": "2026-11-09T17:35:18.289Z",
   "users": [
     {
       "id": "GUEST-5851",
@@ -8,7 +8,7 @@
       "avatar": "👤",
       "email": null,
       "created_at": "2026-10-24T17:22:16.886Z",
-      "last_seen_at": "2026-11-05T11:25:36.819Z"
+      "last_seen_at": "2026-11-09T17:21:36.731Z"
     },
     {
       "id": "GUEST-3582",
@@ -17,6 +17,118 @@
       "email": null,
       "created_at": "2026-10-27T10:10:29.178Z",
       "last_seen_at": "2026-10-27T10:19:58.970Z"
+    },
+    {
+      "id": "6e06cc07-06a4-4a95-b19c-187412d8ade6",
+      "username": "Alice",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:26:57.970Z",
+      "last_seen_at": "2026-11-09T16:26:57.970Z"
+    },
+    {
+      "id": "f4637b7d-aeed-4239-a0cf-284057efe4f2",
+      "username": "Bob",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:26:57.974Z",
+      "last_seen_at": "2026-11-09T16:26:57.974Z"
+    },
+    {
+      "id": "f0343551-ec8e-444c-9bf2-32facc3e0db9",
+      "username": "SoloHero",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:26:57.975Z",
+      "last_seen_at": "2026-11-09T16:26:57.975Z"
+    },
+    {
+      "id": "3eec4de8-5f40-4055-adcc-c692f2ae5555",
+      "username": "Alice",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:50:47.788Z",
+      "last_seen_at": "2026-11-09T16:50:47.788Z"
+    },
+    {
+      "id": "a6dc18f1-587f-42c6-9e67-e2f5edb9c860",
+      "username": "Bob",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:50:47.798Z",
+      "last_seen_at": "2026-11-09T16:50:47.798Z"
+    },
+    {
+      "id": "196fb440-d697-4e00-8f30-15353a4af06a",
+      "username": "SoloHero",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:50:47.800Z",
+      "last_seen_at": "2026-11-09T16:50:47.800Z"
+    },
+    {
+      "id": "b50b3b23-c531-41db-9eaf-6e6ecab768c9",
+      "username": "Alice",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:55:15.160Z",
+      "last_seen_at": "2026-11-09T16:55:15.160Z"
+    },
+    {
+      "id": "829ac2df-d538-4e8b-a20c-ab9095eae24d",
+      "username": "Bob",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:55:15.165Z",
+      "last_seen_at": "2026-11-09T16:55:15.165Z"
+    },
+    {
+      "id": "e9d6c032-574e-49e9-9228-83a99700dd96",
+      "username": "SoloHero",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T16:55:15.167Z",
+      "last_seen_at": "2026-11-09T16:55:15.167Z"
+    },
+    {
+      "id": "0c0f4443-330a-4816-9e3d-ae659be699d3",
+      "username": "Alice",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T17:35:17.872Z",
+      "last_seen_at": "2026-11-09T17:35:17.872Z"
+    },
+    {
+      "id": "3c5198de-873a-46bb-b0c6-56af1a32c59e",
+      "username": "Bob",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T17:35:17.877Z",
+      "last_seen_at": "2026-11-09T17:35:17.877Z"
+    },
+    {
+      "id": "2c2c8b7d-2e2d-448a-9b14-c6f7ac33dd63",
+      "username": "SoloHero",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T17:35:17.880Z",
+      "last_seen_at": "2026-11-09T17:35:17.880Z"
+    },
+    {
+      "id": "e2ed65ae-8bd5-4237-a8c0-209c38d6dd13",
+      "username": "HostHuman",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T17:35:17.888Z",
+      "last_seen_at": "2026-11-09T17:35:17.888Z"
+    },
+    {
+      "id": "9a0a06f7-cd83-4e8b-826e-6c2dd8a3e72e",
+      "username": "GuestHuman",
+      "avatar": null,
+      "email": null,
+      "created_at": "2026-11-09T17:35:17.888Z",
+      "last_seen_at": "2026-11-09T17:35:17.888Z"
     }
   ],
   "playerStats": [
@@ -49,6 +161,216 @@
       "win_streak": 0,
       "highest_streak": 0,
       "updated_at": "2026-10-27T10:22:48.020Z"
+    },
+    {
+      "user_id": "6e06cc07-06a4-4a95-b19c-187412d8ade6",
+      "username": "Alice",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:26:57.973Z"
+    },
+    {
+      "user_id": "f4637b7d-aeed-4239-a0cf-284057efe4f2",
+      "username": "Bob",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:26:57.974Z"
+    },
+    {
+      "user_id": "f0343551-ec8e-444c-9bf2-32facc3e0db9",
+      "username": "SoloHero",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:26:57.975Z"
+    },
+    {
+      "user_id": "3eec4de8-5f40-4055-adcc-c692f2ae5555",
+      "username": "Alice",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:50:47.794Z"
+    },
+    {
+      "user_id": "a6dc18f1-587f-42c6-9e67-e2f5edb9c860",
+      "username": "Bob",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:50:47.798Z"
+    },
+    {
+      "user_id": "196fb440-d697-4e00-8f30-15353a4af06a",
+      "username": "SoloHero",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:50:47.800Z"
+    },
+    {
+      "user_id": "b50b3b23-c531-41db-9eaf-6e6ecab768c9",
+      "username": "Alice",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:55:15.163Z"
+    },
+    {
+      "user_id": "829ac2df-d538-4e8b-a20c-ab9095eae24d",
+      "username": "Bob",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:55:15.165Z"
+    },
+    {
+      "user_id": "e9d6c032-574e-49e9-9228-83a99700dd96",
+      "username": "SoloHero",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T16:55:15.167Z"
+    },
+    {
+      "user_id": "0c0f4443-330a-4816-9e3d-ae659be699d3",
+      "username": "Alice",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T17:35:17.875Z"
+    },
+    {
+      "user_id": "3c5198de-873a-46bb-b0c6-56af1a32c59e",
+      "username": "Bob",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T17:35:17.877Z"
+    },
+    {
+      "user_id": "2c2c8b7d-2e2d-448a-9b14-c6f7ac33dd63",
+      "username": "SoloHero",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T17:35:17.880Z"
+    },
+    {
+      "user_id": "e2ed65ae-8bd5-4237-a8c0-209c38d6dd13",
+      "username": "HostHuman",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T17:35:17.888Z"
+    },
+    {
+      "user_id": "9a0a06f7-cd83-4e8b-826e-6c2dd8a3e72e",
+      "username": "GuestHuman",
+      "matches_played": 0,
+      "matches_won": 0,
+      "cards_played": 0,
+      "uno_calls": 0,
+      "caught_success": 0,
+      "caught_penalized": 0,
+      "total_score": 0,
+      "total_flips": 0,
+      "win_streak": 0,
+      "highest_streak": 0,
+      "updated_at": "2026-11-09T17:35:17.888Z"
     }
   ],
   "matches": [

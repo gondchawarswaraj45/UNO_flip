@@ -16,7 +16,7 @@
 const {
   createRoom, joinRoom, addBot, removeBot,
   updateConfig, startGame, createSoloGame, createOfflineGame, findOrCreateQuickMatch,
-  playerDisconnected, getRoom, getPlayerBySocketId, getLobbyState, deleteRoom,
+  playerDisconnected, reconnectPlayer, leaveRoom, pauseGame, resumeGame, getRoom, getPlayerBySocketId, getLobbyState, deleteRoom,
 } = require('../rooms/roomManager');
 
 const {
@@ -144,6 +144,8 @@ function registerGameSocket(io) {
   function broadcastGameState(io, room) {
     const pub = getPublicState(room.gameState);
     pub.isOffline = !!room.isOffline;
+    pub.isSolo = !!room.isSolo;
+    pub.isPaused = !!room.isPaused;
     io.to(room.id).emit('gameState', pub);
 
     if (room.isOffline) {
@@ -180,7 +182,7 @@ function registerGameSocket(io) {
    */
   function scheduleBotTurn(io, room) {
     const state = room.gameState;
-    if (!state || state.status !== 'PLAYING') return;
+    if (!state || state.status !== 'PLAYING' || room.isPaused) return;
 
     const currentPlayer = room.players.find(p => p.id === state.currentPlayerId);
     if (!currentPlayer || !currentPlayer.isBot) {
@@ -529,11 +531,11 @@ function registerGameSocket(io) {
 
     socket.on('createRoom', ({ playerName, config, userId }, cb) => {
       try {
-        const { room, playerId } = createRoom(socket.id, playerName, config || {}, userId);
+        const { room, playerId, sessionToken } = createRoom(socket.id, playerName, config || {}, userId);
         socket.join(room.id);
         socket.data.playerId = playerId;
         socket.data.roomId   = room.id;
-        cb({ ok: true, roomId: room.id, playerId, lobby: getLobbyState(room) });
+        cb({ ok: true, roomId: room.id, playerId, sessionToken, lobby: getLobbyState(room) });
       } catch (e) {
         cb({ ok: false, error: e.message });
       }
@@ -554,7 +556,7 @@ function registerGameSocket(io) {
         broadcastGameState(io, room);
         scheduleBotTurn(io, room);
 
-        cb({ ok: true, roomId: room.id, playerId: result.playerId, lobby: getLobbyState(room) });
+        cb({ ok: true, roomId: room.id, playerId: result.playerId, sessionToken: result.sessionToken, lobby: getLobbyState(room) });
       } catch (e) {
         cb({ ok: false, error: e.message });
       }
@@ -574,7 +576,7 @@ function registerGameSocket(io) {
         io.to(room.id).emit('gameStarted', getLobbyState(room));
         broadcastGameState(io, room);
 
-        cb({ ok: true, roomId: room.id, playerId: result.playerId, lobby: getLobbyState(room) });
+        cb({ ok: true, roomId: room.id, playerId: result.playerId, sessionToken: result.sessionToken, lobby: getLobbyState(room) });
       } catch (e) {
         cb({ ok: false, error: e.message });
       }
@@ -607,6 +609,7 @@ function registerGameSocket(io) {
           ok: true,
           roomId: room.id,
           playerId: result.playerId,
+          sessionToken: result.sessionToken,
           lobby: getLobbyState(room),
           started: isStarted,
         });
@@ -615,20 +618,177 @@ function registerGameSocket(io) {
       }
     });
 
-    socket.on('joinRoom', ({ roomId, playerName, userId }, cb) => {
+    socket.on('joinRoom', ({ roomId, playerName, userId, sessionToken }, cb) => {
       try {
-        const result = joinRoom(roomId.toUpperCase(), socket.id, playerName, userId);
+        const result = joinRoom(roomId.toUpperCase(), socket.id, playerName, userId, sessionToken);
         if (result.error) return cb({ ok: false, error: result.error });
 
         socket.join(result.room.id);
         socket.data.playerId = result.playerId;
         socket.data.roomId   = result.room.id;
 
-        // Notify others
+        if (result.room.status === 'PLAYING') {
+          io.to(result.room.id).emit('playerReconnected', { playerId: result.playerId, name: playerName });
+          broadcastGameState(io, result.room);
+          const hand = getPlayerHand(result.playerId, result.room.gameState);
+          socket.emit('handUpdate', { cards: hand });
+          return cb({
+            ok: true,
+            roomId: result.room.id,
+            playerId: result.playerId,
+            sessionToken: result.sessionToken,
+            lobby: getLobbyState(result.room),
+            gameState: getPublicState(result.room.gameState),
+            hand,
+            started: true,
+          });
+        }
+
+        // Standard lobby join
         io.to(result.room.id).emit('lobbyUpdate', getLobbyState(result.room));
-        cb({ ok: true, roomId: result.room.id, playerId: result.playerId, lobby: getLobbyState(result.room) });
+        cb({
+          ok: true,
+          roomId: result.room.id,
+          playerId: result.playerId,
+          sessionToken: result.sessionToken,
+          lobby: getLobbyState(result.room),
+          started: false,
+        });
       } catch (e) {
         cb({ ok: false, error: e.message });
+      }
+    });
+
+    // ─── Active Match Session Resumption ────────────────────────────────
+    socket.on('resumeSession', ({ roomId, playerId, sessionToken, unpause = true }, cb) => {
+      try {
+        if (!roomId || !playerId) {
+          return cb && cb({ ok: false, error: 'INVALID_PARAMETERS' });
+        }
+        const result = reconnectPlayer(roomId.toUpperCase(), playerId, sessionToken, socket.id);
+        if (result.error) {
+          return cb && cb({ ok: false, error: result.error });
+        }
+
+        const { room, player } = result;
+        socket.join(room.id);
+        socket.data.roomId = room.id;
+        socket.data.playerId = player.id;
+
+        if (unpause) {
+          resumeGame(room.id, player.id);
+        }
+
+        io.to(room.id).emit('playerReconnected', {
+          playerId: player.id,
+          name: player.name,
+        });
+
+        const pub = room.gameState ? getPublicState(room.gameState) : null;
+        if (pub) {
+          pub.isOffline = !!room.isOffline;
+          pub.isSolo = !!room.isSolo;
+          pub.isPaused = !!room.isPaused;
+        }
+
+        let hand = [];
+        if (room.gameState) {
+          if (room.isOffline) {
+            hand = getPlayerHand(room.gameState.currentPlayerId, room.gameState);
+          } else {
+            hand = getPlayerHand(player.id, room.gameState);
+          }
+        }
+
+        cb && cb({
+          ok: true,
+          roomId: room.id,
+          playerId: player.id,
+          sessionToken: player.sessionToken,
+          status: room.status,
+          isSolo: !!room.isSolo,
+          isOffline: !!room.isOffline,
+          isPaused: !!room.isPaused,
+          lobby: getLobbyState(room),
+          gameState: pub,
+          hand: hand,
+        });
+
+        // Emit hand update to re-sync hand immediately
+        if (room.gameState) {
+          if (room.isOffline) {
+            socket.emit('handUpdate', {
+              cards: hand,
+              activePlayerId: room.gameState.currentPlayerId,
+              isOffline: true,
+            });
+          } else {
+            socket.emit('handUpdate', { cards: hand });
+          }
+
+          // If game is playing and unpaused and bot turn, schedule bot turn
+          if (room.gameState.status === 'PLAYING' && !room.isPaused) {
+            const cur = room.players.find(p => p.id === room.gameState.currentPlayerId);
+            if (cur && cur.isBot) {
+              scheduleBotTurn(io, room);
+            }
+          }
+        }
+      } catch (err) {
+        cb && cb({ ok: false, error: err.message });
+      }
+    });
+
+    // ─── Pause Match (Solo Games vs Computer) ────────────────────────────
+    socket.on('pauseGame', (data, cb) => {
+      try {
+        const targetRoomId = data?.roomId || socket.data.roomId;
+        const targetPlayerId = data?.playerId || socket.data.playerId;
+        const res = pauseGame(targetRoomId, targetPlayerId);
+        if (res.error) return cb && cb({ ok: false, error: res.error });
+        broadcastGameState(io, res.room);
+        cb && cb({ ok: true, isPaused: true });
+      } catch (err) {
+        cb && cb({ ok: false, error: err.message });
+      }
+    });
+
+    // ─── Voluntary Leave / Forfeit ───────────────────────────────────────
+    socket.on('leaveGame', ({ roomId, playerId, isForfeit }, cb) => {
+      try {
+        const targetRoomId = roomId || socket.data.roomId;
+        const targetPlayerId = playerId || socket.data.playerId;
+        if (!targetRoomId) return cb && cb({ ok: true });
+
+        const roomBefore = getRoom(targetRoomId);
+        const playerObj = roomBefore?.players.find(p => p.id === targetPlayerId);
+
+        const result = leaveRoom(targetRoomId, targetPlayerId, isForfeit);
+        socket.leave(targetRoomId);
+        socket.data.roomId = null;
+        socket.data.playerId = null;
+
+        if (result.forfeited) {
+          io.to(targetRoomId).emit('playerForfeited', {
+            playerId: targetPlayerId,
+            name: playerObj?.name || 'Player',
+          });
+        }
+
+        if (result && result.room) {
+          if (result.room.status === 'LOBBY') {
+            io.to(targetRoomId).emit('lobbyUpdate', getLobbyState(result.room));
+          } else if (result.room.status === 'PLAYING') {
+            broadcastGameState(io, result.room);
+            const cur = result.room.players.find(p => p.id === result.room.gameState?.currentPlayerId);
+            if (cur && cur.isBot && !result.room.isPaused) {
+              scheduleBotTurn(io, result.room);
+            }
+          }
+        }
+        cb && cb({ ok: true, forfeited: !!result.forfeited });
+      } catch (err) {
+        cb && cb({ ok: false, error: err.message });
       }
     });
 
@@ -908,19 +1068,41 @@ function registerGameSocket(io) {
       console.log(`[Socket] Disconnected: ${socket.id}`);
       const info = playerDisconnected(socket.id);
       if (info) {
-        io.to(info.room.id).emit('playerDisconnected', {
-          playerId: info.player.id,
-          name:     info.player.name,
+        const { room, player } = info;
+        io.to(room.id).emit('playerDisconnected', {
+          playerId: player.id,
+          name:     player.name,
         });
 
-        // Clear active bot timers if no human remains in room
-        const remainingHumans = info.room.players.filter(p => !p.isBot && p.connected !== false);
-        if (remainingHumans.length === 0) {
-          if (info.room._botTimer) {
-            clearTimeout(info.room._botTimer);
-            info.room._botTimer = null;
-            info.room._botTimerPlayerId = null;
+        // Check if any human remains connected
+        const remainingConnectedHumans = room.players.filter(p => !p.isBot && p.connected !== false);
+        if (remainingConnectedHumans.length === 0) {
+          // Pause bot timers so bots don't race ahead when all humans are disconnected
+          if (room._botTimer) {
+            clearTimeout(room._botTimer);
+            room._botTimer = null;
+            room._botTimerPlayerId = null;
           }
+        } else if (room.status === 'PLAYING') {
+          // Grace period: If other humans are waiting, give player 90 seconds to reconnect before bot substitution
+          if (player._disconnectTimer) clearTimeout(player._disconnectTimer);
+          player._disconnectTimer = setTimeout(() => {
+            player._disconnectTimer = null;
+            const curRoom = getRoom(room.id);
+            if (curRoom && curRoom.status === 'PLAYING' && !player.connected) {
+              player.isBot = true;
+              player.name = player.name.includes('(Bot)') ? player.name : `${player.name} (Bot)`;
+              player.difficulty = 'MEDIUM';
+              io.to(curRoom.id).emit('playerReplacedByBot', {
+                playerId: player.id,
+                name: player.name,
+              });
+              broadcastGameState(io, curRoom);
+              if (curRoom.gameState?.currentPlayerId === player.id) {
+                scheduleBotTurn(io, curRoom);
+              }
+            }
+          }, 90000);
         }
       }
     });

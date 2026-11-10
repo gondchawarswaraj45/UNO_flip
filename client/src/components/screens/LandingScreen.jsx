@@ -34,6 +34,14 @@ export default function LandingScreen() {
     setMyPlayerId,
     setLobbyState,
     setIsOfflineMode,
+    activeSession,
+    sessionRestoring,
+    showSessionPrompt,
+    setShowSessionPrompt,
+    sessionPendingState,
+    saveActiveSession,
+    clearActiveSession,
+    restoreGameSession,
   } = useGameStore();
 
   const [name, setName]         = useState(myName || profile.username || 'Player');
@@ -87,6 +95,61 @@ export default function LandingScreen() {
     });
   }
 
+  function copyRoomCode(code) {
+    if (!code) return;
+    sound.buttonClick();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code);
+      toast.success(`Room code ${code} copied!`);
+    }
+  }
+
+  // ── Session Resumption, Pause & Forfeit Handlers ─────────────────────────
+  function handleContinuePlaying() {
+    if (!activeSession || !socket) return;
+    setError('');
+    setLoading(true);
+    sound.buttonClick();
+    socket.emit(
+      'resumeSession',
+      {
+        roomId: activeSession.roomId,
+        playerId: activeSession.playerId,
+        sessionToken: activeSession.sessionToken,
+        unpause: true, // Resume and unpause game!
+      },
+      (res) => {
+        setLoading(false);
+        if (res && res.ok) {
+          restoreGameSession(res);
+          toast.success('🎮 Match resumed!');
+        } else {
+          clearActiveSession();
+          setError('Previous match has ended or expired.');
+        }
+      }
+    );
+  }
+
+  function handleKeepPaused() {
+    sound.buttonClick();
+    if (socket && activeSession) {
+      socket.emit('pauseGame', { roomId: activeSession.roomId, playerId: activeSession.playerId });
+    }
+    setShowSessionPrompt(false);
+    toast('⏸ Game kept in pause state. You can continue anytime from the top banner!', { icon: '⏸', duration: 4000 });
+  }
+
+  function handleDeleteSession(isForfeit = false) {
+    sound.buttonClick();
+    if (socket && activeSession) {
+      socket.emit('leaveGame', { roomId: activeSession.roomId, playerId: activeSession.playerId, isForfeit });
+    }
+    clearActiveSession();
+    setShowSessionPrompt(false);
+    toast(isForfeit ? '🏳️ You forfeited the match.' : '🗑 Game session deleted.', { icon: isForfeit ? '🏳️' : '🗑', duration: 3500 });
+  }
+
   // ── Action 1: Play Online (Quick Match) ───────────────────────────────────
   async function handlePlayOnline() {
     if (!name.trim()) return setError('Please enter your player name');
@@ -108,6 +171,13 @@ export default function LandingScreen() {
         if (!res.ok) return setError(res.error || 'Failed to join online match');
         setMyPlayerId(res.playerId);
         setLobbyState(res.lobby);
+        saveActiveSession({
+          roomId: res.roomId,
+          playerId: res.playerId,
+          sessionToken: res.sessionToken,
+          isOffline: false,
+          mode: onlineVariant,
+        });
         if (res.started) {
           setScreen('GAME');
         } else {
@@ -138,6 +208,13 @@ export default function LandingScreen() {
         if (!res.ok) return setError(res.error || 'Failed to create room');
         setMyPlayerId(res.playerId);
         setLobbyState(res.lobby);
+        saveActiveSession({
+          roomId: res.roomId,
+          playerId: res.playerId,
+          sessionToken: res.sessionToken,
+          isOffline: false,
+          mode: friendVariant,
+        });
         setScreen('LOBBY');
       }
     );
@@ -161,7 +238,17 @@ export default function LandingScreen() {
         if (!res.ok) return setError(res.error || 'Failed to join room');
         setMyPlayerId(res.playerId);
         setLobbyState(res.lobby);
-        setScreen('LOBBY');
+        saveActiveSession({
+          roomId: res.roomId,
+          playerId: res.playerId,
+          sessionToken: res.sessionToken,
+          isOffline: false,
+        });
+        if (res.started) {
+          setScreen('GAME');
+        } else {
+          setScreen('LOBBY');
+        }
       }
     );
   }
@@ -189,6 +276,13 @@ export default function LandingScreen() {
         setIsOfflineMode(true);
         setMyPlayerId(res.playerId);
         setLobbyState(res.lobby);
+        saveActiveSession({
+          roomId: res.roomId,
+          playerId: res.playerId,
+          sessionToken: res.sessionToken,
+          isOffline: true,
+          mode: offlineVariant,
+        });
         setScreen('GAME');
       }
     );
@@ -219,10 +313,27 @@ export default function LandingScreen() {
         if (!res.ok) return setError(res.error || 'Failed to start computer match');
         setMyPlayerId(res.playerId);
         setLobbyState(res.lobby);
+        saveActiveSession({
+          roomId: res.roomId,
+          playerId: res.playerId,
+          sessionToken: res.sessionToken,
+          isOffline: false,
+          isSolo: true,
+          mode: computerVariant,
+        });
         setScreen('GAME');
       }
     );
   }
+
+  const isSoloMatch = Boolean(
+    activeSession?.isSolo ||
+    sessionPendingState?.isSolo ||
+    (!activeSession?.isOffline && activeSession?.mode === 'computer') ||
+    (!activeSession?.isOffline && activeSession?.mode !== 'online')
+  );
+  const cardCount = sessionPendingState?.hand?.length || 7;
+  const turnCount = sessionPendingState?.gameState?.turnCount || 1;
 
   return (
     <div
@@ -310,6 +421,263 @@ export default function LandingScreen() {
             position: 'relative',
           }}
         >
+{activeSession && activeSession.roomId && (
+            <div
+              className="anim-fade-in-up"
+              style={{
+                marginBottom: 20,
+                background: isSoloMatch
+                  ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(24, 38, 66, 0.95) 50%, rgba(16, 28, 48, 0.95) 100%)'
+                  : 'linear-gradient(135deg, rgba(26, 18, 14, 0.95) 0%, rgba(45, 24, 20, 0.95) 50%, rgba(20, 16, 28, 0.95) 100%)',
+                border: `1.5px solid ${isSoloMatch ? 'rgba(56, 189, 248, 0.5)' : 'rgba(245, 158, 11, 0.5)'}`,
+                borderRadius: 'var(--radius-xl)',
+                padding: '16px 18px',
+                boxShadow: isSoloMatch
+                  ? '0 12px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(56, 189, 248, 0.15)'
+                  : '0 12px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(245, 158, 11, 0.18)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              {/* Top Accent Strip */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 3,
+                  background: isSoloMatch
+                    ? 'linear-gradient(90deg, #38bdf8 0%, #e5b94c 50%, #38bdf8 100%)'
+                    : 'linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #ef4444 100%)',
+                }}
+              />
+
+              {/* Top Header Row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: isSoloMatch ? 'rgba(56, 189, 248, 0.18)' : 'rgba(239, 68, 68, 0.18)',
+                      border: `1px solid ${isSoloMatch ? '#38bdf8' : '#f87171'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.25rem',
+                      boxShadow: `0 0 14px ${isSoloMatch ? 'rgba(56, 189, 248, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                    }}
+                  >
+                    {isSoloMatch ? '🤖' : '👥'}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#ffffff', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>{isSoloMatch ? 'Play with Computer' : 'Live Matchmaking'}</span>
+                      <span
+                        style={{
+                          fontSize: '0.64rem',
+                          fontWeight: 900,
+                          letterSpacing: '0.06em',
+                          padding: '2px 8px',
+                          borderRadius: 99,
+                          background: isSoloMatch ? 'rgba(56, 189, 248, 0.16)' : 'rgba(239, 68, 68, 0.18)',
+                          color: isSoloMatch ? '#38bdf8' : '#f87171',
+                          border: `1px solid ${isSoloMatch ? 'rgba(56, 189, 248, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: '50%',
+                            background: isSoloMatch ? '#38bdf8' : '#ef4444',
+                            boxShadow: `0 0 8px ${isSoloMatch ? '#38bdf8' : '#ef4444'}`,
+                          }}
+                          className="dot-pulse"
+                        />
+                        {isSoloMatch ? 'PAUSED' : 'LIVE'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                      {isSoloMatch ? 'Game is frozen in memory • Bots waiting' : 'Active match with real players'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Room Code Badge */}
+                <div
+                  onClick={() => copyRoomCode(activeSession.roomId)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(229, 185, 76, 0.35)',
+                    borderRadius: 99,
+                    padding: '4px 12px',
+                    cursor: 'pointer',
+                    color: 'var(--text-gold)',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.05em',
+                  }}
+                  title="Click to copy room code"
+                >
+                  <span>ROOM:</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.86rem', color: '#ffffff' }}>{activeSession.roomId}</span>
+                  <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>📋</span>
+                </div>
+              </div>
+
+              {/* Telemetry Micro-Pills */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: 8,
+                  padding: '3px 9px',
+                  fontSize: '0.72rem',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                }}>
+                  <span>🔄</span>
+                  <span>{activeSession.mode === 'CLASSIC' ? 'Classic UNO' : 'Two-Side FLIP'}</span>
+                </div>
+
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: 8,
+                  padding: '3px 9px',
+                  fontSize: '0.72rem',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                }}>
+                  <span>🃏</span>
+                  <span>{cardCount} Cards in Hand</span>
+                </div>
+
+                {turnCount > 1 && (
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 8,
+                    padding: '3px 9px',
+                    fontSize: '0.72rem',
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}>
+                    <span>⏱️</span>
+                    <span>Turn {turnCount}</span>
+                  </div>
+                )}
+
+                {isSoloMatch && (
+                  <div style={{
+                    background: 'rgba(56, 189, 248, 0.08)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: 8,
+                    padding: '3px 9px',
+                    fontSize: '0.72rem',
+                    color: '#38bdf8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}>
+                    <span>🛡️</span>
+                    <span>Progress Retained</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons Row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-gold"
+                  disabled={loading}
+                  onClick={handleContinuePlaying}
+                  style={{
+                    flex: '1 1 160px',
+                    padding: '9px 18px',
+                    fontWeight: 800,
+                    fontSize: '0.86rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    boxShadow: '0 4px 16px rgba(229, 185, 76, 0.35)',
+                  }}
+                >
+                  <span>▶</span>
+                  <span>{isSoloMatch ? 'Continue Playing' : 'Rejoin Live Match'}</span>
+                </button>
+
+                {isSoloMatch ? (
+                  <>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={handleKeepPaused}
+                      style={{
+                        padding: '9px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-subtle)',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                      }}
+                      title="Leave match safely paused and continue browsing the menu"
+                    >
+                      <span>⏸ Keep Paused</span>
+                    </button>
+
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => handleDeleteSession(false)}
+                      style={{
+                        padding: '9px 12px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        color: '#f87171',
+                        border: '1px solid rgba(248, 113, 113, 0.3)',
+                        background: 'rgba(248, 113, 113, 0.06)',
+                      }}
+                      title="Abandon this match and clear session"
+                    >
+                      <span>🗑 Delete</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => handleDeleteSession(true)}
+                    style={{
+                      padding: '9px 16px',
+                      fontSize: '0.8rem',
+                      fontWeight: 800,
+                      color: '#f87171',
+                      border: '1px solid rgba(248, 113, 113, 0.4)',
+                      background: 'rgba(248, 113, 113, 0.1)',
+                    }}
+                    title="Forfeit match with real players"
+                  >
+                    <span>🏳️ Forfeit & Leave</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {!selectedMode ? (
             /* ═══════════════════════════════════════════════════════════════════
                STEP 1: CHOOSE GAME MODE ONLY
@@ -1187,6 +1555,271 @@ export default function LandingScreen() {
       <LeaderboardModal isOpen={showLeaderboard} onClose={() => setShowLeaderboard(false)} />
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
       <RulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} />
+
+      {/* ── Active Game Prompt Dialog (Shown on Return) ── */}
+      {activeSession && activeSession.roomId && showSessionPrompt && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 16,
+          }}
+        >
+          <div
+            className="glass-strong anim-scale-up"
+            style={{
+              width: 'min(520px, 94vw)',
+              borderRadius: 'var(--radius-2xl)',
+              padding: '28px 24px',
+              border: `2px solid ${isSoloMatch ? 'rgba(56, 189, 248, 0.5)' : 'rgba(245, 158, 11, 0.5)'}`,
+              boxShadow: isSoloMatch
+                ? '0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(56, 189, 248, 0.22)'
+                : '0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(245, 158, 11, 0.25)',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Top Accent Strip */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 4,
+                background: isSoloMatch
+                  ? 'linear-gradient(90deg, #38bdf8 0%, #e5b94c 50%, #38bdf8 100%)'
+                  : 'linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #ef4444 100%)',
+              }}
+            />
+
+            {/* Floating Glowing Emblemed Badge */}
+            <div style={{ position: 'relative', display: 'inline-block', marginBottom: 14 }}>
+              <div
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  background: isSoloMatch
+                    ? 'radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(14, 23, 42, 0.9) 70%)'
+                    : 'radial-gradient(circle, rgba(239, 68, 68, 0.25) 0%, rgba(28, 16, 20, 0.9) 70%)',
+                  border: `2px solid ${isSoloMatch ? '#38bdf8' : '#f87171'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '2.5rem',
+                  margin: '0 auto',
+                  boxShadow: `0 0 24px ${isSoloMatch ? 'rgba(56, 189, 248, 0.5)' : 'rgba(239, 68, 68, 0.5)'}`,
+                }}
+              >
+                {isSoloMatch ? '🤖' : '👥'}
+              </div>
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: -4,
+                  right: -4,
+                  background: isSoloMatch ? '#38bdf8' : '#ef4444',
+                  color: '#0f172a',
+                  borderRadius: '50%',
+                  width: 24,
+                  height: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.75rem',
+                  fontWeight: 900,
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                {isSoloMatch ? '⏸' : '⚡'}
+              </div>
+            </div>
+
+            {/* Status Pill */}
+            <div style={{ marginBottom: 12 }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 14px',
+                  borderRadius: 99,
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  background: isSoloMatch ? 'rgba(56, 189, 248, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: isSoloMatch ? '#38bdf8' : '#f87171',
+                  border: `1px solid ${isSoloMatch ? 'rgba(56, 189, 248, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: isSoloMatch ? '#38bdf8' : '#ef4444',
+                    boxShadow: `0 0 8px ${isSoloMatch ? '#38bdf8' : '#ef4444'}`,
+                  }}
+                  className="dot-pulse"
+                />
+                {isSoloMatch ? 'Match Saved & Paused' : 'Live Match Active'}
+              </span>
+            </div>
+
+            <h3 style={{ fontSize: '1.45rem', fontWeight: 900, color: '#ffffff', marginBottom: 6 }}>
+              {isSoloMatch ? 'You Have a Paused Game!' : 'Unfinished Live Match!'}
+            </h3>
+
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.5, maxWidth: 440, margin: '0 auto 20px auto' }}>
+              {isSoloMatch
+                ? 'You started a game against Computer Bots. The game is paused and frozen in place so no turns pass while you are away.'
+                : 'You are currently participating in a live online match with real players.'}
+            </p>
+
+            {/* Match Telemetry Briefing Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: 10,
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '12px 14px',
+                marginBottom: 22,
+                textAlign: 'left',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Room Code</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-gold)', fontFamily: 'monospace' }}>{activeSession.roomId}</div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Game Mode</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff' }}>
+                  {activeSession.mode === 'CLASSIC' ? 'Classic UNO' : 'Two-Side FLIP'}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Your Hand</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#38bdf8' }}>
+                  🃏 {cardCount} Cards
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Opponents</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {isSoloMatch ? '🤖 Computer Bots' : '👥 Real Players'}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            {isSoloMatch ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  className="btn btn-gold btn-lg w-full"
+                  disabled={loading}
+                  onClick={handleContinuePlaying}
+                  style={{
+                    padding: '13px',
+                    fontWeight: 800,
+                    fontSize: '0.96rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    boxShadow: '0 6px 20px rgba(229, 185, 76, 0.4)',
+                  }}
+                >
+                  <span>▶</span>
+                  <span>{loading ? 'Resuming Match…' : 'Continue Playing'}</span>
+                </button>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={handleKeepPaused}
+                    style={{
+                      flex: 1,
+                      padding: '11px',
+                      fontSize: '0.86rem',
+                      fontWeight: 700,
+                      border: '1px solid var(--border-mid)',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                    }}
+                  >
+                    ⏸ Keep Paused (Explore Menu)
+                  </button>
+
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => handleDeleteSession(false)}
+                    style={{
+                      flex: 1,
+                      padding: '11px',
+                      fontSize: '0.86rem',
+                      fontWeight: 700,
+                      color: '#f87171',
+                      border: '1px solid rgba(248, 113, 113, 0.35)',
+                      background: 'rgba(248, 113, 113, 0.08)',
+                    }}
+                  >
+                    🗑 Delete Session
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  className="btn btn-gold btn-lg w-full"
+                  disabled={loading}
+                  onClick={handleContinuePlaying}
+                  style={{
+                    padding: '13px',
+                    fontWeight: 800,
+                    fontSize: '0.96rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <span>▶</span>
+                  <span>{loading ? 'Rejoining Match…' : 'Rejoin Live Match'}</span>
+                </button>
+
+                <button
+                  className="btn"
+                  onClick={() => handleDeleteSession(true)}
+                  style={{
+                    padding: '11px',
+                    fontWeight: 800,
+                    fontSize: '0.86rem',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                    color: '#ffffff',
+                    border: '1px solid #f87171',
+                  }}
+                >
+                  🏳️ Forfeit & Leave Live Match
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
